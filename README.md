@@ -114,6 +114,7 @@ src/
 ## 🎨 5. Quy Chuẩn Giao Diện (Design System)
 
 Luồng bộ lọc và cách kiểm tra: [docs/CATALOG_FILTERS.md](docs/CATALOG_FILTERS.md).
+Luồng chi tiết sản phẩm và giỏ hàng: [docs/PRODUCT_CART_FLOW.md](docs/PRODUCT_CART_FLOW.md).
 
 * **Phong cách**: Minimalist Luxury Fashion (Thời trang cao cấp tối giản, sắc nét).
 * **Màu chủ đạo**:

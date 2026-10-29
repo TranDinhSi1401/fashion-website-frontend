@@ -14,8 +14,8 @@ export const productService = {
   /**
    * Get single product details by id (Public)
    */
-  async getProductById(id: number | string): Promise<ApiResponse<ProductResponse>> {
-    const res = await apiClient.get<ApiResponse<ProductResponse>>(`/products/${id}`);
+  async getProductById(id: number | string, signal?: AbortSignal): Promise<ApiResponse<ProductResponse>> {
+    const res = await apiClient.get<ApiResponse<ProductResponse>>(`/products/${id}`, { signal });
     return res.data;
   },
 

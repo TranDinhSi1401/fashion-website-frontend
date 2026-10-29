@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Search, User, ShoppingBag, ChevronDown, Shield, LogOut, Package, MapPin, KeyRound, Users, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 import Badge from '../ui/Badge';
 
 export default function Header() {
   const { user, isAuthenticated, isAdmin, isStaff, logout } = useAuth();
+  const { cart } = useCart();
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -458,7 +460,7 @@ export default function Header() {
 
           {/* Cart Button */}
           <Link
-            to="/products"
+            to="/cart"
             style={{
               width: '38px',
               height: '38px',
@@ -490,7 +492,7 @@ export default function Header() {
                 justifyContent: 'center',
               }}
             >
-              0
+              {cart?.totalQuantity || 0}
             </span>
           </Link>
         </div>

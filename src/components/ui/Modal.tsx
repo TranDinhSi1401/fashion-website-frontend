@@ -52,6 +52,9 @@ export default function Modal({
     >
       <div
         className="animate-slide-up"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         style={{
           backgroundColor: 'var(--bg-body)',
           width: '100%',
