@@ -1,115 +1,144 @@
-# 🛍️ Fashion Website Frontend
+# 🛍️ Fashion Website Frontend (React 19 + TypeScript + Vite)
 
-Dự án Frontend cho nền tảng thương mại điện tử bán thời trang/quần áo, được xây dựng bằng **React**, **TypeScript** và **Vite**, kết nối RESTful API với **Spring Boot** Backend.
-
----
-
-## 🛠️ 1. Công nghệ sử dụng
-
-| Công nghệ / Thư viện | Phiên bản | Mục đích sử dụng |
-| :--- | :--- | :--- |
-| **React** | ^18.x / ^19.x | Thư viện xây dựng giao diện người dùng (UI) |
-| **TypeScript** | ^5.x | Ngôn ngữ lập trình có kiểu dữ liệu tĩnh (Static Typing) |
-| **Vite** | ^5.x / ^6.x | Build tool & Dev Server tốc độ cao |
-| **React Router DOM** | ^6.x | Định tuyến trang (Routing) |
-| **Axios** | ^1.x | Client HTTP gọi REST API tới Spring Boot Backend |
-| **Tailwind CSS** | ^3.x / ^4.x | Utility-first CSS framework thiết kế giao diện |
-| **Zustand** / **Redux Toolkit** | Latest | Quản lý State toàn cục (Giỏ hàng, Auth, User) |
-| **TanStack Query (React Query)**| ^5.x | Quản lý Async State, Caching API và Auto-refetch |
-| **Lucide React** | Latest | Bộ Icon giao diện |
+Dự án Frontend cho nền tảng thương mại điện tử thời trang nam cao cấp **FASHION WEBSITE**, được xây dựng bằng **React 19**, **TypeScript**, **Vite** và kết nối trực tiếp với **Spring Boot** RESTful API (Backend).
 
 ---
 
-## 📁 2. Cấu trúc dự án (Feature-based Architecture)
+## 🚀 1. Hướng Dẫn Bắt Đầu Nhanh (Quickstart cho Thành viên mới)
 
-Dự án được tổ chức theo kiến trúc **Feature-based**, giúp đóng gói logic theo từng module nghiệp vụ:
+### Yêu cầu môi trường
+* **Node.js**: Phiên bản **>= 18.x** (khuyên dùng Node.js 20 LTS).
+* **Git** & trình duyệt web hiện đại.
 
-```text
+### Các bước cài đặt:
+1. **Clone repository**:
+   ```bash
+   git clone <URL_REPO_FRONTEND>
+   cd fashion-website-frontend
+   ```
+
+2. **Cài đặt thư viện**:
+   ```bash
+   npm install
+   ```
+
+3. **Cấu hình môi trường (`.env`)**:
+   Tạo file `.env` tại thư mục gốc của dự án:
+   ```env
+   # Base URL của Backend Spring Boot
+   VITE_API_BASE_URL=http://localhost:8080/api/v1
+
+   # Google Client ID (dùng cho nút Đăng nhập Google)
+   VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+
+   # Tên ứng dụng
+   VITE_APP_NAME=FASHION WEBSITE
+   ```
+
+4. **Khởi chạy ứng dụng**:
+   ```bash
+   npm run dev
+   ```
+   Truy cập trên trình duyệt: `http://localhost:5173`
+
+5. **Kiểm tra lỗi & Build**:
+   ```bash
+   npm run build
+   ```
+
+> 📖 **Tài liệu hướng dẫn chi tiết từng bước cho nhóm**: Xem tại [docs/HUONG_DAN_CHO_NHOM_FRONTEND.md](file:///e:/fashion-website-frontend/docs/HUONG_DAN_CHO_NHOM_FRONTEND.md).
+
+---
+
+## 🛠️ 2. Công Nghệ Sử Dụng
+
+| Công nghệ | Phiên bản | Mô tả |
+| :--- | :---: | :--- |
+| **React** | ^19.x | Thư viện UI hiện đại |
+| **TypeScript** | ^7.x / 5.x | Kiểm soát kiểu tĩnh, loại bỏ lỗi runtime |
+| **Vite** | ^8.x | Dev Server và Bundler tốc độ cao |
+| **React Router** | ^7.x | Quản lý định tuyến trang (Routing) |
+| **Axios** | ^1.x | Gọi API với Refresh Token Rotation tự động |
+| **Lucide React** | ^1.x | Hệ thống icon tối giản chuẩn thiết kế |
+| **@react-oauth/google** | ^0.13.x | Đăng nhập Google một chạm |
+
+---
+
+## 📁 3. Cấu Trúc Mã Nguồn (`src/`)
+
+```
 src/
-├── app/                    # Cấu hình cấp ứng dụng (Providers, Store, Routes)
-│   ├── routes/             # Cấu hình React Router (AppRoutes, ProtectedRoute)
-│   └── store/              # Global state management (Zustand/Redux)
-│
-├── assets/                 # Tài nguyên tĩnh (Hình ảnh, Logo, Icons, Fonts)
-│
-├── components/             # Reusable UI Components (Dùng chung cho toàn ứng dụng)
-│   ├── ui/                 # Component nền tảng (Button, Input, Modal, Badge, Spinner)
-│   ├── form/               # Form fields bọc sẵn validation
-│   └── layout/             # Component khung trang (Header, Footer, Sidebar, Navbar)
-│
-├── features/               # Module hóa theo từng nghiệp vụ kinh doanh
-│   ├── auth/               # Đăng nhập, Đăng ký, Quên mật khẩu
-│   ├── products/           # Danh sách sản phẩm, Lọc/Tìm kiếm, Chi tiết sản phẩm
-│   ├── cart/               # Quản lý giỏ hàng
-│   ├── checkout/           # Thanh toán, Tính phí vận chuyển (GHN), VietQR/MoMo
-│   └── user-profile/       # Thông tin cá nhân, Lịch sử đơn hàng
-│
-├── services/               # Cấu hình API Client & Interceptors
-│   ├── api/                # Axios instance root & interceptors chèn JWT Token
-│   └── storage/            # Quản lý LocalStorage/Cookies (Tokens)
-│
-├── hooks/                  # Custom Hooks toàn cục (useDebounce, useLocalStorage,...)
-├── types/                  # TypeScript interfaces/types toàn cục (ApiResponse, PageResponse)
-├── utils/                  # Utility functions (formatCurrency, formatDate, validateRules)
-└── constants/              # Hằng số hệ thống (API endpoints, OrderStatus, Roles)
+├── components/              # Các UI Component dùng chung
+│   ├── common/              # ProtectedRoute, LoadingSpinner...
+│   ├── layout/              # Topbar, Header, Footer
+│   ├── product/             # ProductCard, ProductGallery...
+│   └── ui/                  # Button, Input, Modal, Badge...
+├── context/                 # Quản lý trạng thái toàn cục
+│   └── AuthContext.tsx      # Quản lý đăng nhập, Token, Role (ADMIN/STAFF/CUSTOMER)
+├── pages/                   # Các màn hình chính
+│   ├── HomePage.tsx         # Trang chủ (Hero banner slider, BST mới, Cam kết, Story)
+│   ├── ProductsPage.tsx     # Trang danh mục (Bộ lọc bên trái, capsule tags, lưới SP)
+│   ├── ProductDetailPage.tsx# Chi tiết sản phẩm, đổi ảnh thumbnail, chọn size
+│   ├── LoginPage.tsx        # Màn hình đăng nhập (Form + Google Login)
+│   ├── RegisterPage.tsx     # Đăng ký tài khoản
+│   ├── ForgotPasswordPage.tsx # Quên mật khẩu (Gửi email + Đặt lại mật khẩu)
+│   ├── ProfilePage.tsx      # Thông tin cá nhân & Sổ địa chỉ nhận hàng
+│   ├── AdminProductsPage.tsx# Quản lý sản phẩm (ADMIN/STAFF)
+│   └── AdminUsersPage.tsx   # Quản lý người dùng (ADMIN)
+├── services/                # Tầng kết nối API Backend
+│   ├── apiClient.ts         # Axios instance, chèn JWT Token, Auto Refresh Token Rotation
+│   ├── authService.ts       # API Auth (/auth/login, /auth/google, /auth/refresh...)
+│   ├── userService.ts       # API Người dùng & Sổ địa chỉ (/users/...)
+│   └── productService.ts    # API Sản phẩm (/products/...)
+├── styles/                  # Định nghĩa CSS & Theme
+│   ├── tokens.css           # Biến màu (Đen, Trắng, Vàng Gold #C5A059), Font Montserrat
+│   └── global.css           # Reset CSS, Container, Helper styles
+├── types/                   # Định nghĩa Interface TypeScript (Product, User, Auth, Api)
+├── utils/                   # Hàm tiện ích (formatCurrency, extractProductImage, storage)
+├── App.tsx                  # Khai báo Routes toàn ứng dụng
+└── main.tsx                 # Điểm khởi động ứng dụng React
 ```
 
 ---
 
-## 🏷️ 3. Quy tắc đặt tên (Naming Conventions)
+## 🔐 4. Cơ Chế Xác Thực & Phân Quyền (Auth Flow)
 
-Để duy trì mã nguồn nhất quán và dễ đọc, dự án tuân thủ chặt chẽ các quy tắc sau:
-
-### Tên File & Thư mục
-* **React Component Files:** Dùng **PascalCase**  
-  *Ví dụ:* `ProductCard.tsx`, `Header.tsx`, `LoginForm.tsx`
-* **Custom Hooks:** Dùng **camelCase** bắt đầu bằng từ `use`  
-  *Ví dụ:* `useAuth.ts`, `useCart.ts`, `useProductFilter.ts`
-* **Utility Files / Services / APIs:** Dùng **camelCase**  
-  *Ví dụ:* `axiosClient.ts`, `formatCurrency.ts`, `productApi.ts`
-* **Style Files / CSS Modules:** Dùng **kebab-case**  
-  *Ví dụ:* `product-card.module.css`
-
-### Code Conventions (TypeScript / JavaScript)
-* **Variables & Functions:** Dùng **camelCase** (`productList`, `calculateTotal()`)
-* **Components & Interfaces / Types:** Dùng **PascalCase** (`Product`, `ApiResponse<T>`, `CartItem`)
-* **Constants:** Dùng **UPPER_SNAKE_CASE** (`API_BASE_URL`, `MAX_FILE_SIZE`)
+1. **Lưu trữ Token**: Token được quản lý qua `src/utils/storage.ts` (`fashion_access_token`, `fashion_refresh_token`).
+2. **Refresh Token Rotation tự động**:
+   - Trong `src/services/apiClient.ts`, khi bất kỳ request nào trả về `401 Unauthorized`, interceptor sẽ tự động giữ lại request, gọi `POST /auth/refresh` để lấy cặp Token mới, lưu đè vào storage và thử lại request ban đầu.
+3. **Phân quyền Route**:
+   - Sử dụng `<ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>` trong `App.tsx` để bảo vệ các trang quản trị.
 
 ---
 
-## 🚀 4. Hướng dẫn chạy dự án
+## 🎨 5. Quy Chuẩn Giao Diện (Design System)
 
-### Yêu cầu
+* **Phong cách**: Minimalist Luxury Fashion (Thời trang cao cấp tối giản, sắc nét).
+* **Màu chủ đạo**:
+  - Đen (`#000000`, `#111111`) & Trắng (`#FFFFFF`).
+  - Màu nhấn (Accent Gold): `#C5A059`.
+  - Màu cảnh báo / Sale: `#D0021B`.
+* **Ảnh sản phẩm**: Luôn lấy từ dữ liệu thực qua `extractProductImage(product)` hoặc `product.productImages`. Không chèn ảnh tĩnh không rõ nguồn gốc.
+* **Tiền tệ**: Luôn format bằng hàm `formatCurrency(amount)` (VD: `450.000 ₫`).
 
-- **Node.js:** phiên bản `20.19+` hoặc `22.12+`
-- **npm:** được cài kèm với Node.js
+---
 
-### Cài đặt và chạy ở môi trường phát triển
+## 👥 6. Quy Trình Phối Hợp Trong Nhóm (Git Workflow)
 
-Mở terminal tại thư mục gốc của dự án, sau đó chạy:
-
-```bash
-npm ci
-npm run dev
-```
-
-Vite sẽ hiển thị địa chỉ truy cập trong terminal (thường là `http://localhost:5173`). Mở địa chỉ đó bằng trình duyệt để xem ứng dụng. Nhấn `Ctrl+C` trong terminal để dừng máy chủ.
-
-### Cấu hình Backend API
-
-Mặc định, ứng dụng gọi API tại `http://localhost:8080/api/v1`. Để sử dụng địa chỉ khác, tạo file `.env.local` ở thư mục gốc dự án và khai báo:
-
-```env
-VITE_API_BASE_URL=http://localhost:8080/api/v1
-```
-
-Thay giá trị trên bằng URL API của môi trường bạn muốn kết nối. Khởi động lại máy chủ phát triển sau khi thay đổi biến môi trường.
-
-### Các lệnh thường dùng
-
-```bash
-npm run dev      # Chạy máy chủ phát triển
-npm run lint     # Kiểm tra mã nguồn bằng Oxlint
-npm run build    # Kiểm tra TypeScript và tạo bản build production trong dist/
-npm run preview  # Xem thử bản build production (chạy npm run build trước)
-```
+1. Tạo nhánh mới từ `main`:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b feature/<ten-tinh-nang>
+   ```
+2. Viết mã nguồn & kiểm tra build trước khi commit:
+   ```bash
+   npm run build
+   ```
+3. Commit và đẩy lên GitHub:
+   ```bash
+   git add .
+   git commit -m "feat: <mô tả tính năng ngắn gọn>"
+   git push origin feature/<ten-tinh-nang>
+   ```
+4. Tạo **Pull Request** trên GitHub để trưởng nhóm review.
