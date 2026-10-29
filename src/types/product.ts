@@ -21,6 +21,7 @@ export interface ProductResponse {
   averageRating?: number;
   reviewCount?: number;
   isActive?: boolean;
+  isNew?: boolean;
   categoryId: number;
   productImages?: ProductImage[];
   imageUrl?: string;

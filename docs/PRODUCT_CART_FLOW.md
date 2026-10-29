@@ -9,9 +9,11 @@
 5. Khi chưa đăng nhập, nút thêm đưa đến login và quay về chi tiết sau khi đăng nhập CUSTOMER.
 6. Thêm thành công cập nhật badge Header. Chỉ hiện thông báo thành công sau khi API trả kết quả.
 7. Mở `/cart` từ Header: xem ảnh, màu/size, đơn giá, số lượng, thành tiền và tổng tiền từ backend.
-8. Nút +/- cập nhật ngay; nhập số trực tiếp cập nhật khi rời ô hoặc nhấn Enter. Đang lưu thì khóa thao tác lặp.
+8. Nút +/- cập nhật ngay; nhập số trực tiếp cập nhật khi rời ô hoặc nhấn Enter. Nhập vượt tồn kho, số âm hoặc số lẻ báo lỗi ngay tại ô; không gửi yêu cầu thay đổi số lượng. Đang lưu thì khóa thao tác lặp.
 9. Có thể xóa một dòng hoặc xác nhận xóa toàn bộ. Refresh trang vẫn giữ giỏ trong database.
 10. Đăng xuất/đổi tài khoản không hiển thị giỏ của tài khoản trước.
+
+Chi tiết sản phẩm và giỏ có nút Quay lại trên giao diện. Mở trang trực tiếp không có lịch sử nội bộ thì quay về danh sách sản phẩm.
 
 Giỏ chỉ dành cho CUSTOMER, ADMIN/STAFF không gọi được API giỏ hàng. Chưa triển khai checkout trong luồng này.
 

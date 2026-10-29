@@ -6,6 +6,11 @@
 4. Xóa lọc: quay về `/products`. Tải lại trang hoặc dùng Back/Forward giữ đúng lựa chọn trên URL.
 5. Request cũ bị hủy khi đổi lọc. Lỗi API và danh sách rỗng hiển thị riêng, không dùng dữ liệu mẫu.
 
+Danh mục + khoảng giá + size + màu + từ khóa + hàng mới có thể kết hợp (mỗi nhóm chọn một giá trị).
+Chuyển nhóm lọc không xóa chế độ hàng mới; số giá/từ khóa đang nhập được lấy cùng trong lần áp dụng.
+Nút Áp dụng tất cả bộ lọc gửi toàn bộ lựa chọn. Các nhãn Đang áp dụng cho phép bỏ riêng từng nhóm.
+Nhãn NEW chữ trắng nền đỏ dựa trên `isNew` backend, chỉ hiện khi createdAt nằm trong 30 ngày gần nhất.
+
 Cần chạy backend có API bộ lọc tại `VITE_API_BASE_URL=http://localhost:8080/api/v1`.
 Backend trên nhánh `codex/fix-catalog-filters` bổ sung ảnh và biến thể dưới dạng DTO.
 Không cần thay schema hoặc import lại dữ liệu; ảnh và biến thể phải tồn tại trong database.

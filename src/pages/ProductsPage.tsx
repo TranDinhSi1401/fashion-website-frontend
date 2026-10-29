@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { ProductFilters, ProductResponse } from '../types/product';
 import { CategoryResponse } from '../types/category';
-import { normalizeSize, parsePrice, resolveCategories } from '../utils/catalog';
+import { mergeFilterParameters, normalizeSize, parsePrice, resolveCategories } from '../utils/catalog';
 import ProductCard from '../components/product/ProductCard';
 import Button from '../components/ui/Button';
 import './ProductsPage.css';
@@ -25,11 +25,15 @@ export default function ProductsPage() {
   const [error, setError] = useState('');
   const [metadataError, setMetadataError] = useState('');
   const [retry, setRetry] = useState(0);
+  const priceForm = useRef<HTMLFormElement>(null);
+  const searchForm = useRef<HTMLFormElement>(null);
 
   const updateFilters = (changes: Record<string, string>) => {
-    const next = new URLSearchParams(searchParams);
-    Object.entries(changes).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key));
-    setSearchParams(next);
+    const pending: Record<string, string> = {};
+    for (const form of [priceForm.current, searchForm.current]) {
+      if (form) new FormData(form).forEach((value, key) => { pending[key] = String(value); });
+    }
+    setSearchParams(mergeFilterParameters(paramsKey, pending, changes));
   };
 
   useEffect(() => {
@@ -104,9 +108,17 @@ export default function ProductsPage() {
   const colors = [...new Set(variants.map(variant => variant.color.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
   const selectedSize = searchParams.get('size') || '';
   const selectedColor = searchParams.get('color') || '';
-  const title = selection.ids.length === 1 ? categories.find(category => category.id === selection.ids[0])?.name || 'Sản phẩm'
-    : searchParams.get('tag') === 'new' ? 'Hàng mới về trong 30 ngày' : 'Danh mục sản phẩm';
+  const categoryName = selection.ids.length === 1 ? categories.find(category => category.id === selection.ids[0])?.name : '';
+  const title = searchParams.get('tag') === 'new' ? `Hàng mới về trong 30 ngày${categoryName ? ` · ${categoryName}` : ''}` : categoryName || 'Danh mục sản phẩm';
   const shownError = metadataError || error;
+  const categoryTag = searchParams.get('tag') === 'new' ? 'new' : '';
+  const activeFilters: { label: string; changes: Record<string, string> }[] = [];
+  if (selection.ids.length) activeFilters.push({ label: `Danh mục: ${categories.filter(category => selection.ids.includes(category.id)).map(category => category.name).join(', ')}`, changes: { category: '', categoryId: '' } });
+  if (selectedSize) activeFilters.push({ label: `Size: ${selectedSize}`, changes: { size: '' } });
+  if (selectedColor) activeFilters.push({ label: `Màu: ${selectedColor}`, changes: { color: '' } });
+  if (searchParams.get('search')) activeFilters.push({ label: `Tìm: ${searchParams.get('search')}`, changes: { search: '' } });
+  if (searchParams.has('minPrice') || searchParams.has('maxPrice')) activeFilters.push({ label: `Giá: ${searchParams.get('minPrice') || '0'} – ${searchParams.get('maxPrice') || 'không giới hạn'} ₫`, changes: { minPrice: '', maxPrice: '' } });
+  if (categoryTag) activeFilters.push({ label: 'Mới trong 30 ngày', changes: { tag: '' } });
 
   return (
     <div className="catalog-page">
@@ -125,7 +137,7 @@ export default function ProductsPage() {
             onClick={() => updateFilters({ tag: 'new', sort: 'newest' })}>Hàng mới về</button>
           {categories.filter(category => !category.parentId).map(category => (
             <button key={category.id} type="button" aria-pressed={selection.ids.includes(category.id)}
-              onClick={() => updateFilters({ category: '', categoryId: String(category.id), tag: '' })}>{category.name}</button>
+              onClick={() => updateFilters({ category: '', categoryId: String(category.id), tag: categoryTag })}>{category.name}</button>
           ))}
         </div>
         <div className="catalog-layout">
@@ -133,7 +145,7 @@ export default function ProductsPage() {
             <div className="catalog-filter-heading"><h2>Bộ lọc</h2>
               <Button variant="ghost" size="sm" onClick={() => setSearchParams({})} disabled={!searchParams.size}>Xóa lọc</Button>
             </div>
-            <form key={`search-${searchParams.get('search') || ''}`} onSubmit={event => {
+            <form ref={searchForm} key={`search-${searchParams.get('search') || ''}`} onSubmit={event => {
               event.preventDefault(); updateFilters({ search: String(new FormData(event.currentTarget).get('search') || '').trim() });
             }}>
               <label htmlFor="catalog-search">Tìm sản phẩm</label>
@@ -142,15 +154,15 @@ export default function ProductsPage() {
             </form>
             <details open><summary>Danh mục</summary>
               <label className="catalog-choice"><input type="radio" name="catalog-category" checked={!searchParams.has('categoryId') && !searchParams.has('category')}
-                onChange={() => updateFilters({ categoryId: '', category: '', tag: '' })} />Tất cả</label>
+                onChange={() => updateFilters({ categoryId: '', category: '', tag: categoryTag })} />Tất cả</label>
               {categories.map(category => <label key={category.id} className="catalog-choice">
                 <input type="radio" name="catalog-category" checked={selection.ids.length === 1 && selection.ids[0] === category.id}
-                  onChange={() => updateFilters({ categoryId: String(category.id), category: '', tag: '' })} />
+                  onChange={() => updateFilters({ categoryId: String(category.id), category: '', tag: categoryTag })} />
                 {category.parentId ? '— ' : ''}{category.name}
               </label>)}
             </details>
             <details open><summary>Khoảng giá</summary>
-              <form key={`prices-${searchParams.get('minPrice')}-${searchParams.get('maxPrice')}`} onSubmit={event => {
+              <form ref={priceForm} key={`prices-${searchParams.get('minPrice')}-${searchParams.get('maxPrice')}`} onSubmit={event => {
                 event.preventDefault(); const data = new FormData(event.currentTarget);
                 updateFilters({ minPrice: String(data.get('minPrice') || ''), maxPrice: String(data.get('maxPrice') || '') });
               }}>
@@ -176,8 +188,13 @@ export default function ProductsPage() {
               </select>
               {!colors.length && <p>Chưa có màu sắc còn hàng.</p>}
             </details>
+            <Button onClick={() => updateFilters({})}>Áp dụng tất cả bộ lọc</Button>
           </aside>
           <section className="catalog-results" aria-label="Kết quả sản phẩm" aria-busy={isLoading}>
+            {activeFilters.length > 0 && <div className="catalog-active-filters" aria-label="Bộ lọc đang áp dụng">
+              <span>Đang áp dụng:</span>{activeFilters.map(filter => <button key={filter.label} type="button" aria-label={`Bỏ lọc ${filter.label}`}
+                onClick={() => updateFilters(filter.changes)}>{filter.label} ×</button>)}
+            </div>}
             <div className="catalog-toolbar">
               <p role="status">{isLoading ? 'Đang tải sản phẩm…' : shownError ? 'Chưa tải được kết quả' : `${products.length} sản phẩm`}</p>
               <label>Sắp xếp<select value={selection.filters.sort} onChange={event => updateFilters({ sort: event.target.value })}>

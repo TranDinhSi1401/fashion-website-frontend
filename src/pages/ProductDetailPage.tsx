@@ -9,6 +9,8 @@ import Breadcrumb from '../components/layout/Breadcrumb';
 import QuantityStepper from '../components/product/QuantityStepper';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import NewBadge from '../components/product/NewBadge';
+import BackButton from '../components/common/BackButton';
 import { formatCurrencyVND, extractAllProductImages } from '../utils/format';
 import { normalizeSize } from '../utils/catalog';
 import { availableVariants, findVariant, quantityWithinStock } from '../utils/variants';
@@ -25,6 +27,7 @@ export default function ProductDetailPage() {
   const [error, setError] = useState('');
   const [selection, setSelection] = useState({ color: '', size: '' });
   const [quantity, setQuantity] = useState(1);
+  const [quantityError, setQuantityError] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -34,7 +37,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
-    setIsLoading(true); setError(''); setProduct(null); setNotice(''); setActionError('');
+    setIsLoading(true); setError(''); setProduct(null); setNotice(''); setActionError(''); setQuantityError('');
     productService.getProductById(id, controller.signal).then(response => {
       if (controller.signal.aborted) return;
       if (!response.data) throw new Error('Missing product');
@@ -64,6 +67,7 @@ export default function ProductDetailPage() {
   const activeImage = selectedImage || variantImage || images[0];
 
   const changeSelection = (color: string, size: string) => {
+    setQuantityError('');
     setSelection({ color, size }); setQuantity(1); setNotice(''); setActionError(''); setSelectedImage(null); setFailedImage(null);
   };
 
@@ -91,6 +95,7 @@ export default function ProductDetailPage() {
 
   return <div className="container product-detail">
     <Breadcrumb items={[{ label: 'Sản phẩm', to: '/products' }, { label: product.name }]} />
+    <BackButton />
     <div className="product-detail-layout">
       <section aria-label="Hình ảnh sản phẩm">
         <div className="product-detail-image">{activeImage && failedImage !== activeImage
@@ -102,6 +107,7 @@ export default function ProductDetailPage() {
       </section>
       <section className="product-detail-info" aria-label="Thông tin sản phẩm">
         <div><Badge variant={sellable.length ? 'success' : 'error'}>{sellable.length ? 'Còn hàng' : 'Tạm hết hàng'}</Badge>
+          {product.isNew && <> <NewBadge /></>}
           <h1>{product.name}</h1>
           <p className="product-detail-price">{formatCurrencyVND(selectedVariant?.price ?? product.basePrice)}</p>
           <p>{product.reviewCount || 0} đánh giá{product.averageRating != null ? ` · ${Number(product.averageRating).toFixed(1)}/5` : ''}</p>
@@ -125,11 +131,11 @@ export default function ProductDetailPage() {
         {selectedVariant ? <p role="status">Còn {stock} sản phẩm với màu {selection.color}, size {selection.size}.
           {alreadyInCart > 0 && ` Bạn đã có ${alreadyInCart} sản phẩm này trong giỏ.`}</p>
           : <p role="status">Chưa có biến thể còn hàng để chọn mua.</p>}
-        <div><p className="product-detail-label">Số lượng</p><QuantityStepper value={chosenQuantity} min={remaining ? 1 : 0} max={remaining}
+        <div><p className="product-detail-label">Số lượng</p><QuantityStepper key={selectedVariant?.id} value={chosenQuantity} min={remaining ? 1 : 0} max={remaining} onValidationChange={setQuantityError}
           disabled={!remaining || busy} onChange={value => { setQuantity(value); setNotice(''); setActionError(''); }} /></div>
         {stock > 0 && !remaining && <p role="status">Bạn đã thêm đủ số lượng còn lại vào giỏ hàng.</p>}
         <div className="product-detail-actions"><Button size="lg" loading={busy}
-          disabled={authLoading || !selectedVariant || !remaining || chosenQuantity > remaining || (isAuthenticated && !isCustomer)}
+          disabled={authLoading || !!quantityError || !selectedVariant || !remaining || chosenQuantity > remaining || (isAuthenticated && !isCustomer)}
           onClick={() => void handleAddToCart()}>{isAuthenticated ? 'Thêm vào giỏ hàng' : 'Đăng nhập để thêm vào giỏ'}</Button>
           <Link to="/cart" className="product-detail-cart-link">Xem giỏ hàng</Link></div>
         {isAuthenticated && !isCustomer && <p role="status">Giỏ hàng dành cho tài khoản khách hàng.</p>}

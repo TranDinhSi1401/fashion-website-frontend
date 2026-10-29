@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveCategories, normalizeSize, parsePrice } from '../src/utils/catalog.ts';
+import { resolveCategories, normalizeSize, parsePrice, mergeFilterParameters } from '../src/utils/catalog.ts';
 
 const categories = [
   { id: 71, name: 'Áo thun Nam' }, { id: 94, name: 'Áo polo Nam' },
@@ -24,4 +24,12 @@ test('equivalent size labels use a single canonical choice', () => {
   assert.equal(normalizeSize(' xxl '), '2XL');
   assert.equal(normalizeSize('2xl'), '2XL');
   assert.equal(normalizeSize('m'), 'M');
+});
+
+test('combining groups also applies pending price/search and retains new-arrivals mode', () => {
+  const result=new URLSearchParams(mergeFilterParameters('tag=new&categoryId=71&size=M',
+    {minPrice:'100000',maxPrice:'400000',search:'polo'}, {color:'Đen'}));
+  for(const [key,value] of Object.entries({tag:'new',categoryId:'71',size:'M',minPrice:'100000',maxPrice:'400000',search:'polo',color:'Đen'})) assert.equal(result.get(key),value);
+  const cleared=new URLSearchParams(mergeFilterParameters(result.toString(), {search:'polo'}, {color:''}));
+  assert.equal(cleared.has('color'),false);assert.equal(cleared.get('size'),'M');assert.equal(cleared.get('tag'),'new');
 });

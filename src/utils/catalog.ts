@@ -31,3 +31,9 @@ export function normalizeSize(size: string): string {
   const value = size.trim().toUpperCase();
   return value === 'XXL' ? '2XL' : value;
 }
+
+export function mergeFilterParameters(query: string, pending: Record<string, string>, changes: Record<string, string>): string {
+  const next = new URLSearchParams(query);
+  Object.entries({ ...pending, ...changes }).forEach(([key, value]) => value.trim() ? next.set(key, value.trim()) : next.delete(key));
+  return next.toString();
+}

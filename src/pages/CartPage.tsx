@@ -8,6 +8,7 @@ import Breadcrumb from '../components/layout/Breadcrumb';
 import QuantityStepper from '../components/product/QuantityStepper';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
+import BackButton from '../components/common/BackButton';
 import './CartPage.css';
 
 function CartImage({ url, name }: { url?: string | null; name: string }) {
@@ -33,6 +34,7 @@ export default function CartPage() {
   };
 
   return <div className="container cart-page">
+    <BackButton />
     <Breadcrumb items={[{ label: 'Sản phẩm', to: '/products' }, { label: 'Giỏ hàng' }]} />
     <div className="cart-heading"><h1>Giỏ hàng của bạn</h1>
       <Button variant="ghost" disabled={busy || loading} onClick={() => { setActionError(''); void refresh(); }}>Tải lại giỏ hàng</Button>
@@ -55,6 +57,7 @@ export default function CartPage() {
               : item.quantity > item.stockQuantity ? <p className="cart-error">Chỉ còn {item.stockQuantity} sản phẩm. Vui lòng giảm số lượng.</p>
                 : <p>Còn {item.stockQuantity} sản phẩm</p>}
             <QuantityStepper value={item.quantity} max={Math.max(1, item.stockQuantity)} label={`Số lượng ${item.productName}`}
+              onValidationChange={message => { if (message) setNotice(''); }}
               disabled={busy || loading || !item.available} onChange={quantity => void mutate(() => updateItem(item.id, quantity), 'Đã cập nhật số lượng.')} />
           </div>
           <div className="cart-item-total"><strong>{formatCurrencyVND(item.subtotal)}</strong>
