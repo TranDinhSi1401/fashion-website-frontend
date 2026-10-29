@@ -1,13 +1,13 @@
 import apiClient from './apiClient';
 import { ApiResponse } from '../types/api';
-import { ProductResponse, ProductRequest } from '../types/product';
+import { ProductResponse, ProductRequest, ProductFilters } from '../types/product';
 
 export const productService = {
   /**
    * Get list of products (Public)
    */
-  async getProducts(params: { categoryId?: number | string } = {}): Promise<ApiResponse<ProductResponse[]>> {
-    const res = await apiClient.get<ApiResponse<ProductResponse[]>>('/products', { params });
+  async getProducts(params: ProductFilters = {}, signal?: AbortSignal): Promise<ApiResponse<ProductResponse[]>> {
+    const res = await apiClient.get<ApiResponse<ProductResponse[]>>('/products', { params, signal });
     return res.data;
   },
 

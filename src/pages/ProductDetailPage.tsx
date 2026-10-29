@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useParams, Link } from 'react-router-dom';
 import { Star, ShieldCheck, Truck, RefreshCw, Check } from 'lucide-react';
 import { productService } from '../services/productService';
@@ -19,40 +20,28 @@ export default function ProductDetailPage() {
   const [selectedSize, setSelectedSize] = useState<string>('M');
   const [quantity, setQuantity] = useState<number>(1);
   const [addedNotice, setAddedNotice] = useState<boolean>(false);
+  const [selectedImgIdx, setSelectedImgIdx] = useState<number>(0);
+  const [imgError, setImgError] = useState<boolean>(false);
 
   useEffect(() => {
     if (!id) return;
     const fetchProduct = async () => {
       setIsLoading(true);
       setError('');
+      setProduct(null);
+      setSelectedImgIdx(0);
+      setImgError(false);
       try {
         const res = await productService.getProductById(id);
         if (res && res.data) {
           setProduct(res.data);
         } else {
-          setProduct({
-            id: Number(id),
-            name: `Sản Phẩm Thời Trang #${id}`,
-            description: 'Thiết kế theo chuẩn may đo hiện đại, form dáng chuẩn mực, tỉ mỉ từng chi tiết với sợi vải cao cấp.',
-            basePrice: 450000,
-            averageRating: 4.9,
-            reviewCount: 38,
-            isActive: true,
-            categoryId: 1,
-          });
+          setError('Không tìm thấy sản phẩm trong dữ liệu hệ thống.');
         }
       } catch (err) {
-        console.warn('Product detail API fetch error, using fallback:', err);
-        setProduct({
-          id: Number(id),
-          name: `Sản Phẩm Cao Cấp #${id}`,
-          description: 'Chất liệu 100% tự nhiên thoáng mát, thiết kế tối giản sắc nét mang lại sự sang trọng cho người mặc.',
-          basePrice: 480000,
-          averageRating: 4.8,
-          reviewCount: 19,
-          isActive: true,
-          categoryId: 1,
-        });
+        setError(axios.isAxiosError(err) && err.response?.status === 404
+          ? 'Không tìm thấy sản phẩm trong dữ liệu hệ thống.'
+          : 'Không thể tải thông tin sản phẩm. Vui lòng kiểm tra kết nối và thử lại.');
       } finally {
         setIsLoading(false);
       }
@@ -77,7 +66,8 @@ export default function ProductDetailPage() {
   if (error || !product) {
     return (
       <div className="container" style={{ padding: '80px 20px', textAlign: 'center' }}>
-        <h2>Không tìm thấy sản phẩm</h2>
+        <h2>Thông tin sản phẩm chưa khả dụng</h2>
+        <p role="alert" style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>{error || 'Không tìm thấy sản phẩm trong dữ liệu hệ thống.'}</p>
         <Link to="/products" style={{ marginTop: '16px', display: 'inline-block' }}>
           <Button variant="primary">Quay Lại Cửa Hàng</Button>
         </Link>
@@ -86,8 +76,6 @@ export default function ProductDetailPage() {
   }
 
   const dataImages = extractAllProductImages(product);
-  const [selectedImgIdx, setSelectedImgIdx] = useState<number>(0);
-  const [imgError, setImgError] = useState<boolean>(false);
 
   const activeImage = dataImages[selectedImgIdx] || extractProductImage(product);
 
