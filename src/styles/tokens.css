@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+:root {
+  /* Colors */
+  --color-primary: #111111;
+  --color-primary-hover: #333333;
+  --color-accent-red: #D0021B;
+  --color-accent-gold: #C5A059;
+  
+  --bg-body: #FFFFFF;
+  --bg-surface: #F6F6F6;
+  --bg-surface-elevated: #FAFAFA;
+  --bg-dark: #111111;
+  --bg-dark-hover: #222222;
+  
+  --text-primary: #111111;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --text-inverse: #FFFFFF;
+  
+  --border-light: #EBEBEB;
+  --border-default: #CCCCCC;
+  --border-focus: #111111;
+  --border-error: #D0021B;
+  
+  --status-success: #1F8B4C;
+  --status-success-bg: #E8F5E9;
+  --status-error: #D0021B;
+  --status-error-bg: #FFEBEE;
+  --status-warning: #D97706;
+  --status-warning-bg: #FEF3C7;
+
+  /* Typography */
+  --font-primary: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Border Radii (Minimalist Sharp Editorial) */
+  --radius-btn: 0px;
+  --radius-input: 0px;
+  --radius-card: 0px;
+  --radius-sm: 2px;
+  --radius-modal: 4px;
+
+  /* Layout dimensions */
+  --container-max-width: 1320px;
+  --header-height: 76px;
+  --topbar-height: 36px;
+  --grid-gap: 24px;
+  
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Shadows */
+  --shadow-subtle: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06);
+  --shadow-dropdown: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.15);
+}
