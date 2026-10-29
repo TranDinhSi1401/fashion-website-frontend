@@ -115,6 +115,7 @@ src/
 
 Luồng bộ lọc và cách kiểm tra: [docs/CATALOG_FILTERS.md](docs/CATALOG_FILTERS.md).
 Luồng chi tiết sản phẩm và giỏ hàng: [docs/PRODUCT_CART_FLOW.md](docs/PRODUCT_CART_FLOW.md).
+Hàng mới về lấy sản phẩm tạo trong 30 ngày. STAFF được thêm/sửa sản phẩm; xóa mềm dành cho ADMIN.
 
 * **Phong cách**: Minimalist Luxury Fashion (Thời trang cao cấp tối giản, sắc nét).
 * **Màu chủ đạo**:

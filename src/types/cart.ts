@@ -15,8 +15,6 @@ export interface CartItem {
 }
 
 export interface CartResponse {
-  id: number | null;
-  userId: number;
   items: CartItem[];
   totalQuantity: number;
   totalPrice: number;

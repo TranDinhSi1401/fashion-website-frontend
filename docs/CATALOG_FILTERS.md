@@ -12,7 +12,7 @@ Không cần thay schema hoặc import lại dữ liệu; ảnh và biến thể
 
 URL hỗ trợ `categoryId`, `search`, `minPrice`, `maxPrice`, `size`, `color`, `sort`.
 Link cũ của Header như `category=ao`, `category=polo`, `category=quan` tra ID thực từ danh mục API.
-`tag=new` hiển thị sản phẩm theo thứ tự mới nhất, không tự suy đoán thời hạn "hàng mới".
+`tag=new` gọi GET `/products/new?days=30`, lấy sản phẩm tạo trong 30 ngày và mặc định mới nhất trước.
 `tag=sale` báo chưa hỗ trợ; cần nối luồng khuyến mãi trước khi triển khai.
 Tay áo/cổ áo/form/chất liệu chưa có dữ liệu cấu trúc, nên không hiển thị các nút lọc giả.
 

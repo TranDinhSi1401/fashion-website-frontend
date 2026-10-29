@@ -70,6 +70,7 @@ export default function ProductsPage() {
       keyword: params.get('search')?.trim() || undefined,
       size: params.get('size') || undefined, color: params.get('color') || undefined,
       minPrice, maxPrice, sort,
+      newWithinDays: params.get('tag') === 'new' ? 30 : undefined,
     };
     const missingCategory = Boolean((alias || rawId) && !categories.some(category => ids.includes(category.id)));
     return { filters, ids, validation, missingCategory };
@@ -104,7 +105,7 @@ export default function ProductsPage() {
   const selectedSize = searchParams.get('size') || '';
   const selectedColor = searchParams.get('color') || '';
   const title = selection.ids.length === 1 ? categories.find(category => category.id === selection.ids[0])?.name || 'Sản phẩm'
-    : searchParams.get('tag') === 'new' ? 'Sản phẩm mới nhất' : 'Danh mục sản phẩm';
+    : searchParams.get('tag') === 'new' ? 'Hàng mới về trong 30 ngày' : 'Danh mục sản phẩm';
   const shownError = metadataError || error;
 
   return (
@@ -118,8 +119,10 @@ export default function ProductsPage() {
           {searchParams.size > 0 && <><span>/</span><span>{title}</span></>}
         </nav>
         <div className="catalog-categories" aria-label="Danh mục sản phẩm">
-          <button type="button" aria-pressed={!searchParams.has('categoryId') && !searchParams.has('category')}
+          <button type="button" aria-pressed={!searchParams.has('categoryId') && !searchParams.has('category') && !searchParams.has('tag')}
             onClick={() => updateFilters({ category: '', categoryId: '', tag: '' })}>Tất cả sản phẩm</button>
+          <button type="button" aria-pressed={searchParams.get('tag') === 'new'}
+            onClick={() => updateFilters({ tag: 'new', sort: 'newest' })}>Hàng mới về</button>
           {categories.filter(category => !category.parentId).map(category => (
             <button key={category.id} type="button" aria-pressed={selection.ids.includes(category.id)}
               onClick={() => updateFilters({ category: '', categoryId: String(category.id), tag: '' })}>{category.name}</button>
@@ -177,7 +180,7 @@ export default function ProductsPage() {
           <section className="catalog-results" aria-label="Kết quả sản phẩm" aria-busy={isLoading}>
             <div className="catalog-toolbar">
               <p role="status">{isLoading ? 'Đang tải sản phẩm…' : shownError ? 'Chưa tải được kết quả' : `${products.length} sản phẩm`}</p>
-              <label>Sắp xếp<select value={selection.filters.sort} onChange={event => updateFilters({ sort: event.target.value, tag: '' })}>
+              <label>Sắp xếp<select value={selection.filters.sort} onChange={event => updateFilters({ sort: event.target.value })}>
                 <option value="newest">Mới nhất</option><option value="price-asc">Giá tăng dần</option>
                 <option value="price-desc">Giá giảm dần</option><option value="name">Tên A–Z</option>
               </select></label>

@@ -7,7 +7,10 @@ export const productService = {
    * Get list of products (Public)
    */
   async getProducts(params: ProductFilters = {}, signal?: AbortSignal): Promise<ApiResponse<ProductResponse[]>> {
-    const res = await apiClient.get<ApiResponse<ProductResponse[]>>('/products', { params, signal });
+    const { newWithinDays, ...filters } = params;
+    const endpoint = newWithinDays === undefined ? '/products' : '/products/new';
+    const query = newWithinDays === undefined ? filters : { ...filters, days: newWithinDays };
+    const res = await apiClient.get<ApiResponse<ProductResponse[]>>(endpoint, { params: query, signal });
     return res.data;
   },
 

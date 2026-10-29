@@ -42,6 +42,7 @@ export interface ProductVariant {
 }
 
 export interface ProductFilters {
+  newWithinDays?: number;
   categoryId?: number | string;
   categoryIds?: string;
   keyword?: string;
