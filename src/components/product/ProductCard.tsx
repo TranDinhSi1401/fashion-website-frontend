@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Heart, ImageOff } from 'lucide-react';
 import { ProductResponse } from '../../types/product';
 import { formatCurrencyVND, extractAllProductImages } from '../../utils/format';
+import NewBadge from './NewBadge';
 
 export interface ProductCardProps {
   product: ProductResponse;
@@ -117,6 +118,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         </Link>
 
         {/* Wishlist Button */}
+        {product.isNew && <div className="product-card-new"><NewBadge /></div>}
         <button
           type="button"
           onClick={(e) => {

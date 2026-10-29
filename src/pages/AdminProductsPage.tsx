@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Shield, Search, RefreshCw } from 'lucide-react';
 import { productService } from '../services/productService';
+import { categoryService } from '../services/categoryService';
+import { CategoryResponse } from '../types/category';
 import { useAuth } from '../context/AuthContext';
 import { ProductResponse } from '../types/product';
 import Button from '../components/ui/Button';
@@ -11,7 +13,8 @@ import Modal from '../components/ui/Modal';
 import { formatCurrencyVND, extractErrorMessage } from '../utils/format';
 
 export default function AdminProductsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isStaff } = useAuth();
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -32,7 +35,7 @@ export default function AdminProductsPage() {
     slug: '',
     description: '',
     basePrice: '',
-    categoryId: 1,
+    categoryId: 0,
     isActive: true,
     imageUrl: '',
   });
@@ -42,12 +45,13 @@ export default function AdminProductsPage() {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const res = await productService.getProducts();
+      const [res, categoryResponse] = await Promise.all([productService.getProducts(), categoryService.getCategories()]);
+      setCategories(categoryResponse.data);
       if (res && res.data) {
         setProducts(res.data);
       }
     } catch (err) {
-      console.warn('Could not fetch products for admin table:', err);
+      setNotification({ type: 'error', message: extractErrorMessage(err, 'Không thể tải sản phẩm và danh mục.') });
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +68,7 @@ export default function AdminProductsPage() {
       slug: '',
       description: '',
       basePrice: '',
-      categoryId: 1,
+      categoryId: categories.find(category => category.isActive)?.id || 0,
       isActive: true,
       imageUrl: '',
     });
@@ -78,7 +82,7 @@ export default function AdminProductsPage() {
       slug: prod.slug || '',
       description: prod.description || '',
       basePrice: String(prod.basePrice || ''),
-      categoryId: prod.categoryId || 1,
+      categoryId: prod.categoryId,
       isActive: prod.isActive !== false,
       imageUrl: prod.imageUrl || prod.image || '',
     });
@@ -87,8 +91,8 @@ export default function AdminProductsPage() {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.basePrice) {
-      alert('Vui lòng nhập tên và giá sản phẩm');
+    if (!formData.name.trim() || !formData.basePrice || !formData.categoryId) {
+      alert('Vui lòng nhập tên, giá và chọn danh mục sản phẩm');
       return;
     }
 
@@ -106,7 +110,7 @@ export default function AdminProductsPage() {
           .replace(/^-+|-+$/g, ''),
       description: formData.description.trim(),
       basePrice: parseFloat(formData.basePrice),
-      categoryId: Number(formData.categoryId) || 1,
+      categoryId: Number(formData.categoryId),
       isActive: Boolean(formData.isActive),
       imageUrl: formData.imageUrl?.trim() || undefined,
     };
@@ -185,8 +189,8 @@ export default function AdminProductsPage() {
             <Button variant="secondary" onClick={fetchProducts} icon={RefreshCw}>
               Làm Mới
             </Button>
-            {isAdmin && (
-              <Button variant="primary" onClick={handleOpenCreateModal} icon={Plus}>
+            {(isAdmin || isStaff) && (
+              <Button variant="primary" onClick={handleOpenCreateModal} icon={Plus} disabled={!categories.some(category => category.isActive)}>
                 Thêm Sản Phẩm Mới
               </Button>
             )}
@@ -207,8 +211,8 @@ export default function AdminProductsPage() {
           <div
             style={{
               padding: '12px 16px',
-              backgroundColor: 'var(--status-success-bg)',
-              color: 'var(--status-success)',
+              backgroundColor: notification.type === 'error' ? 'var(--status-error-bg)' : 'var(--status-success-bg)',
+              color: notification.type === 'error' ? 'var(--status-error)' : 'var(--status-success)',
               marginBottom: '20px',
               fontSize: '0.85rem',
               fontWeight: 600,
@@ -351,15 +355,11 @@ export default function AdminProductsPage() {
             />
 
             <Select
-              label="Danh mục (Category ID)"
+              label="Danh mục"
               value={formData.categoryId}
               onChange={(e) => setFormData({ ...formData, categoryId: Number(e.target.value) })}
-              options={[
-                { value: 1, label: '1 - Áo Sơ Mi' },
-                { value: 2, label: '2 - Áo Polo & T-Shirt' },
-                { value: 3, label: '3 - Quần Tây & Khaki' },
-                { value: 4, label: '4 - Áo Khoác & Blazer' },
-              ]}
+              options={[{ value: 0, label: 'Chọn danh mục' }, ...categories.filter(category => category.isActive || category.id === formData.categoryId)
+                .map(category => ({ value: category.id, label: category.name }))]}
             />
           </div>
 

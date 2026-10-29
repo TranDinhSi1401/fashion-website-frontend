@@ -1,0 +1,2 @@
+.product-new-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--color-accent-red); color: var(--text-inverse); border-radius: var(--radius-sm); padding: 4px 10px; font-size: .7rem; font-weight: 700; letter-spacing: .05em; line-height: 1.4; pointer-events: none; }
+.product-card-new { position: absolute; top: 12px; left: 12px; z-index: 2; }

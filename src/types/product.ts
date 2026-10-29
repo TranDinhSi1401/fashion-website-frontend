@@ -21,6 +21,7 @@ export interface ProductResponse {
   averageRating?: number;
   reviewCount?: number;
   isActive?: boolean;
+  isNew?: boolean;
   categoryId: number;
   productImages?: ProductImage[];
   imageUrl?: string;
@@ -28,6 +29,29 @@ export interface ProductResponse {
   thumbnail?: string;
   images?: string[];
   colors?: ProductColor[];
+  variants?: ProductVariant[];
+  createdAt?: string;
+}
+
+export interface ProductVariant {
+  id: number;
+  size: string;
+  color: string;
+  price: number;
+  stockQuantity: number;
+  isActive: boolean;
+}
+
+export interface ProductFilters {
+  newWithinDays?: number;
+  categoryId?: number | string;
+  categoryIds?: string;
+  keyword?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  size?: string;
+  color?: string;
+  sort?: string;
 }
 
 export interface ProductRequest {
