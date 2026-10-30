@@ -91,15 +91,17 @@ src/
 │   ├── apiClient.ts         # Cấu hình Axios Base URL, Refresh Token Rotation
 │   ├── authService.ts       # API Login, Register, Google, Refresh, Logout
 │   ├── userService.ts       # API Thông tin user, Đổi mật khẩu, Sổ địa chỉ
-│   └── productService.ts    # API Lấy/Thêm/Sửa/Xóa sản phẩm
+│   ├── productService.ts    # API Lấy/Thêm/Sửa/Xóa sản phẩm
+│   ├── behaviorService.ts   # API Theo dõi hành vi (VIEW, DWELL_15S, SELECT_VARIANT) & Feature Store
+│   └── aiService.ts         # API Tư vấn thời trang AI (Spring AI & Google Gemini)
 ├── styles/                  # Định nghĩa màu sắc, biến CSS tokens
-│   ├── tokens.css           # Biến màu: đen, vàng gold, font chữ Montserrat
-│   └── global.css           # Reset CSS, container, utility classes
 ├── types/                   # Định nghĩa TypeScript Types / Interfaces
 │   ├── api.ts               # ApiResponse<T> chuẩn backend
 │   ├── auth.ts              # LoginRequest, RegisterRequest, AuthResponse
 │   ├── user.ts              # UserResponse, AddressRequest, AddressResponse
-│   └── product.ts           # ProductResponse, ProductImage, ProductRequest
+│   ├── product.ts           # ProductResponse, ProductImage, ProductRequest
+│   ├── behavior.ts          # TrackBehaviorRequest, CategoryPreferenceScore
+│   └── ai.ts                # AiAdviseRequest, AiAdviseResponse, ChatMessage
 ├── utils/                   # Các hàm bổ trợ
 │   ├── format.ts            # Định dạng tiền tệ VND, trích xuất ảnh sản phẩm
 │   └── storage.ts           # Lưu/Đọc Token an toàn từ localStorage

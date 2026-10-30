@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { User, KeyRound, MapPin, Camera, Trash2, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, KeyRound, MapPin, Camera, Trash2, Plus, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import PreferenceMatrixTab from '../components/profile/PreferenceMatrixTab';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
 import { UserAddressResponse, AddressType } from '../types/user';
@@ -16,7 +17,9 @@ export default function ProfilePage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const activeTab = location.pathname.includes('/password')
+  const activeTab = location.pathname.includes('/preferences')
+    ? 'preferences'
+    : location.pathname.includes('/password')
     ? 'password'
     : location.pathname.includes('/addresses')
     ? 'addresses'
@@ -384,6 +387,27 @@ export default function ProfilePage() {
               <KeyRound size={16} />
               Đổi Mật Khẩu
             </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/account/preferences')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '10px 14px',
+                fontSize: '0.85rem',
+                fontWeight: activeTab === 'preferences' ? 700 : 500,
+                backgroundColor: activeTab === 'preferences' ? 'var(--bg-dark)' : 'transparent',
+                color: activeTab === 'preferences' ? '#C5A059' : 'var(--text-primary)',
+                textAlign: 'left',
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-btn)',
+              }}
+            >
+              <Sparkles size={16} color={activeTab === 'preferences' ? '#C5A059' : undefined} />
+              Gu & Sở Thích (AI)
+            </button>
           </div>
 
           {/* Tab Main Content */}
@@ -738,6 +762,13 @@ export default function ProfilePage() {
                     Xác Nhận Đổi Mật Khẩu
                   </Button>
                 </form>
+              </div>
+            )}
+
+            {/* TAB 4: PREFERENCE MATRIX & FEATURE STORE */}
+            {activeTab === 'preferences' && (
+              <div>
+                <PreferenceMatrixTab />
               </div>
             )}
           </div>

@@ -69,12 +69,23 @@ export default function ProductDetailPage() {
   const variantImage = product?.productImages?.find(image => image.variantId === selectedVariant?.id && image.imageUrl)?.imageUrl;
   const activeImage = selectedImage || variantImage || images[0];
 
-  // Ghi VIEW một lần cho mỗi sản phẩm (useRef chặn ghi đôi do StrictMode); backend chỉ nhận từ CUSTOMER
+  // 1. Gửi VIEW ngay khi vào trang & 2. Dwell time: Sau 15 giây nếu khách vẫn đang ở trang này, gửi DWELL_15S (+2 điểm)
   useEffect(() => {
     if (!product || !isAuthenticated || !isCustomer) return;
-    if (viewedProductId.current === product.id) return;
-    viewedProductId.current = product.id;
-    trackBehavior({ productId: product.id, variantId: null, type: 'VIEW' });
+
+    // 1. Gửi VIEW ngay (dùng useRef chặn gửi đôi do React StrictMode)
+    if (viewedProductId.current !== product.id) {
+      viewedProductId.current = product.id;
+      trackBehavior({ productId: product.id, variantId: null, type: 'VIEW' });
+    }
+
+    // 2. Dwell time: Sau 15 giây nếu khách vẫn đang đọc thông tin trên trang này, gửi DWELL_15S (+2 điểm ma trận sở thích)
+    const dwellTimer = setTimeout(() => {
+      trackBehavior({ productId: product.id, variantId: null, type: 'DWELL_15S' });
+    }, 15000);
+
+    // Xóa timer nếu khách chuyển trang trước 15s
+    return () => clearTimeout(dwellTimer);
   }, [product, isAuthenticated, isCustomer]);
 
   useEffect(() => () => clearTimeout(selectTimer.current), []);

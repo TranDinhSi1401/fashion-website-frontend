@@ -4,6 +4,7 @@ import Topbar from './components/layout/Topbar';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import AiAdvisorWidget from './components/ai/AiAdvisorWidget';
 
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
@@ -18,7 +19,7 @@ import AdminUsersPage from './pages/AdminUsersPage';
 
 export default function App() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
       <Topbar />
       <Header />
 
@@ -52,6 +53,14 @@ export default function App() {
           />
           <Route
             path="/account/password"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account/preferences"
             element={
               <ProtectedRoute>
                 <ProfilePage />
@@ -93,6 +102,9 @@ export default function App() {
       </main>
 
       <Footer />
+
+      {/* Floating AI Stylist Advisor Widget */}
+      <AiAdvisorWidget />
     </div>
   );
 }
