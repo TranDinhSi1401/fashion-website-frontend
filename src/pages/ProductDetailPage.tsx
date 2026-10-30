@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { productService } from '../services/productService';
@@ -14,6 +14,7 @@ import BackButton from '../components/common/BackButton';
 import { formatCurrencyVND, extractAllProductImages } from '../utils/format';
 import { normalizeSize } from '../utils/catalog';
 import { availableVariants, findVariant, quantityWithinStock } from '../utils/variants';
+import { trackBehavior } from '../services/behaviorService';
 import './ProductDetailPage.css';
 
 export default function ProductDetailPage() {
@@ -33,6 +34,8 @@ export default function ProductDetailPage() {
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
   const [retry, setRetry] = useState(0);
+  const viewedProductId = useRef<number | null>(null);
+  const selectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (!id) return;
@@ -66,7 +69,23 @@ export default function ProductDetailPage() {
   const variantImage = product?.productImages?.find(image => image.variantId === selectedVariant?.id && image.imageUrl)?.imageUrl;
   const activeImage = selectedImage || variantImage || images[0];
 
+  // Ghi VIEW một lần cho mỗi sản phẩm (useRef chặn ghi đôi do StrictMode); backend chỉ nhận từ CUSTOMER
+  useEffect(() => {
+    if (!product || !isAuthenticated || !isCustomer) return;
+    if (viewedProductId.current === product.id) return;
+    viewedProductId.current = product.id;
+    trackBehavior({ productId: product.id, variantId: null, type: 'VIEW' });
+  }, [product, isAuthenticated, isCustomer]);
+
+  useEffect(() => () => clearTimeout(selectTimer.current), []);
+
   const changeSelection = (color: string, size: string) => {
+    if (product && isAuthenticated && isCustomer) {
+      // debounce 300ms: bấm liên tục chỉ gửi lựa chọn cuối cùng
+      const payload = { productId: product.id, variantId: findVariant(variants, color, size)?.id ?? null, type: 'SELECT_VARIANT' as const };
+      clearTimeout(selectTimer.current);
+      selectTimer.current = setTimeout(() => trackBehavior(payload), 300);
+    }
     setQuantityError('');
     setSelection({ color, size }); setQuantity(1); setNotice(''); setActionError(''); setSelectedImage(null); setFailedImage(null);
   };
