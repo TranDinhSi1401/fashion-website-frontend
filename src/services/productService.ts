@@ -1,21 +1,24 @@
 import apiClient from './apiClient';
 import { ApiResponse } from '../types/api';
-import { ProductResponse, ProductRequest } from '../types/product';
+import { ProductResponse, ProductRequest, ProductFilters } from '../types/product';
 
 export const productService = {
   /**
    * Get list of products (Public)
    */
-  async getProducts(params: { categoryId?: number | string } = {}): Promise<ApiResponse<ProductResponse[]>> {
-    const res = await apiClient.get<ApiResponse<ProductResponse[]>>('/products', { params });
+  async getProducts(params: ProductFilters = {}, signal?: AbortSignal): Promise<ApiResponse<ProductResponse[]>> {
+    const { newWithinDays, ...filters } = params;
+    const endpoint = newWithinDays === undefined ? '/products' : '/products/new';
+    const query = newWithinDays === undefined ? filters : { ...filters, days: newWithinDays };
+    const res = await apiClient.get<ApiResponse<ProductResponse[]>>(endpoint, { params: query, signal });
     return res.data;
   },
 
   /**
    * Get single product details by id (Public)
    */
-  async getProductById(id: number | string): Promise<ApiResponse<ProductResponse>> {
-    const res = await apiClient.get<ApiResponse<ProductResponse>>(`/products/${id}`);
+  async getProductById(id: number | string, signal?: AbortSignal): Promise<ApiResponse<ProductResponse>> {
+    const res = await apiClient.get<ApiResponse<ProductResponse>>(`/products/${id}`, { signal });
     return res.data;
   },
 

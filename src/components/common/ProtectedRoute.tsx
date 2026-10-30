@@ -33,7 +33,7 @@ export default function ProtectedRoute({ children, requiredRoles }: ProtectedRou
         <div className="container" style={{ padding: '80px 20px', textAlign: 'center' }}>
           <h2>Từ Chối Quyền Truy Cập (403)</h2>
           <p style={{ marginTop: '12px', color: 'var(--text-muted)' }}>
-            Bạn không có đủ thẩm quyền quản trị để truy cập trang này.
+            Bạn không có quyền truy cập trang này bằng tài khoản hiện tại.
           </p>
         </div>
       );

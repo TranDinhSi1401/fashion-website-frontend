@@ -8,6 +8,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
+import CartPage from './pages/CartPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
           {/* User Account Protected Routes */}
+          <Route path="/cart" element={<ProtectedRoute requiredRoles={['CUSTOMER']}><CartPage /></ProtectedRoute>} />
           <Route
             path="/account/profile"
             element={

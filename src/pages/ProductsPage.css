@@ -1,0 +1,42 @@
+.catalog-page { background: var(--bg-body); color: var(--text-primary); min-height: 100vh; }
+.catalog-banner { background: var(--bg-dark); color: var(--text-inverse); padding: 64px 0; }
+.catalog-banner h1 { color: var(--text-inverse); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0; font-size: clamp(1.5rem, 4vw, 2.5rem); }
+.catalog-banner p { font-size: .85rem; line-height: 1.6; }
+.catalog-breadcrumb { display: flex; flex-wrap: wrap; gap: 12px; padding: 24px 0; font-size: .8rem; }
+.catalog-breadcrumb span { color: var(--text-secondary); }
+.catalog-categories { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 24px; border-bottom: 1px solid var(--border-light); }
+.catalog-page button { transition: background var(--transition-fast), color var(--transition-fast); }
+.catalog-categories button, .catalog-sizes button { flex-shrink: 0; border: 1px solid var(--border-default); background: var(--bg-body); color: var(--text-primary); padding: 10px 16px; border-radius: var(--radius-sm); cursor: pointer; }
+.catalog-categories button[aria-pressed=true], .catalog-sizes button[aria-pressed=true] { background: var(--color-primary); color: var(--text-inverse); border-color: var(--color-primary); }
+.catalog-categories button:hover, .catalog-sizes button:hover { border-color: var(--border-focus); }
+.catalog-page button:focus-visible, .catalog-page summary:focus-visible, .catalog-page input:focus-visible, .catalog-page select:focus-visible { outline: 2px solid var(--color-accent-gold); outline-offset: 3px; }
+.catalog-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 36px; padding: 28px 0 80px; align-items: start; }
+.catalog-filters { border-right: 1px solid var(--border-light); padding-right: 20px; }
+.catalog-filter-heading { display: flex; justify-content: space-between; align-items: center; }
+.catalog-filter-heading h2 { font-size: .9rem; text-transform: uppercase; letter-spacing: .05em; }
+.catalog-filters details { border-bottom: 1px solid var(--border-light); padding: 20px 0; }
+.catalog-filters summary { font-size: .85rem; text-transform: uppercase; font-weight: 700; cursor: pointer; }
+.catalog-filters details[open] summary { margin-bottom: 16px; }
+.catalog-filters form { display: grid; gap: 12px; padding: 16px 0; }
+.catalog-page input:not([type=radio]), .catalog-page select { min-width: 0; width: 100%; border: 1px solid var(--border-default); border-radius: var(--radius-input); background: var(--bg-body); color: var(--text-primary); padding: 10px 12px; font: inherit; }
+.catalog-filters label, .catalog-filters p { font-size: .8rem; }
+.catalog-filters p { color: var(--text-secondary); margin-top: 12px; }
+.catalog-choice { display: flex; align-items: center; gap: 10px; margin: 12px 0; cursor: pointer; }
+.catalog-choice input { accent-color: var(--color-primary); width: 18px; height: 18px; flex-shrink: 0; }
+.catalog-sizes { display: flex; flex-wrap: wrap; gap: 10px; }
+.catalog-sizes button { min-width: 44px; height: 38px; padding: 0 10px; }
+.catalog-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding-bottom: 18px; margin-bottom: 24px; border-bottom: 1px solid var(--border-light); font-size: .85rem; }
+.catalog-toolbar label { display: flex; align-items: center; gap: 12px; }
+.catalog-toolbar select { width: auto; }
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: var(--grid-gap); }
+.catalog-skeleton { aspect-ratio: 3 / 4; background: var(--bg-surface); }
+.catalog-empty { text-align: center; padding: 64px 20px; color: var(--text-secondary); }
+.catalog-empty p { margin-bottom: 24px; line-height: 1.6; }
+.catalog-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+.catalog-active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; font-size: .8rem; }
+.catalog-active-filters button { border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--bg-surface); color: var(--text-primary); text-align: left; }
+@media (max-width: 760px) {
+  .catalog-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .catalog-filters { border-right: 0; padding-right: 0; }
+  .catalog-banner { padding: 40px 0; }
+}
