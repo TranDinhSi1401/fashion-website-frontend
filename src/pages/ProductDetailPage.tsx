@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { aiService } from '../services/aiService';
 import { productService } from '../services/productService';
 import { ProductResponse } from '../types/product';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import QuantityStepper from '../components/product/QuantityStepper';
+import ProductCard from '../components/product/ProductCard';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import NewBadge from '../components/product/NewBadge';
@@ -17,9 +20,11 @@ import { availableVariants, findVariant, quantityWithinStock } from '../utils/va
 import { trackBehavior } from '../services/behaviorService';
 import './ProductDetailPage.css';
 
+const EMPTY_RECOMMENDATIONS: ProductResponse[] = [];
+
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { isAuthenticated, isCustomer, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isCustomer, isLoading: authLoading } = useAuth();
   const { addItem, busy, cart } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,6 +39,14 @@ export default function ProductDetailPage() {
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [recommendationResult, setRecommendationResult] = useState<{
+    key: string;
+    products: ProductResponse[];
+    error: string;
+  } | null>(null);
+  const [canScrollRecommendationsLeft, setCanScrollRecommendationsLeft] = useState(false);
+  const [canScrollRecommendationsRight, setCanScrollRecommendationsRight] = useState(false);
+  const recommendationsViewport = useRef<HTMLDivElement>(null);
   const viewedProductId = useRef<number | null>(null);
   const selectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -55,6 +68,73 @@ export default function ProductDetailPage() {
     }).finally(() => { if (!controller.signal.aborted) setIsLoading(false); });
     return () => controller.abort();
   }, [id, retry]);
+
+  useEffect(() => {
+    if (!product || !user?.id || !isCustomer) return;
+
+    const controller = new AbortController();
+    const key = `${user.id}:${product.id}`;
+    aiService.getRecommendations(user.id, 8, controller.signal).then(products => {
+      if (!controller.signal.aborted) {
+        setRecommendationResult({
+          key,
+          products: products.filter(item => item.id !== product.id),
+          error: '',
+        });
+      }
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setRecommendationResult({
+          key,
+          products: EMPTY_RECOMMENDATIONS,
+          error: 'Không thể tải sản phẩm gợi ý. Vui lòng thử lại sau.',
+        });
+      }
+    });
+
+    return () => controller.abort();
+  }, [product, user?.id, isCustomer]);
+
+  const recommendationKey = product && user?.id && isCustomer ? `${user.id}:${product.id}` : null;
+  const currentRecommendationResult = recommendationResult?.key === recommendationKey
+    ? recommendationResult
+    : null;
+  const recommendations = currentRecommendationResult?.products || EMPTY_RECOMMENDATIONS;
+  const recommendationsLoading = Boolean(recommendationKey && !currentRecommendationResult);
+  const recommendationsError = currentRecommendationResult?.error || '';
+
+  useEffect(() => {
+    const viewport = recommendationsViewport.current;
+    if (!viewport) return;
+
+    viewport.scrollLeft = 0;
+    const updateScrollControls = () => {
+      setCanScrollRecommendationsLeft(viewport.scrollLeft > 1);
+      setCanScrollRecommendationsRight(
+        viewport.scrollLeft + viewport.clientWidth < viewport.scrollWidth - 1
+      );
+    };
+
+    updateScrollControls();
+    viewport.addEventListener('scroll', updateScrollControls);
+    window.addEventListener('resize', updateScrollControls);
+    return () => {
+      viewport.removeEventListener('scroll', updateScrollControls);
+      window.removeEventListener('resize', updateScrollControls);
+    };
+  }, [recommendations]);
+
+  const scrollRecommendations = (direction: -1 | 1) => {
+    const viewport = recommendationsViewport.current;
+    const firstCard = viewport?.querySelector<HTMLElement>('.recommendation-card');
+    if (!viewport || !firstCard) return;
+
+    const gap = Number.parseFloat(window.getComputedStyle(viewport).columnGap) || 0;
+    viewport.scrollBy({
+      left: direction * (firstCard.getBoundingClientRect().width + gap),
+      behavior: 'smooth',
+    });
+  };
 
   const variants = (product?.variants || []).filter(variant => variant.isActive);
   const sellable = availableVariants(variants);
@@ -173,5 +253,38 @@ export default function ProductDetailPage() {
         {actionError && <p role="alert" className="product-detail-error">{actionError}</p>}
       </section>
     </div>
+    {isCustomer && (recommendationsLoading || recommendationsError || recommendations.length > 0) && (
+      <section className="product-recommendations" aria-labelledby="product-recommendations-title">
+        <div className="product-recommendations-heading">
+          <h2 id="product-recommendations-title">Sản phẩm có thể bạn sẽ thích</h2>
+          {(canScrollRecommendationsLeft || canScrollRecommendationsRight) && (
+            <div className="product-recommendations-controls">
+              <button type="button" aria-label="Xem sản phẩm trước" aria-controls="product-recommendations-carousel"
+                disabled={!canScrollRecommendationsLeft}
+                onClick={() => scrollRecommendations(-1)}>
+                <ChevronLeft size={20} aria-hidden="true" />
+              </button>
+              <button type="button" aria-label="Xem sản phẩm tiếp theo" aria-controls="product-recommendations-carousel"
+                disabled={!canScrollRecommendationsRight}
+                onClick={() => scrollRecommendations(1)}>
+                <ChevronRight size={20} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+        </div>
+        {recommendationsLoading && <p role="status">Đang tải sản phẩm gợi ý…</p>}
+        {recommendationsError && <p className="product-recommendations-error" role="alert">{recommendationsError}</p>}
+        {recommendations.length > 0 && (
+          <div className="product-recommendations-viewport" ref={recommendationsViewport}
+            id="product-recommendations-carousel" aria-label="Sản phẩm được đề xuất">
+            {recommendations.map(recommendedProduct => (
+              <div className="recommendation-card" key={recommendedProduct.id}>
+                <ProductCard product={recommendedProduct} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    )}
   </div>;
 }

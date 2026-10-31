@@ -1,7 +1,22 @@
 import apiClient from './apiClient';
 import { AiAdviseRequest, AiAdviseResponse } from '../types/ai';
+import { ApiResponse } from '../types/api';
+import { ProductResponse } from '../types/product';
+
+type AiRecommendedProduct = Omit<ProductResponse, 'id'> & { productId: number };
 
 export const aiService = {
+  async getRecommendations(userId: number, limit = 8, signal?: AbortSignal): Promise<ProductResponse[]> {
+    const res = await apiClient.get<ApiResponse<AiRecommendedProduct[]>>(
+      `/ai/understanding/recommend/${userId}`,
+      { params: { limit }, signal }
+    );
+    return res.data.data.map(({ productId, ...product }) => ({
+      ...product,
+      id: productId,
+    }));
+  },
+
   /**
    * Hỏi AI Tư Vấn Thời Trang (Google Gemini qua Spring AI)
    * Tự động đính kèm Header Authorization: Bearer <token>
@@ -56,4 +71,3 @@ export const aiService = {
     return fullText;
   },
 };
-
