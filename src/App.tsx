@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -35,6 +36,7 @@ export default function App() {
 
           {/* User Account Protected Routes */}
           <Route path="/cart" element={<ProtectedRoute requiredRoles={['CUSTOMER']}><CartPage /></ProtectedRoute>} />
+          <Route path="/checkout" element={<ProtectedRoute requiredRoles={['CUSTOMER']}><CheckoutPage /></ProtectedRoute>} />
           <Route
             path="/account/profile"
             element={
