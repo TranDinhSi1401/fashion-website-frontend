@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import { ApiResponse } from '../types/api';
 
 export interface ShippingLocation {
   id: number;
@@ -12,6 +13,16 @@ interface ShippingLocationResponseItem {
 }
 
 type ShippingLocationsPayload = ShippingLocationResponseItem[] | { data: ShippingLocationResponseItem[] };
+
+export interface ShippingOrderPreview {
+  total_fee: number;
+  expected_delivery_time: string;
+}
+
+interface ShippingOrderPreviewRequest {
+  userAddressId: number;
+  paymentMethodId: number;
+}
 
 function getLocations(payload: ShippingLocationsPayload): ShippingLocation[] {
   const locations = Array.isArray(payload) ? payload : payload.data;
@@ -42,5 +53,28 @@ export const shippingService = {
       signal,
     });
     return getLocations(response.data);
+  },
+
+  async getOrderPreview(
+    request: ShippingOrderPreviewRequest,
+    signal?: AbortSignal,
+  ): Promise<ShippingOrderPreview> {
+    const response = await apiClient.post<ApiResponse<ShippingOrderPreview>>(
+      '/shipping/order-preview',
+      request,
+      { signal },
+    );
+    const preview = response.data.data;
+
+    if (
+      typeof preview?.total_fee !== 'number'
+      || !Number.isFinite(preview.total_fee)
+      || typeof preview.expected_delivery_time !== 'string'
+      || Number.isNaN(Date.parse(preview.expected_delivery_time))
+    ) {
+      throw new Error('Dữ liệu phí vận chuyển không hợp lệ.');
+    }
+
+    return preview;
   },
 };

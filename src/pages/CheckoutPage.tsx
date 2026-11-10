@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CreditCard, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { userService } from '../services/userService';
+import { shippingService, ShippingOrderPreview } from '../services/shippingService';
 import { UserAddressResponse } from '../types/user';
 import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
 import Breadcrumb from '../components/layout/Breadcrumb';
@@ -11,7 +12,7 @@ import Button from '../components/ui/Button';
 import AddressFormModal from '../components/profile/AddressFormModal';
 import './CheckoutPage.css';
 
-type PaymentMethod = 'cash' | 'transfer' | 'cod';
+type PaymentMethod = 'VNPay' | 'COD';
 
 function CheckoutProductImage({ url, name }: { url?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
@@ -28,13 +29,17 @@ function CheckoutProductImage({ url, name }: { url?: string | null; name: string
 export default function CheckoutPage() {
   const { user } = useAuth();
   const { cart, loading, error, refresh } = useCart();
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
+  const paymentMethodRef = useRef(paymentMethod);
   const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | ''>('');
   const [addressesLoading, setAddressesLoading] = useState(true);
   const [addressesError, setAddressesError] = useState('');
   const [addressesRetry, setAddressesRetry] = useState(0);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [shippingPreview, setShippingPreview] = useState<ShippingOrderPreview | null>(null);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingError, setShippingError] = useState('');
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -59,10 +64,57 @@ export default function CheckoutPage() {
     return () => { active = false; };
   }, [addressesRetry]);
 
+  useEffect(() => {
+    paymentMethodRef.current = paymentMethod;
+  }, [paymentMethod]);
+
+  useEffect(() => {
+    if (
+      typeof selectedAddressId !== 'number'
+      || !Number.isFinite(selectedAddressId)
+      || selectedAddressId <= 0
+    ) {
+      setShippingPreview(null);
+      setShippingError('');
+      setShippingLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    let active = true;
+    setShippingPreview(null);
+    setShippingError('');
+    setShippingLoading(true);
+
+    shippingService.getOrderPreview({
+      userAddressId: selectedAddressId,
+      paymentMethodId: paymentMethodRef.current === 'COD' ? 1 : 2,
+    }, controller.signal)
+      .then(preview => {
+        if (active) setShippingPreview(preview);
+      })
+      .catch(failure => {
+        if (active) setShippingError(extractErrorMessage(failure, 'Không thể tính phí vận chuyển.'));
+      })
+      .finally(() => {
+        if (active) setShippingLoading(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [selectedAddressId]);
+
   const handleAddressSaved = (address: UserAddressResponse) => {
     setAddresses(current => [...current.filter(item => item.id !== address.id), address]);
     setSelectedAddressId(address.id);
   };
+
+  const expectedDeliveryTime = shippingPreview
+    ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })
+      .format(new Date(shippingPreview.expected_delivery_time))
+    : '';
 
   return (
     <div className="container checkout-page">
@@ -144,16 +196,12 @@ export default function CheckoutPage() {
             <section className="checkout-section checkout-payment" aria-labelledby="checkout-payment-heading">
               <h2 id="checkout-payment-heading">Hình thức thanh toán</h2>
               <label className="checkout-radio">
-                <input type="radio" name="paymentMethod" value="cash" checked={paymentMethod === 'cash'} onChange={() => setPaymentMethod('cash')} />
-                <span>Tiền mặt</span>
+                <input type="radio" name="paymentMethod" value="COD" checked={paymentMethod === 'COD'} onChange={() => setPaymentMethod('COD')} />
+                <span>Thanh toán khi nhận hàng</span>
               </label>
               <label className="checkout-radio">
-                <input type="radio" name="paymentMethod" value="transfer" checked={paymentMethod === 'transfer'} onChange={() => setPaymentMethod('transfer')} />
-                <span>Chuyển khoản</span>
-              </label>
-              <label className="checkout-radio">
-                <input type="radio" name="paymentMethod" value="cod" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
-                <span>Ship COD</span>
+                <input type="radio" name="paymentMethod" value="VNPay" checked={paymentMethod === 'VNPay'} onChange={() => setPaymentMethod('VNPay')} />
+                <span>Thanh toán qua VNPay</span>
               </label>
             </section>
 
@@ -177,10 +225,6 @@ export default function CheckoutPage() {
                 </li>
               ))}
             </ul>
-            <div className="checkout-total">
-              <span>Tổng thanh toán</span>
-              <strong>{formatCurrencyVND(cart.totalPrice)}</strong>
-            </div>
             <div className="checkout-coupon">
               <label htmlFor="checkout-coupon-code">Mã khuyến mãi</label>
               <div>
@@ -188,6 +232,40 @@ export default function CheckoutPage() {
                 <Button type="button" variant="secondary" size="sm">Xác nhận</Button>
               </div>
             </div>
+            <section className="checkout-payment-details" aria-labelledby="checkout-payment-details-heading">
+              <h3 id="checkout-payment-details-heading">Chi tiết thanh toán</h3>
+              <div className="checkout-total">
+                <span>Tổng tiền hàng</span>
+                <strong>{formatCurrencyVND(cart.totalPrice)}</strong>
+              </div>
+              <div className="checkout-total">
+                <span>Phí vận chuyển</span>
+                <strong>
+                  {shippingLoading
+                    ? 'Đang tính…'
+                    : shippingPreview
+                      ? formatCurrencyVND(shippingPreview.total_fee)
+                      : '—'}
+                </strong>
+              </div>
+              {shippingError && <p className="checkout-shipping-error" role="alert">{shippingError}</p>}
+              {shippingPreview && (
+                <p className="checkout-delivery-time">
+                  Dự kiến giao hàng: {expectedDeliveryTime}
+                </p>
+              )}
+              <div className="checkout-total checkout-grand-total">
+                <span>Tổng thanh toán</span>
+                <strong>
+                  {shippingPreview
+                    ? formatCurrencyVND(cart.totalPrice + shippingPreview.total_fee)
+                    : '—'}
+                </strong>
+              </div>
+              {!shippingPreview && !shippingLoading && !shippingError && (
+                <p className="checkout-delivery-time">Chọn địa chỉ nhận hàng để tính phí vận chuyển.</p>
+              )}
+            </section>
           </aside>
         </div>
       )}
