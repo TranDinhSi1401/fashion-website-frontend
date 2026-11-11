@@ -623,7 +623,7 @@ export default function ProfilePage() {
                             )}
                           </div>
                           <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {addr.fullAddress}
+                            {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
                           </p>
                         </div>
 

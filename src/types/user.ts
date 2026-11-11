@@ -16,15 +16,27 @@ export interface UserResponse {
 export interface UserAddressResponse {
   id: number;
   fullAddress: string;
+  provinceName: string;
+  wardName: string;
   addressType: AddressType;
   isDefault: boolean;
   userId?: number;
 }
 
-export interface UserAddressRequest {
+export interface UserAddressCreationRequest {
   fullAddress: string;
+  provinceName: string;
+  wardName: string;
   addressType: AddressType;
   isDefault: boolean;
+}
+
+export interface UserAddressUpdateRequest {
+  fullAddress?: string;
+  provinceName?: string;
+  wardName?: string;
+  addressType?: AddressType;
+  isDefault?: boolean;
 }
 
 export interface UpdateUserRequest {

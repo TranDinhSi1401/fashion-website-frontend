@@ -3,7 +3,8 @@ import { ApiResponse } from '../types/api';
 import {
   UserResponse,
   UserAddressResponse,
-  UserAddressRequest,
+  UserAddressCreationRequest,
+  UserAddressUpdateRequest,
   ChangePasswordRequest,
   UpdateUserRequest,
 } from '../types/user';
@@ -56,7 +57,7 @@ export const userService = {
     return res.data;
   },
 
-  async createAddress(data: UserAddressRequest): Promise<ApiResponse<UserAddressResponse>> {
+  async createAddress(data: UserAddressCreationRequest): Promise<ApiResponse<UserAddressResponse>> {
     const res = await apiClient.post<ApiResponse<UserAddressResponse>>('/users/addresses', data);
     return res.data;
   },
@@ -66,7 +67,7 @@ export const userService = {
     return res.data;
   },
 
-  async updateAddress(id: number, data: UserAddressRequest): Promise<ApiResponse<UserAddressResponse>> {
+  async updateAddress(id: number, data: UserAddressUpdateRequest): Promise<ApiResponse<UserAddressResponse>> {
     const res = await apiClient.put<ApiResponse<UserAddressResponse>>(`/users/addresses/${id}`, data);
     return res.data;
   },

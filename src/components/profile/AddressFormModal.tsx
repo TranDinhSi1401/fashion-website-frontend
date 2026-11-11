@@ -1,7 +1,12 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { userService } from '../../services/userService';
 import { shippingService, ShippingLocation } from '../../services/shippingService';
-import { AddressType, UserAddressRequest, UserAddressResponse } from '../../types/user';
+import {
+  AddressType,
+  UserAddressCreationRequest,
+  UserAddressResponse,
+  UserAddressUpdateRequest,
+} from '../../types/user';
 import { extractErrorMessage } from '../../utils/format';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
@@ -16,6 +21,14 @@ interface AddressFormModalProps {
   onSaved: (address: UserAddressResponse) => void;
 }
 
+interface AddressFormValues {
+  fullAddress: string;
+  provinceName: string;
+  wardName: string;
+  addressType: AddressType;
+  isDefault: boolean;
+}
+
 export default function AddressFormModal({
   isOpen,
   address = null,
@@ -23,8 +36,10 @@ export default function AddressFormModal({
   onClose,
   onSaved,
 }: AddressFormModalProps) {
-  const [form, setForm] = useState<UserAddressRequest>(() => ({
+  const [form, setForm] = useState<AddressFormValues>(() => ({
     fullAddress: address?.fullAddress || '',
+    provinceName: address?.provinceName || '',
+    wardName: address?.wardName || '',
     addressType: address?.addressType || 'HOME',
     isDefault: address?.isDefault ?? defaultAddress,
   }));
@@ -86,31 +101,39 @@ export default function AddressFormModal({
       return;
     }
 
-    let addressToSave = { ...form, fullAddress: form.fullAddress.trim() };
-    if (!address) {
-      if (provinceId === '' || wardId === '') {
-        setFormError('Vui lòng chọn tỉnh/thành phố và phường/xã.');
-        return;
-      }
-
-      const provinceName = provinces.find(province => province.id === provinceId)?.name;
-      const wardName = wards.find(ward => ward.id === wardId)?.name;
-      if (!provinceName || !wardName) {
-        setFormError('Vui lòng chọn lại tỉnh/thành phố và phường/xã.');
-        return;
-      }
-
-      addressToSave = {
-        ...addressToSave,
-        fullAddress: `${addressToSave.fullAddress}, ${wardName}, ${provinceName}`,
-      };
-    }
-
     setSaving(true);
     try {
-      const response = address
-        ? await userService.updateAddress(address.id, addressToSave)
-        : await userService.createAddress(addressToSave);
+      let response;
+      if (address) {
+        const addressToSave: UserAddressUpdateRequest = {
+          ...form,
+          fullAddress: form.fullAddress.trim(),
+          ...(form.provinceName ? { provinceName: form.provinceName } : {}),
+          ...(form.wardName ? { wardName: form.wardName } : {}),
+        };
+        response = await userService.updateAddress(address.id, addressToSave);
+      } else {
+        if (provinceId === '' || wardId === '') {
+          setFormError('Vui lòng chọn tỉnh/thành phố và phường/xã.');
+          return;
+        }
+
+        const provinceName = provinces.find(province => province.id === provinceId)?.name;
+        const wardName = wards.find(ward => ward.id === wardId)?.name;
+        if (!provinceName || !wardName) {
+          setFormError('Vui lòng chọn lại tỉnh/thành phố và phường/xã.');
+          return;
+        }
+
+        const addressToSave: UserAddressCreationRequest = {
+          ...form,
+          fullAddress: form.fullAddress.trim(),
+          provinceName,
+          wardName,
+        };
+        response = await userService.createAddress(addressToSave);
+      }
+
       onSaved(response.data);
       onClose();
     } catch (error) {
@@ -128,10 +151,10 @@ export default function AddressFormModal({
     >
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <Input
-          label={address ? 'Địa chỉ chi tiết (Số nhà, đường, phường, quận, TP)' : 'Địa chỉ chi tiết (Số nhà, tên đường)'}
+          label="Địa chỉ chi tiết (Số nhà, tên đường)"
           value={form.fullAddress}
           onChange={event => setForm({ ...form, fullAddress: event.target.value })}
-          placeholder={address ? 'Ví dụ: 12 Nguyễn Văn Bảo, Phường 4, Gò Vấp, TP.HCM' : 'Ví dụ: 12 Nguyễn Văn Bảo'}
+          placeholder="Ví dụ: 12 Nguyễn Văn Bảo"
           required
         />
 
