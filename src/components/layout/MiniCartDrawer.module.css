@@ -1,0 +1,22 @@
+.backdrop {
+  background-color: var(--bg-overlay);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: var(--transition-smooth);
+}
+
+.backdropOpen {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.drawer {
+  transform: translateX(100%);
+  transition: var(--transition-smooth);
+}
+
+.drawerOpen {
+  transform: translateX(0);
+}

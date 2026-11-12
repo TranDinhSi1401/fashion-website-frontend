@@ -1,0 +1,30 @@
+.viewport {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.recommendationCard {
+  flex: 0 0 calc((100% - 60px) / 4);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+@media (max-width: 760px) {
+  .recommendationCard {
+    flex-basis: calc((100% - 20px) / 2);
+  }
+}
+
+@media (max-width: 480px) {
+  .recommendationCard {
+    flex-basis: 100%;
+  }
+}

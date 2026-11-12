@@ -1,0 +1,51 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  border-radius: var(--radius-sm);
+}
+
+.new,
+.dark {
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+}
+
+.sale {
+  background-color: var(--color-accent-red);
+  color: var(--text-inverse);
+}
+
+.bestSeller,
+.vip {
+  background-color: var(--color-accent-gold);
+  color: var(--text-inverse);
+}
+
+/* Legacy variants kept for compatibility until Step 5 page refactor */
+.default {
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.success {
+  background-color: rgba(31, 139, 76, 0.1);
+  color: var(--status-success);
+}
+
+.error {
+  background-color: rgba(208, 2, 27, 0.1);
+  color: var(--status-error);
+}
+
+.warning {
+  background-color: rgba(230, 126, 34, 0.12);
+  color: var(--status-warning);
+}

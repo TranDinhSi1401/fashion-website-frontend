@@ -1,0 +1,15 @@
+.results {
+  scroll-margin-top: 100px;
+}
+
+.sizePill input:checked + span {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-inverse);
+  font-weight: var(--fw-semibold);
+}
+
+.sizePill input:focus-visible + span {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

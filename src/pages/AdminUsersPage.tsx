@@ -3,12 +3,9 @@ import { Plus, Edit2, Trash2, Shield, Search, RefreshCw, MapPin } from 'lucide-r
 import { userService } from '../services/userService';
 import { useAuth } from '../context/AuthContext';
 import { UserResponse, UserAddressResponse } from '../types/user';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
-import Badge from '../components/ui/Badge';
-import Modal from '../components/ui/Modal';
+import { Badge, Button, Input, Modal, Select } from '../components/ui';
 import { extractErrorMessage } from '../utils/format';
+import styles from './AdminPages.module.css';
 
 export default function AdminUsersPage() {
   const { isAdmin } = useAuth();
@@ -87,7 +84,7 @@ export default function AdminUsersPage() {
       const res = await userService.getUserAddressesByAdmin(u.id);
       setSelectedUserAddresses(res.data || []);
       setIsAddressModalOpen(true);
-    } catch (err: any) {
+    } catch (err) {
       alert(extractErrorMessage(err, 'Không thể tải sổ địa chỉ của người dùng này'));
     }
   };
@@ -98,7 +95,7 @@ export default function AdminUsersPage() {
 
     try {
       if (editingUser) {
-        const payload: any = {
+        const payload: Parameters<typeof userService.updateUser>[1] = {
           fullname: formData.fullname.trim(),
           email: formData.email.trim(),
           phone: formData.phone.trim(),
@@ -121,7 +118,7 @@ export default function AdminUsersPage() {
       }
       setIsModalOpen(false);
       await fetchUsers();
-    } catch (err: any) {
+    } catch (err) {
       alert(extractErrorMessage(err, 'Lưu người dùng thất bại'));
     } finally {
       setIsSubmitting(false);
@@ -138,7 +135,7 @@ export default function AdminUsersPage() {
     try {
       await userService.deleteUser(id);
       await fetchUsers();
-    } catch (err: any) {
+    } catch (err) {
       alert(extractErrorMessage(err, 'Xóa người dùng thất bại'));
     }
   };
@@ -151,39 +148,23 @@ export default function AdminUsersPage() {
   );
 
   return (
-    <div style={{ padding: '40px 0 80px' }}>
+    <div className="pt-10 pb-20">
       <div className="container">
         {/* Header toolbar */}
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '16px',
-            marginBottom: '32px',
-          }}
-        >
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-accent-gold)', marginBottom: '4px' }}>
+            <div className="flex items-center gap-2 text-accent-gold mb-1">
               <Shield size={16} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <span className="text-[0.75rem] font-bold uppercase tracking-[0.08em]">
                 Hệ Thống Quản Trị
               </span>
             </div>
-            <h1
-              style={{
-                fontSize: '1.8rem',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-              }}
-            >
+            <h1 className="text-[1.8rem] font-extrabold uppercase tracking-[0.04em] text-content-primary m-0">
               Quản Lý Người Dùng
             </h1>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div className="flex gap-3">
             <Button variant="secondary" onClick={fetchUsers} icon={RefreshCw}>
               Làm Mới
             </Button>
@@ -196,7 +177,7 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Search */}
-        <div style={{ maxWidth: '400px', marginBottom: '24px' }}>
+        <div className="max-w-[400px] mb-6">
           <Input
             placeholder="Tìm theo username, tên, email..."
             value={searchTerm}
@@ -206,112 +187,70 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Table */}
-        <div
-          style={{
-            overflowX: 'auto',
-            border: '1px solid var(--border-light)',
-            backgroundColor: 'var(--bg-body)',
-          }}
-        >
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              textAlign: 'left',
-              fontSize: '0.85rem',
-            }}
-          >
+        <div className="overflow-x-auto border border-line-light bg-surface-body">
+          <table className="w-full border-collapse text-left text-[0.85rem]">
             <thead>
-              <tr
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  borderBottom: '1px solid var(--border-light)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <th style={{ padding: '16px' }}>ID</th>
-                <th style={{ padding: '16px' }}>Người Dùng</th>
-                <th style={{ padding: '16px' }}>Email & SĐT</th>
-                <th style={{ padding: '16px' }}>Vai Trò</th>
-                <th style={{ padding: '16px' }}>Trạng Thái</th>
-                <th style={{ padding: '16px', textAlign: 'right' }}>Thao Tác</th>
+              <tr className="bg-surface border-b border-line-light uppercase tracking-[0.05em] text-[0.75rem] font-bold text-content-secondary">
+                <th className="p-4">ID</th>
+                <th className="p-4">Người Dùng</th>
+                <th className="p-4">Email &amp; SĐT</th>
+                <th className="p-4">Vai Trò</th>
+                <th className="p-4">Trạng Thái</th>
+                <th className="p-4 text-right">Thao Tác</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={6} className="p-10 text-center text-content-muted">
                     Đang tải danh sách người dùng...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={6} className="p-10 text-center text-content-muted">
                     Không tìm thấy người dùng phù hợp.
                   </td>
                 </tr>
               ) : (
                 filtered.map((u) => (
-                  <tr
-                    key={u.id}
-                    style={{
-                      borderBottom: '1px solid var(--border-light)',
-                      transition: 'background var(--transition-fast)',
-                    }}
-                  >
-                    <td style={{ padding: '16px', fontWeight: 700 }}>#{u.id}</td>
-                    <td style={{ padding: '16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <tr key={u.id} className={styles.tableRow}>
+                    <td className="p-4 font-bold">#{u.id}</td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-2.5">
                         {u.avt ? (
                           <img
                             src={u.avt}
                             alt={u.username}
-                            style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
+                            className="w-8 h-8 rounded-full object-cover"
                           />
                         ) : (
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              backgroundColor: 'var(--bg-dark)',
-                              color: 'var(--text-inverse)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: 700,
-                              fontSize: '0.8rem',
-                            }}
-                          >
+                          <div className="w-8 h-8 rounded-full bg-surface-dark text-content-inverse flex items-center justify-center font-bold text-[0.8rem]">
                             {(u.fullname || u.username || 'U')[0].toUpperCase()}
                           </div>
                         )}
                         <div>
-                          <div style={{ fontWeight: 600 }}>{u.fullname || u.username}</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>@{u.username}</div>
+                          <div className="font-semibold text-content-primary">{u.fullname || u.username}</div>
+                          <div className="text-[0.72rem] text-content-muted">@{u.username}</div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td className="p-4">
                       <div>{u.email}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.phone || 'Chưa cập nhật SĐT'}</div>
+                      <div className="text-[0.75rem] text-content-muted">{u.phone || 'Chưa cập nhật SĐT'}</div>
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td className="p-4">
                       <Badge variant={u.role === 'ADMIN' ? 'dark' : u.role === 'STAFF' ? 'warning' : 'default'}>
                         {u.role}
                       </Badge>
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td className="p-4">
                       <Badge variant={u.status === 'INACTIVE' ? 'error' : 'success'}>
                         {u.status || 'ACTIVE'}
                       </Badge>
                     </td>
-                    <td style={{ padding: '16px', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '6px' }}>
+                    <td className="p-4 text-right">
+                      <div className="inline-flex gap-1.5">
                         <Button
                           variant="secondary"
                           size="sm"
@@ -357,7 +296,7 @@ export default function AdminUsersPage() {
         title={editingUser ? `Cập Nhật Tài Khoản #${editingUser.id}` : 'Tạo Tài Khoản Mới'}
         maxWidth="550px"
       >
-        <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form onSubmit={handleFormSubmit} className="flex flex-col gap-3.5">
           <Input
             label="Tên đăng nhập"
             value={formData.username}
@@ -382,7 +321,7 @@ export default function AdminUsersPage() {
             required
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Email"
               type="email"
@@ -398,7 +337,7 @@ export default function AdminUsersPage() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Vai trò (Role)"
               value={formData.role}
@@ -421,7 +360,7 @@ export default function AdminUsersPage() {
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+          <div className="flex justify-end gap-2.5 mt-4">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
               Hủy
             </Button>
@@ -439,27 +378,23 @@ export default function AdminUsersPage() {
         title={`Sổ Địa Chỉ Của: ${selectedUsername}`}
       >
         {selectedUserAddresses.length === 0 ? (
-          <p style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+          <p className="text-center p-6 text-content-muted m-0">
             Người dùng này chưa có địa chỉ nào.
           </p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="flex flex-col gap-3">
             {selectedUserAddresses.map((addr) => (
               <div
                 key={addr.id}
-                style={{
-                  padding: '14px',
-                  border: '1px solid var(--border-light)',
-                  backgroundColor: 'var(--bg-surface)',
-                }}
+                className="p-3.5 border border-line-light bg-surface"
               >
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                <div className="flex gap-2 mb-1">
                   <Badge variant={addr.addressType === 'HOME' ? 'default' : 'dark'}>
                     {addr.addressType}
                   </Badge>
                   {addr.isDefault && <Badge variant="success">Mặc định</Badge>}
                 </div>
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>
+                <div className="text-[0.88rem] font-semibold text-content-primary">
                   {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
                 </div>
               </div>
@@ -470,4 +405,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-

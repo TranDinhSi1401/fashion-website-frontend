@@ -1,59 +1,91 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+/* src/styles/tokens.css */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 :root {
-  /* Colors */
+  /* ================= 1. BẢNG MÀU (COLOR PALETTE) ================= */
+  /* Màu chủ đạo & Hành động chính (Đen Carbon) */
   --color-primary: #111111;
   --color-primary-hover: #333333;
+  --color-primary-active: #000000;
+
+  /* Màu điểm nhấn thương mại (Đỏ Khuyến mãi / Vàng Đồng Hạng Thành viên) */
   --color-accent-red: #D0021B;
+  --color-accent-red-hover: #A80015;
   --color-accent-gold: #C5A059;
-  
-  --bg-body: #FFFFFF;
-  --bg-surface: #F6F6F6;
-  --bg-surface-elevated: #FAFAFA;
-  --bg-dark: #111111;
-  --bg-dark-hover: #222222;
-  
-  --text-primary: #111111;
-  --text-secondary: #555555;
-  --text-muted: #888888;
-  --text-inverse: #FFFFFF;
-  
-  --border-light: #EBEBEB;
-  --border-default: #CCCCCC;
-  --border-focus: #111111;
-  --border-error: #D0021B;
-  
-  --status-success: #1F8B4C;
-  --status-success-bg: #E8F5E9;
-  --status-error: #D0021B;
-  --status-error-bg: #FFEBEE;
-  --status-warning: #D97706;
-  --status-warning-bg: #FEF3C7;
 
-  /* Typography */
-  --font-primary: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Màu nền (Backgrounds) */
+  --bg-body: #FFFFFF;                /* Nền chính toàn trang */
+  --bg-surface: #F6F6F6;             /* Nền khối phụ, ô tìm kiếm, hover phụ */
+  --bg-elevated: #FFFFFF;            /* Nền Modal, Dropdown, Drawer, Card */
+  --bg-dark: #111111;                /* Nền Topbar, Footer */
+  --bg-overlay: rgba(0, 0, 0, 0.55); /* Lớp phủ mờ khi mở Modal/Drawer */
+  --bg-disabled: #EAEAEA;            /* Nền nút/input khi bị vô hiệu hóa */
 
-  /* Border Radii (Minimalist Sharp Editorial) */
-  --radius-btn: 0px;
-  --radius-input: 0px;
-  --radius-card: 0px;
-  --radius-sm: 2px;
-  --radius-modal: 4px;
+  /* Màu chữ (Typography Colors) */
+  --text-primary: #111111;           /* Chữ chính, tiêu đề, tên sản phẩm */
+  --text-secondary: #555555;         /* Chữ mô tả phụ, thuộc tính */
+  --text-muted: #888888;             /* Giá gốc gạch ngang, placeholder, ngày tháng */
+  --text-inverse: #FFFFFF;           /* Chữ trên nền tối (Button chính, Footer) */
+  --text-disabled: #AAAAAA;          /* Chữ khi bị khóa (Disabled) */
 
-  /* Layout dimensions */
+  /* Màu viền (Borders) */
+  --border-light: #EBEBEB;           /* Viền chia ô nhạt, đường kẻ ngang */
+  --border-default: #CCCCCC;         /* Viền Input, nút Secondary, ô chọn Size */
+  --border-focus: #111111;           /* Viền khi Focus/Active */
+  --border-error: #D0021B;           /* Viền khi nhập sai dữ liệu */
+
+  /* Màu trạng thái hệ thống (Feedback States) */
+  --status-success: #1F8B4C;         /* Còn hàng, Đặt hàng thành công */
+  --status-warning: #E67E22;         /* Sắp hết hàng */
+  --status-error: #D0021B;           /* Hết hàng, Lỗi biểu mẫu */
+
+  /* ================= 2. PHÔNG CHỮ & CỠ CHỮ (TYPOGRAPHY) ================= */
+  --font-primary: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Cỡ chữ chuẩn Desktop */
+  --fs-xs: 12px;     /* Badge, chú thích nhỏ, breadcrumb, báo lỗi */
+  --fs-sm: 13px;     /* Menu phụ, giá gốc, nhãn thuộc tính, bảng size */
+  --fs-base: 14px;   /* Chữ mặc định toàn trang, tên SP trên Card, nút bấm, input */
+  --fs-md: 16px;     /* Giá bán trên Card, tiêu đề khối nhỏ, tiêu đề Drawer */
+  --fs-lg: 20px;     /* Tên SP ở trang Chi tiết, tiêu đề Modal, tổng tiền */
+  --fs-xl: 24px;     /* Tiêu đề phân khu lớn (Section Heading) */
+  --fs-2xl: 32px;    /* Tiêu đề Banner / Trang lớn */
+
+  /* Độ đậm chữ (Font Weight) */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* Chiều cao dòng & Giãn chữ */
+  --lh-tight: 1.25;
+  --lh-base: 1.5;
+  --tracking-wide: 0.05em;   /* Bắt buộc dùng khi chữ IN HOA (Menu, Button) */
+  --tracking-wider: 0.08em;  /* Dùng cho Section Heading IN HOA */
+
+  /* ================= 3. ĐỘ BO GÓC (BORDER RADIUS) ================= */
+  --radius-none: 0px;
+  --radius-sm: 2px;          /* Ô chọn size, badge, phân trang */
+  --radius-btn: 0px;         /* Bo góc chuẩn cho mọi Button */
+  --radius-input: 0px;       /* Bo góc chuẩn cho mọi Input / Select */
+  --radius-card: 0px;        /* Bo góc cho Card sản phẩm */
+  --radius-modal: 4px;       /* Bo góc cho Popup / Modal */
+  --radius-full: 9999px;     /* Hình tròn tuyệt đối (chấm màu, badge số lượng) */
+
+  /* ================= 4. BỐ CỤC & KHOẢNG CÁCH (LAYOUT & SPACING) ================= */
   --container-max-width: 1320px;
+  --container-padding: 24px;
+  --grid-gap: 24px;          /* Khoảng cách giữa các cột sản phẩm */
   --header-height: 76px;
   --topbar-height: 36px;
-  --grid-gap: 24px;
-  
-  /* Transitions */
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  
-  /* Shadows */
-  --shadow-subtle: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06);
-  --shadow-dropdown: 0 10px 30px rgba(0, 0, 0, 0.08);
-  --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.15);
+  --btn-height: 44px;
+  --btn-height-lg: 48px;
+  --input-height: 44px;
+
+  /* ================= 5. ĐỔ BÓNG & HIỆU ỨNG (SHADOWS & TRANSITIONS) ================= */
+  --shadow-header: 0 2px 10px rgba(0, 0, 0, 0.06);
+  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-modal: 0 16px 40px rgba(0, 0, 0, 0.2);
+  --transition-fast: all 0.2s ease-in-out;
+  --transition-smooth: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
 }

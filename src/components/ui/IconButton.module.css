@@ -1,0 +1,11 @@
+.iconButton {
+  transition: var(--transition-fast);
+}
+
+.icon {
+  transition: var(--transition-fast);
+}
+
+.iconButton:hover:not(:disabled) .icon {
+  transform: scale(1.05);
+}

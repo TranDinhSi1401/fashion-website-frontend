@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -13,8 +13,8 @@ export default function ProtectedRoute({ children, requiredRoles }: ProtectedRou
 
   if (isLoading) {
     return (
-      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.85rem', fontWeight: 600 }}>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="uppercase tracking-wider text-[0.85rem] font-semibold text-content-secondary">
           Đang tải thông tin...
         </div>
       </div>
@@ -30,9 +30,9 @@ export default function ProtectedRoute({ children, requiredRoles }: ProtectedRou
     const hasRole = requiredRoles.some((r) => r.toUpperCase() === userRole || `ROLE_${r.toUpperCase()}` === userRole);
     if (!hasRole) {
       return (
-        <div className="container" style={{ padding: '80px 20px', textAlign: 'center' }}>
+        <div className="container py-20 px-5 text-center">
           <h2>Từ Chối Quyền Truy Cập (403)</h2>
-          <p style={{ marginTop: '12px', color: 'var(--text-muted)' }}>
+          <p className="mt-3 text-content-muted">
             Bạn không có quyền truy cập trang này bằng tài khoản hiện tại.
           </p>
         </div>
@@ -42,4 +42,3 @@ export default function ProtectedRoute({ children, requiredRoles }: ProtectedRou
 
   return <>{children}</>;
 }
-

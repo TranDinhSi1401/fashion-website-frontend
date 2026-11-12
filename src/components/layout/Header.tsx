@@ -1,558 +1,413 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, User, ShoppingBag, ChevronDown, Shield, LogOut, Package, MapPin, KeyRound, Users, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  ChevronDown,
+  KeyRound,
+  LogOut,
+  MapPin,
+  Package,
+  Shield,
+  ShoppingBag,
+  User,
+  Users,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
-import Badge from '../ui/Badge';
+import { cn } from '../../utils/cn';
+import { Badge, IconButton, SearchInput } from '../ui';
+import MegaMenu, { MegaMenuColumn } from './MegaMenu';
+import MiniCartDrawer from './MiniCartDrawer';
+import styles from './Header.module.css';
+
+const MEGA_MENU_DATA: Record<'ao' | 'quan', MegaMenuColumn[]> = {
+  ao: [
+    {
+      title: 'Áo Nam Nổi Bật',
+      links: [
+        { label: 'Tất cả Áo Nam', to: '/products?category=ao' },
+        { label: 'Hàng mới về', to: '/products?category=ao&tag=new' },
+        { label: 'Bán chạy nhất', to: '/products?category=ao&sort=popular' },
+      ],
+    },
+    {
+      title: 'Áo Thường Ngày',
+      links: [
+        { label: 'Áo T-Shirt', to: '/products?category=t-shirt' },
+        { label: 'Áo Polo', to: '/products?category=polo' },
+      ],
+    },
+    {
+      title: 'Công Sở & May Đo',
+      links: [
+        { label: 'Áo Sơ Mi May Đo', to: '/products?category=so-mi' },
+        { label: 'Áo Khoác & Blazer', to: '/products?category=khoac' },
+      ],
+    },
+    {
+      title: 'Bộ Sưu Tập',
+      links: [
+        { label: 'Minimalist Essential', to: '/products?tag=new' },
+        { label: 'Ưu đãi đặc biệt', to: '/products?tag=sale' },
+      ],
+    },
+  ],
+  quan: [
+    {
+      title: 'Quần Nam Nổi Bật',
+      links: [
+        { label: 'Tất cả Quần Nam', to: '/products?category=quan' },
+        { label: 'Hàng mới về', to: '/products?category=quan&tag=new' },
+      ],
+    },
+    {
+      title: 'Lịch Lãm & Công Sở',
+      links: [
+        { label: 'Quần Tây May Đo', to: '/products?category=quan-tay' },
+        { label: 'Quần Khaki', to: '/products?category=khaki' },
+      ],
+    },
+    {
+      title: 'Năng Động',
+      links: [
+        { label: 'Quần Jeans', to: '/products?category=jeans' },
+      ],
+    },
+    {
+      title: 'Phối Đồ Gợi Ý',
+      links: [
+        { label: 'Smart Casual', to: '/products?category=ao' },
+        { label: 'Ưu đãi theo mùa', to: '/products?tag=sale' },
+      ],
+    },
+  ],
+};
 
 export default function Header() {
   const { user, isAuthenticated, isAdmin, isStaff, logout } = useAuth();
   const { cart } = useCart();
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
-  const [searchOpen, setSearchOpen] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [activeMenu, setActiveMenu] = useState<'ao' | 'quan' | null>(null);
+  const [cartDrawerOpen, setCartDrawerOpen] = useState<boolean>(false);
+  const [isScrolled, setIsScrolled] = useState<boolean>(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const routeKey = `${location.pathname}${location.search}`;
+  const [prevRouteKey, setPrevRouteKey] = useState<string>(routeKey);
+
+  if (routeKey !== prevRouteKey) {
+    setPrevRouteKey(routeKey);
+    setDropdownOpen(false);
+    setActiveMenu(null);
+    setCartDrawerOpen(false);
+  }
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
-    }
+    };
+
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    handleScroll();
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
-  useEffect(() => {
-    setDropdownOpen(false);
-    setActiveMenu(null);
-  }, [location.pathname, location.search]);
-
   const handleLogout = async () => {
+    setDropdownOpen(false);
     await logout();
     navigate('/login');
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchOpen(false);
+  const handleSearch = (query: string) => {
+    if (query) {
+      navigate(`/products?search=${encodeURIComponent(query)}`);
+    } else {
+      navigate('/products');
     }
   };
 
+  const currentSearch = new URLSearchParams(location.search).get('search') || '';
+
   return (
-    <header
-      style={{
-        backgroundColor: '#000000',
-        color: '#FFFFFF',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000,
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-      }}
-    >
-      <div
-        className="container"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: '68px',
-          gap: '16px',
-        }}
+    <>
+      <header
+        onMouseLeave={() => setActiveMenu(null)}
+        className={cn(
+          'sticky top-0 z-50 h-header w-full rounded-none border-b border-line-light bg-surface-body text-content-primary',
+          styles.header,
+          isScrolled && 'shadow-header'
+        )}
       >
-        {/* Brand Logo */}
-        <Link
-          to="/"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            textDecoration: 'none',
-            color: '#FFFFFF',
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              border: '2px solid #FFFFFF',
-              borderRadius: '3px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '0.8rem',
-              letterSpacing: '0.05em',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 100%)',
-            }}
-          >
-            <span>FW</span>
-          </div>
-
-          <span
-            style={{
-              fontSize: '1.25rem',
-              fontWeight: 900,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: '#FFFFFF',
-            }}
-          >
-            FASHION<span style={{ color: 'var(--color-accent-gold)', fontWeight: 400 }}>WEBSITE</span>
-          </span>
-        </Link>
-
-        {/* Clean Responsive Nav Menu without Scrollbar */}
-        <nav
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '20px',
-            fontSize: '0.82rem',
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-          }}
-        >
+        <div className="mx-auto flex h-full max-w-container items-center justify-between gap-6 px-6">
+          {/* Logo */}
           <Link
             to="/"
-            style={{
-              color: location.pathname === '/' ? 'var(--color-accent-gold)' : '#FFFFFF',
-              whiteSpace: 'nowrap',
-              padding: '6px 0',
-              transition: 'color 0.15s',
-              borderBottom: location.pathname === '/' ? '2px solid var(--color-accent-gold)' : '2px solid transparent',
-            }}
+            className="flex w-[160px] shrink-0 items-center gap-2.5 text-content-primary"
           >
-            Trang Chủ
-          </Link>
-
-          <Link
-            to="/products"
-            style={{
-              color: location.pathname === '/products' && !location.search ? 'var(--color-accent-gold)' : '#FFFFFF',
-              whiteSpace: 'nowrap',
-              padding: '6px 0',
-              transition: 'color 0.15s',
-              borderBottom: location.pathname === '/products' && !location.search ? '2px solid var(--color-accent-gold)' : '2px solid transparent',
-            }}
-          >
-            Sản Phẩm
-          </Link>
-
-          <Link
-            to="/products?tag=new"
-            style={{
-              color: location.search.includes('tag=new') ? 'var(--color-accent-gold)' : '#FFFFFF',
-              whiteSpace: 'nowrap',
-              padding: '6px 0',
-              transition: 'color 0.15s',
-            }}
-          >
-            Hàng mới về
-          </Link>
-
-          {/* Áo Dropdown trigger */}
-          <div
-            style={{ position: 'relative' }}
-            onMouseEnter={() => setActiveMenu('ao')}
-            onMouseLeave={() => setActiveMenu(null)}
-          >
-            <Link
-              to="/products?category=ao"
-              style={{
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                whiteSpace: 'nowrap',
-                padding: '6px 0',
-              }}
-            >
-              Áo <ChevronDown size={13} />
-            </Link>
-
-            {activeMenu === 'ao' && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  backgroundColor: '#111114',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  minWidth: '190px',
-                  boxShadow: '0 12px 30px rgba(0,0,0,0.6)',
-                  borderRadius: '4px',
-                  padding: '8px 0',
-                  zIndex: 1100,
-                }}
-              >
-                <Link to="/products?category=ao" style={{ display: 'block', padding: '9px 18px', color: '#FFF', fontSize: '0.8rem', fontWeight: 700 }}>
-                  Tất cả Áo Nam
-                </Link>
-                <Link to="/products?category=t-shirt" style={{ display: 'block', padding: '8px 18px', color: '#CCC', fontSize: '0.8rem' }}>
-                  Áo T-Shirt
-                </Link>
-                <Link to="/products?category=polo" style={{ display: 'block', padding: '8px 18px', color: '#CCC', fontSize: '0.8rem' }}>
-                  Áo Polo
-                </Link>
-                <Link to="/products?category=so-mi" style={{ display: 'block', padding: '8px 18px', color: '#CCC', fontSize: '0.8rem' }}>
-                  Áo Sơ Mi May Đo
-                </Link>
-                <Link to="/products?category=khoac" style={{ display: 'block', padding: '8px 18px', color: '#CCC', fontSize: '0.8rem' }}>
-                  Áo Khoác & Blazer
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Quần Dropdown trigger */}
-          <div
-            style={{ position: 'relative' }}
-            onMouseEnter={() => setActiveMenu('quan')}
-            onMouseLeave={() => setActiveMenu(null)}
-          >
-            <Link
-              to="/products?category=quan"
-              style={{
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                whiteSpace: 'nowrap',
-                padding: '6px 0',
-              }}
-            >
-              Quần <ChevronDown size={13} />
-            </Link>
-
-            {activeMenu === 'quan' && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  backgroundColor: '#111114',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  minWidth: '190px',
-                  boxShadow: '0 12px 30px rgba(0,0,0,0.6)',
-                  borderRadius: '4px',
-                  padding: '8px 0',
-                  zIndex: 1100,
-                }}
-              >
-                <Link to="/products?category=quan" style={{ display: 'block', padding: '9px 18px', color: '#FFF', fontSize: '0.8rem', fontWeight: 700 }}>
-                  Tất cả Quần Nam
-                </Link>
-                <Link to="/products?category=quan-tay" style={{ display: 'block', padding: '8px 18px', color: '#CCC', fontSize: '0.8rem' }}>
-                  Quần Tây May Đo
-                </Link>
-                <Link to="/products?category=khaki" style={{ display: 'block', padding: '8px 18px', color: '#CCC', fontSize: '0.8rem' }}>
-                  Quần Khaki
-                </Link>
-                <Link to="/products?category=jeans" style={{ display: 'block', padding: '8px 18px', color: '#CCC', fontSize: '0.8rem' }}>
-                  Quần Jeans
-                </Link>
-              </div>
-            )}
-          </div>
-
-          <Link
-            to="/products?category=phukien"
-            style={{ color: '#FFFFFF', whiteSpace: 'nowrap', padding: '6px 0' }}
-          >
-            Phụ kiện
-          </Link>
-
-          <Link
-            to="/products?tag=sale"
-            style={{ color: '#FF4D4D', whiteSpace: 'nowrap', padding: '6px 0', fontWeight: 800 }}
-          >
-            Ưu đãi
-          </Link>
-
-          <Link
-            to="/#stores"
-            style={{ color: '#FFFFFF', whiteSpace: 'nowrap', padding: '6px 0' }}
-          >
-            Cửa hàng
-          </Link>
-
-          {(isAdmin || isStaff) && (
-            <Link
-              to="/admin/products"
-              style={{
-                color: '#C5A059',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                whiteSpace: 'nowrap',
-                padding: '6px 0',
-              }}
-            >
-              <Shield size={13} /> Quản trị
-            </Link>
-          )}
-        </nav>
-
-        {/* Action Icons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          {/* Search Button */}
-          <button
-            type="button"
-            onClick={() => setSearchOpen(!searchOpen)}
-            style={{
-              width: '38px',
-              height: '38px',
-              backgroundColor: 'rgba(255, 255, 255, 0.12)',
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              cursor: 'pointer',
-              border: 'none',
-              transition: 'background-color 0.15s',
-            }}
-            aria-label="Tìm kiếm"
-          >
-            <Search size={18} />
-          </button>
-
-          {/* User Account Button & Dropdown */}
-          <div style={{ position: 'relative' }} ref={dropdownRef}>
-            <button
-              type="button"
-              onClick={() => {
-                if (!isAuthenticated) {
-                  navigate('/login');
-                } else {
-                  setDropdownOpen(!dropdownOpen);
-                }
-              }}
-              style={{
-                width: '38px',
-                height: '38px',
-                backgroundColor: 'rgba(255, 255, 255, 0.12)',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#FFFFFF',
-                cursor: 'pointer',
-                border: 'none',
-              }}
-              aria-label="Tài khoản"
-            >
-              {user?.avt ? (
-                <img
-                  src={user.avt}
-                  alt={user.fullname || user.username}
-                  style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }}
-                />
-              ) : (
-                <User size={18} />
-              )}
-            </button>
-
-            {dropdownOpen && isAuthenticated && (
-              <div
-                className="animate-slide-up"
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 8px)',
-                  right: 0,
-                  width: '240px',
-                  backgroundColor: '#141416',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  boxShadow: '0 16px 36px rgba(0,0,0,0.6)',
-                  borderRadius: '6px',
-                  zIndex: 1100,
-                  overflow: 'hidden',
-                }}
-              >
-                <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#1C1C20' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFF' }}>
-                    {user?.fullname || user?.username}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: '#999', marginTop: '2px' }}>
-                    {user?.email || `@${user?.username}`}
-                  </div>
-                  {user?.role && (
-                    <div style={{ marginTop: '6px' }}>
-                      <Badge variant={isAdmin ? 'dark' : 'default'}>{user.role}</Badge>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ padding: '6px 0' }}>
-                  <Link
-                    to="/account/profile"
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', fontSize: '0.82rem', color: '#EEE' }}
-                  >
-                    <User size={15} /> Thông tin tài khoản
-                  </Link>
-
-                  <Link
-                    to="/account/addresses"
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', fontSize: '0.82rem', color: '#EEE' }}
-                  >
-                    <MapPin size={15} /> Sổ địa chỉ nhận hàng
-                  </Link>
-
-                  <Link
-                    to="/account/password"
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', fontSize: '0.82rem', color: '#EEE' }}
-                  >
-                    <KeyRound size={15} /> Đổi mật khẩu
-                  </Link>
-
-                  {(isAdmin || isStaff) && (
-                    <>
-                      <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
-                      <Link
-                        to="/admin/products"
-                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 16px', fontSize: '0.82rem', color: '#C5A059' }}
-                      >
-                        <Package size={15} /> Quản lý sản phẩm
-                      </Link>
-                      <Link
-                        to="/admin/users"
-                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 16px', fontSize: '0.82rem', color: '#C5A059' }}
-                      >
-                        <Users size={15} /> Quản lý người dùng
-                      </Link>
-                    </>
-                  )}
-
-                  <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '10px 16px',
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      color: '#FF6B6B',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <LogOut size={15} /> Đăng xuất
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Cart Button */}
-          <Link
-            to="/cart"
-            style={{
-              width: '38px',
-              height: '38px',
-              backgroundColor: 'rgba(255, 255, 255, 0.12)',
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              position: 'relative',
-            }}
-            aria-label="Giỏ hàng"
-          >
-            <ShoppingBag size={18} />
-            <span
-              style={{
-                position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                backgroundColor: '#D0021B',
-                color: '#FFFFFF',
-                borderRadius: '50%',
-                width: '16px',
-                height: '16px',
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {cart?.totalQuantity || 0}
+            <div className="flex h-8 w-8 items-center justify-center border-2 border-primary bg-primary text-xs font-bold tracking-wide text-content-inverse">
+              FW
+            </div>
+            <span className="text-md font-bold uppercase tracking-wider">
+              FASHION<span className="font-medium text-accent-gold">WEB</span>
             </span>
           </Link>
-        </div>
-      </div>
 
-      {/* Slide-Down Quick Search Drawer */}
-      {searchOpen && (
-        <div
-          style={{
-            backgroundColor: '#111114',
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-            padding: '16px 0',
-          }}
-        >
-          <div className="container">
-            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <input
-                type="text"
-                placeholder="Tìm kiếm áo sơ mi, polo, quần tây, t-shirt..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoFocus
-                style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: '6px',
-                  color: '#FFFFFF',
-                  outline: 'none',
-                  fontSize: '0.9rem',
+          {/* Main Navigation */}
+          <nav
+            aria-label="Điều hướng chính"
+            className="hidden items-center gap-6 text-base font-semibold uppercase tracking-wide lg:flex"
+          >
+            <Link
+              to="/"
+              className={cn(
+                styles.navLink,
+                location.pathname === '/' && styles.navLinkActive
+              )}
+            >
+              Trang chủ
+            </Link>
+
+            <Link
+              to="/products"
+              className={cn(
+                styles.navLink,
+                location.pathname === '/products' && !location.search && styles.navLinkActive
+              )}
+            >
+              Sản phẩm
+            </Link>
+
+            <Link
+              to="/products?tag=new"
+              className={cn(
+                styles.navLink,
+                location.search.includes('tag=new') && styles.navLinkActive
+              )}
+            >
+              Hàng mới
+            </Link>
+
+            <div
+              onMouseEnter={() => setActiveMenu('ao')}
+              className="flex h-header items-center"
+            >
+              <Link
+                to="/products?category=ao"
+                className={cn(
+                  styles.navLink,
+                  location.search.includes('category=ao') && styles.navLinkActive
+                )}
+              >
+                <span>Áo</span>
+                <ChevronDown size={14} />
+              </Link>
+            </div>
+
+            <div
+              onMouseEnter={() => setActiveMenu('quan')}
+              className="flex h-header items-center"
+            >
+              <Link
+                to="/products?category=quan"
+                className={cn(
+                  styles.navLink,
+                  location.search.includes('category=quan') && styles.navLinkActive
+                )}
+              >
+                <span>Quần</span>
+                <ChevronDown size={14} />
+              </Link>
+            </div>
+
+            <Link
+              to="/products?category=phukien"
+              className={cn(
+                styles.navLink,
+                location.search.includes('category=phukien') && styles.navLinkActive
+              )}
+            >
+              Phụ kiện
+            </Link>
+
+            <Link
+              to="/products?tag=sale"
+              className={cn(
+                'text-accent-red',
+                styles.navLink,
+                location.search.includes('tag=sale') && styles.navLinkActive
+              )}
+            >
+              Ưu đãi
+            </Link>
+
+            <Link to="/#stores" className={styles.navLink}>
+              Cửa hàng
+            </Link>
+
+            {(isAdmin || isStaff) && (
+              <Link
+                to="/admin/products"
+                className={cn(
+                  'text-accent-gold',
+                  styles.navLink,
+                  location.pathname.startsWith('/admin') && styles.navLinkActive
+                )}
+              >
+                <Shield size={14} />
+                <span>Quản trị</span>
+              </Link>
+            )}
+          </nav>
+
+          {/* Search & Action Icons */}
+          <div className="flex shrink-0 items-center gap-2">
+            <SearchInput
+              value={currentSearch}
+              placeholder="Tìm kiếm..."
+              onSearch={handleSearch}
+              className="hidden sm:flex"
+            />
+
+            {/* User Account */}
+            <div className="relative" ref={dropdownRef}>
+              <IconButton
+                aria-label="Tài khoản"
+                aria-expanded={dropdownOpen}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    navigate('/login');
+                  } else {
+                    setDropdownOpen((prev) => !prev);
+                  }
                 }}
+                icon={
+                  user?.avt ? (
+                    <img
+                      src={user.avt}
+                      alt={user.fullname || user.username}
+                      className="h-6 w-6 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User size={20} />
+                  )
+                }
               />
-              <button
-                type="submit"
-                style={{
-                  padding: '12px 24px',
-                  backgroundColor: '#FFFFFF',
-                  color: '#000000',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  textTransform: 'uppercase',
-                  fontSize: '0.82rem',
-                }}
-              >
-                Tìm Kiếm
-              </button>
-              <button
-                type="button"
-                onClick={() => setSearchOpen(false)}
-                style={{ color: 'rgba(255, 255, 255, 0.6)', cursor: 'pointer', background: 'none', border: 'none' }}
-              >
-                <X size={22} />
-              </button>
-            </form>
+
+              {dropdownOpen && isAuthenticated && (
+                <div className="animate-slide-up absolute right-0 top-[calc(100%+8px)] z-50 w-60 overflow-hidden rounded-sm border border-line-light bg-surface-elevated shadow-dropdown">
+                  <div className="border-b border-line-light bg-surface px-4 py-3.5">
+                    <div className="text-base font-bold text-content-primary">
+                      {user?.fullname || user?.username}
+                    </div>
+                    <div className="mt-0.5 text-xs text-content-muted">
+                      {user?.email || `@${user?.username}`}
+                    </div>
+                    {user?.role && (
+                      <div className="mt-2">
+                        <Badge variant={isAdmin ? 'new' : 'vip'}>{user.role}</Badge>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="py-1.5">
+                    <Link
+                      to="/account/profile"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                    >
+                      <User size={15} />
+                      <span>Thông tin tài khoản</span>
+                    </Link>
+
+                    <Link
+                      to="/account/addresses"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                    >
+                      <MapPin size={15} />
+                      <span>Sổ địa chỉ nhận hàng</span>
+                    </Link>
+
+                    <Link
+                      to="/account/password"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                    >
+                      <KeyRound size={15} />
+                      <span>Đổi mật khẩu</span>
+                    </Link>
+
+                    {(isAdmin || isStaff) && (
+                      <>
+                        <div className="my-1 h-px bg-line-light" />
+                        <Link
+                          to="/admin/products"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                        >
+                          <Package size={15} />
+                          <span>Quản lý sản phẩm</span>
+                        </Link>
+                        <Link
+                          to="/admin/users"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                        >
+                          <Users size={15} />
+                          <span>Quản lý người dùng</span>
+                        </Link>
+                      </>
+                    )}
+
+                    <div className="my-1 h-px bg-line-light" />
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold text-accent-red hover:bg-surface"
+                    >
+                      <LogOut size={15} />
+                      <span>Đăng xuất</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cart Trigger -> MiniCartDrawer */}
+            <IconButton
+              aria-label="Giỏ hàng"
+              badgeCount={cart?.totalQuantity || 0}
+              badgeVariant="accent"
+              onClick={() => setCartDrawerOpen(true)}
+              icon={<ShoppingBag size={20} />}
+            />
           </div>
         </div>
-      )}
-    </header>
+
+        <MegaMenu
+          isOpen={activeMenu !== null}
+          columns={activeMenu ? MEGA_MENU_DATA[activeMenu] : []}
+          onNavigate={() => setActiveMenu(null)}
+          onMouseLeave={() => setActiveMenu(null)}
+        />
+      </header>
+
+      <MiniCartDrawer
+        isOpen={cartDrawerOpen}
+        onClose={() => setCartDrawerOpen(false)}
+      />
+    </>
   );
 }

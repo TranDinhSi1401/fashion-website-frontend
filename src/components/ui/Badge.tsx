@@ -1,68 +1,36 @@
-import React, { HTMLAttributes, ReactNode } from 'react';
+import { HTMLAttributes, ReactNode } from 'react';
+import { BadgeVariant } from '../../types/ui';
+import { cn } from '../../utils/cn';
+import styles from './Badge.module.css';
+
+export type LegacyBadgeVariant = 'default' | 'success' | 'error' | 'warning' | 'dark';
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: 'default' | 'success' | 'error' | 'warning' | 'dark';
+  variant?: BadgeVariant | LegacyBadgeVariant;
   children: ReactNode;
 }
 
+const VARIANT_CLASS_MAP: Record<NonNullable<BadgeProps['variant']>, string> = {
+  new: styles.new,
+  sale: styles.sale,
+  'best-seller': styles.bestSeller,
+  vip: styles.vip,
+  default: styles.default,
+  success: styles.success,
+  error: styles.error,
+  warning: styles.warning,
+  dark: styles.dark,
+};
+
 export default function Badge({
   children,
-  variant = 'default',
+  variant = 'new',
   className = '',
-  style,
   ...props
 }: BadgeProps) {
-  const getStyle = (): React.CSSProperties => {
-    switch (variant) {
-      case 'success':
-        return {
-          backgroundColor: 'var(--status-success-bg)',
-          color: 'var(--status-success)',
-        };
-      case 'error':
-        return {
-          backgroundColor: 'var(--status-error-bg)',
-          color: 'var(--status-error)',
-        };
-      case 'warning':
-        return {
-          backgroundColor: 'var(--status-warning-bg)',
-          color: 'var(--status-warning)',
-        };
-      case 'dark':
-        return {
-          backgroundColor: 'var(--bg-dark)',
-          color: 'var(--text-inverse)',
-        };
-      case 'default':
-      default:
-        return {
-          backgroundColor: 'var(--bg-surface)',
-          color: 'var(--text-secondary)',
-          border: '1px solid var(--border-light)',
-        };
-    }
-  };
-
   return (
-    <span
-      className={`badge ${className}`}
-      style={{
-        ...getStyle(),
-        borderRadius: 'var(--radius-sm)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '3px 8px',
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        ...style,
-      }}
-      {...props}
-    >
+    <span className={cn(styles.badge, VARIANT_CLASS_MAP[variant], className)} {...props}>
       {children}
     </span>
   );
 }
-

@@ -1,0 +1,28 @@
+.tableRow {
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color var(--transition-fast);
+}
+
+.tableRow:hover {
+  background-color: var(--bg-surface);
+}
+
+.alertSuccess {
+  padding: 12px 16px;
+  background-color: rgba(31, 139, 76, 0.08);
+  border-left: 3px solid var(--status-success);
+  color: var(--status-success);
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.alertError {
+  padding: 12px 16px;
+  background-color: rgba(208, 2, 27, 0.08);
+  border-left: 3px solid var(--status-error);
+  color: var(--status-error);
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}

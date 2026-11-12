@@ -1,54 +1,55 @@
-import React from 'react';
+import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { BreadcrumbItem } from '../../types/ui';
 
-export interface BreadcrumbItem {
-  label: string;
-  to?: string;
-}
+export type { BreadcrumbItem };
 
 export interface BreadcrumbProps {
   items: BreadcrumbItem[];
 }
 
 export default function Breadcrumb({ items = [] }: BreadcrumbProps) {
-  if (!items || items.length === 0) return null;
+  if (!items.length) return null;
 
   return (
     <nav
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        fontSize: '0.78rem',
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        color: 'var(--text-muted)',
-        padding: '16px 0',
-      }}
       aria-label="Breadcrumb"
+      className="flex h-11 w-full items-center gap-2 overflow-x-auto whitespace-nowrap text-xs font-normal"
     >
-      <Link to="/" style={{ color: 'var(--text-secondary)' }}>
-        Trang Chủ
+      <Link
+        to="/"
+        className="text-content-muted transition-colors hover:text-content-primary hover:underline"
+      >
+        Trang chủ
       </Link>
+
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
+        const target = item.to || item.href;
+
         return (
-          <React.Fragment key={index}>
-            <ChevronRight size={12} style={{ color: 'var(--border-default)' }} />
-            {isLast || !item.to ? (
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+          <Fragment key={`${item.label}-${index}`}>
+            <span className="text-content-muted" aria-hidden="true">
+              /
+            </span>
+            {isLast || !target ? (
+              <span
+                aria-current={isLast ? 'page' : undefined}
+                className="font-medium text-content-primary"
+              >
                 {item.label}
               </span>
             ) : (
-              <Link to={item.to} style={{ color: 'var(--text-secondary)' }}>
+              <Link
+                to={target}
+                className="text-content-muted transition-colors hover:text-content-primary hover:underline"
+              >
                 {item.label}
               </Link>
             )}
-          </React.Fragment>
+          </Fragment>
         );
       })}
     </nav>
   );
 }
-

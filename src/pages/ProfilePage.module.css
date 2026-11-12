@@ -1,0 +1,23 @@
+.alertError {
+  padding: 12px 16px;
+  background-color: rgba(208, 2, 27, 0.08);
+  border-left: 3px solid var(--status-error);
+  color: var(--status-error);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.alertSuccess {
+  padding: 12px 16px;
+  background-color: rgba(31, 139, 76, 0.08);
+  border-left: 3px solid var(--status-success);
+  color: var(--status-success);
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}

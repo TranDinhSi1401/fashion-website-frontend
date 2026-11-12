@@ -1,0 +1,8 @@
+.select {
+  appearance: none;
+  transition: var(--transition-fast);
+}
+
+.select:focus-visible {
+  outline: none;
+}

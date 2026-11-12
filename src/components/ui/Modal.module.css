@@ -1,0 +1,38 @@
+.dialog {
+  border: none;
+  padding: 0;
+  margin: auto;
+  width: calc(100% - 32px);
+  max-height: 90vh;
+  background-color: var(--bg-elevated);
+  border-radius: var(--radius-modal);
+  box-shadow: var(--shadow-modal);
+  color: var(--text-primary);
+  overflow: visible;
+}
+
+.dialog::backdrop {
+  background-color: var(--bg-overlay);
+  backdrop-filter: blur(2px);
+}
+
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.closeButton {
+  transition: var(--transition-fast);
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

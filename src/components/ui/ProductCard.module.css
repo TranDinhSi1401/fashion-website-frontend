@@ -1,0 +1,62 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.image {
+  transition: var(--transition-smooth);
+}
+
+.secondaryImage {
+  opacity: 0;
+  transition: var(--transition-smooth);
+}
+
+.card:hover .image {
+  transform: scale(1.04);
+}
+
+.card:hover .secondaryImage {
+  opacity: 1;
+  transform: scale(1.04);
+}
+
+.quickBuy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(17, 17, 17, 0.85);
+  color: var(--text-inverse);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  transform: translateY(100%);
+  transition: var(--transition-fast);
+  z-index: 2;
+}
+
+.card:hover .quickBuy,
+.card:focus-within .quickBuy {
+  transform: translateY(0);
+}
+
+.quickBuy:hover {
+  background-color: var(--color-primary);
+}
+
+.wishlist {
+  background-color: rgba(255, 255, 255, 0.88);
+  transition: var(--transition-fast);
+}
+
+.wishlist:hover {
+  background-color: var(--bg-body);
+  transform: scale(1.05);
+}

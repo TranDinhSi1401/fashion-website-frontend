@@ -4,6 +4,7 @@ import Topbar from './components/layout/Topbar';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import ScrollManager from './components/common/ScrollManager';
 import AiAdvisorWidget from './components/ai/AiAdvisorWidget';
 
 import HomePage from './pages/HomePage';
@@ -20,11 +21,12 @@ import AdminUsersPage from './pages/AdminUsersPage';
 
 export default function App() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
+    <div className="relative flex min-h-screen flex-col">
+      <ScrollManager />
       <Topbar />
       <Header />
 
-      <main style={{ flex: 1 }}>
+      <main className="flex-1">
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
@@ -92,9 +94,9 @@ export default function App() {
           <Route
             path="*"
             element={
-              <div className="container" style={{ padding: '80px 20px', textAlign: 'center' }}>
-                <h1 style={{ fontSize: '3rem', fontWeight: 800 }}>404</h1>
-                <p style={{ marginTop: '12px', color: 'var(--text-secondary)' }}>
+              <div className="container py-20 text-center">
+                <h1 className="text-2xl font-bold uppercase tracking-wider">404</h1>
+                <p className="mt-3 text-base text-content-secondary">
                   Trang bạn tìm kiếm không tồn tại hoặc đã được di dời.
                 </p>
               </div>

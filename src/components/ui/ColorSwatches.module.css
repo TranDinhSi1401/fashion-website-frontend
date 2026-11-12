@@ -1,0 +1,30 @@
+.swatch {
+  position: relative;
+  background-color: var(--swatch-color, var(--color-primary));
+  border: 1px solid var(--border-default);
+  transition: var(--transition-fast);
+}
+
+.swatch:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+.active {
+  box-shadow: 0 0 0 2px var(--bg-body), 0 0 0 3.5px var(--border-focus);
+}
+
+.swatch:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.swatch:disabled::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 120%;
+  height: 1.5px;
+  background-color: var(--text-primary);
+  transform: rotate(-45deg);
+}

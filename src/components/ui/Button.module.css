@@ -1,0 +1,109 @@
+.button {
+  transition: var(--transition-fast);
+}
+
+.primary {
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+  border: 1px solid var(--color-primary);
+}
+
+.primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.primary:active:not(:disabled) {
+  background-color: var(--color-primary-active);
+  transform: scale(0.99);
+}
+
+.primary:disabled {
+  background-color: var(--bg-disabled);
+  border-color: var(--bg-disabled);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.secondary {
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+}
+
+.secondary:active:not(:disabled) {
+  background-color: var(--color-primary-active);
+  color: var(--text-inverse);
+}
+
+.secondary:disabled {
+  background-color: var(--bg-body);
+  border-color: var(--border-light);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.ghost {
+  height: auto;
+  padding: 4px 0;
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-bottom: 1px solid var(--border-default);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.ghost:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
+}
+
+.ghost:disabled {
+  color: var(--text-disabled);
+  border-bottom-color: transparent;
+  cursor: not-allowed;
+}
+
+/* Legacy variants kept for compatibility until Step 5 page refactor */
+.outline {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.outline:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+}
+
+.outline:disabled {
+  border-color: var(--border-light);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.danger {
+  background-color: var(--status-error);
+  color: var(--text-inverse);
+  border: 1px solid var(--status-error);
+}
+
+.danger:hover:not(:disabled) {
+  background-color: var(--color-accent-red-hover);
+  border-color: var(--color-accent-red-hover);
+}
+
+.danger:disabled {
+  background-color: var(--bg-disabled);
+  border-color: var(--bg-disabled);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}

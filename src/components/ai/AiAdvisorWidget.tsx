@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, X, Bot, User, RefreshCw, ChevronDown } from 'lucide-react';
+import { Sparkles, Send, X, Bot, RefreshCw } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { ChatMessage } from '../../types/ai';
 import { useAuth } from '../../context/AuthContext';
+import styles from './AiAdvisorWidget.module.css';
 
 const SUGGESTED_PROMPTS = [
   'Tư vấn cho tôi một set đồ công sở lịch sự theo gu của tôi?',
@@ -62,7 +63,7 @@ export default function AiAdvisorWidget() {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiMsg]);
-    } catch (err: any) {
+    } catch {
       const errorMsg: ChatMessage = {
         id: String(Date.now() + 1),
         sender: 'ai',
@@ -87,49 +88,15 @@ export default function AiAdvisorWidget() {
       {/* Nút bấm mở Floating AI Stylist */}
       {!isOpen && (
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
-          style={{
-            position: 'fixed',
-            bottom: '88px',
-            right: '24px',
-            zIndex: 998,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            backgroundColor: '#111111',
-            color: '#FFFFFF',
-            border: '1px solid #C5A059',
-            padding: '12px 20px',
-            borderRadius: '9999px',
-            boxShadow: '0 6px 24px rgba(0,0,0,0.3)',
-            cursor: 'pointer',
-            transition: 'all 0.25s ease',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.transform = 'translateY(-3px)';
-            e.currentTarget.style.backgroundColor = '#1c1c1f';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.backgroundColor = '#111111';
-          }}
+          className={styles.launcherBtn}
           aria-label="Tư vấn thời trang AI"
         >
-          <div
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              backgroundColor: '#C5A059',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF'
-            }}
-          >
+          <div className="w-7 h-7 rounded-full bg-accent-gold flex items-center justify-center text-content-inverse">
             <Sparkles size={16} />
           </div>
-          <span style={{ fontSize: '0.84rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+          <span className="text-[0.84rem] font-bold tracking-[0.04em]">
             AI Stylist Tư Vấn
           </span>
         </button>
@@ -137,70 +104,27 @@ export default function AiAdvisorWidget() {
 
       {/* Hộp Chat AI Styling Modal */}
       {isOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            width: '400px',
-            maxWidth: 'calc(100vw - 32px)',
-            height: '580px',
-            maxHeight: 'calc(100vh - 48px)',
-            backgroundColor: '#FFFFFF',
-            borderRadius: '12px',
-            boxShadow: '0 16px 48px rgba(0,0,0,0.35)',
-            border: '1px solid #E5E5E5',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}
-        >
+        <div className={styles.widgetShell}>
           {/* Header */}
-          <div
-            style={{
-              backgroundColor: '#111111',
-              color: '#FFFFFF',
-              padding: '16px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '2px solid #C5A059'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor: '#C5A059',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Sparkles size={18} color="#FFFFFF" />
+          <div className="bg-primary text-content-inverse px-5 py-4 flex items-center justify-between border-b-2 border-accent-gold">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-accent-gold flex items-center justify-center text-content-inverse">
+                <Sparkles size={18} />
               </div>
               <div>
-                <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, letterSpacing: '0.04em' }}>
+                <h4 className="m-0 text-[0.92rem] font-extrabold tracking-[0.04em]">
                   AI STYLIST TƯ VẤN
                 </h4>
-                <p style={{ margin: 0, fontSize: '0.72rem', color: '#C5A059' }}>
+                <p className="m-0 text-[0.72rem] text-accent-gold">
                   {isAuthenticated ? 'Đã kích hoạt Ma trận sở thích của bạn' : 'Tư vấn thời trang thông minh'}
                 </p>
               </div>
             </div>
 
             <button
+              type="button"
               onClick={() => setIsOpen(false)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#CCCCCC',
-                cursor: 'pointer',
-                padding: '4px'
-              }}
+              className="bg-transparent border-0 text-content-muted hover:text-content-inverse cursor-pointer p-1 transition-colors"
               aria-label="Đóng chat"
             >
               <X size={20} />
@@ -208,95 +132,36 @@ export default function AiAdvisorWidget() {
           </div>
 
           {/* Messages Body */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              backgroundColor: '#FAFAFA'
-            }}
-          >
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3.5 bg-surface-elevated">
             {messages.map(msg => (
               <div
                 key={msg.id}
-                style={{
-                  display: 'flex',
-                  gap: '8px',
-                  alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '85%'
-                }}
+                className={
+                  msg.sender === 'user'
+                    ? 'flex gap-2 self-end max-w-[85%]'
+                    : 'flex gap-2 self-start max-w-[85%]'
+                }
               >
                 {msg.sender === 'ai' && (
-                  <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      backgroundColor: '#111111',
-                      color: '#C5A059',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                      marginTop: '2px'
-                    }}
-                  >
+                  <div className="w-7 h-7 rounded-full bg-primary text-accent-gold flex items-center justify-center shrink-0 mt-0.5">
                     <Bot size={16} />
                   </div>
                 )}
 
-                <div
-                  style={{
-                    backgroundColor: msg.sender === 'user' ? '#111111' : '#FFFFFF',
-                    color: msg.sender === 'user' ? '#FFFFFF' : '#111111',
-                    padding: '10px 14px',
-                    borderRadius: msg.sender === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                    fontSize: '0.84rem',
-                    lineHeight: '1.5',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                    border: msg.sender === 'ai' ? '1px solid #EAEAEA' : 'none',
-                    whiteSpace: 'pre-wrap'
-                  }}
-                >
+                <div className={msg.sender === 'user' ? styles.userBubble : styles.aiBubble}>
                   {msg.text}
                 </div>
               </div>
             ))}
 
             {isLoading && (
-              <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-start' }}>
-                <div
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50%',
-                    backgroundColor: '#111111',
-                    color: '#C5A059',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
+              <div className="flex gap-2 self-start">
+                <div className="w-7 h-7 rounded-full bg-primary text-accent-gold flex items-center justify-center shrink-0">
                   <Bot size={16} />
                 </div>
-                <div
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    padding: '10px 16px',
-                    borderRadius: '12px',
-                    border: '1px solid #EAEAEA',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: '#777777',
-                    fontSize: '0.82rem'
-                  }}
-                >
-                  <RefreshCw size={14} className="spin-animation" style={{ animation: 'spin 1.5s linear infinite' }} />
-                  <span>AI đang phân tích sở thích & soạn tư vấn...</span>
+                <div className="bg-surface-body px-4 py-2.5 rounded-modal border border-line-light flex items-center gap-1.5 text-content-secondary text-[0.82rem]">
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>AI đang phân tích sở thích &amp; soạn tư vấn...</span>
                 </div>
               </div>
             )}
@@ -306,37 +171,17 @@ export default function AiAdvisorWidget() {
 
           {/* Suggested Prompts (Gợi ý câu hỏi) */}
           {messages.length <= 2 && (
-            <div
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#FFFFFF',
-                borderTop: '1px solid #F0F0F0',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px'
-              }}
-            >
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#888888', textTransform: 'uppercase' }}>
+            <div className="px-4 py-2 bg-surface-body border-t border-line-light flex flex-col gap-1.5">
+              <span className="text-[0.7rem] font-bold text-content-muted uppercase">
                 Gợi ý câu hỏi nhanh:
               </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div className="flex flex-col gap-1">
                 {SUGGESTED_PROMPTS.slice(0, 2).map((prompt, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     onClick={() => handleSend(prompt)}
-                    style={{
-                      textAlign: 'left',
-                      padding: '6px 10px',
-                      backgroundColor: '#F5F5F7',
-                      border: '1px solid #E5E5E5',
-                      borderRadius: '6px',
-                      fontSize: '0.76rem',
-                      color: '#333333',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.15s'
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#EEEEF2')}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#F5F5F7')}
+                    className={styles.suggestedBtn}
                   >
                     💡 {prompt}
                   </button>
@@ -346,16 +191,7 @@ export default function AiAdvisorWidget() {
           )}
 
           {/* Input Box */}
-          <div
-            style={{
-              padding: '12px 16px',
-              backgroundColor: '#FFFFFF',
-              borderTop: '1px solid #EBEBEB',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-          >
+          <div className="px-4 py-3 bg-surface-body border-t border-line-light flex items-center gap-2">
             <input
               type="text"
               placeholder="Nhập câu hỏi bạn muốn AI tư vấn..."
@@ -363,32 +199,13 @@ export default function AiAdvisorWidget() {
               onChange={e => setInputQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
-              style={{
-                flex: 1,
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid #CCCCCC',
-                fontSize: '0.84rem',
-                outline: 'none',
-                backgroundColor: '#FAFAFA'
-              }}
+              className={styles.chatInput}
             />
             <button
+              type="button"
               onClick={() => handleSend()}
               disabled={isLoading || !inputQuestion.trim()}
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '8px',
-                backgroundColor: inputQuestion.trim() && !isLoading ? '#C5A059' : '#CCCCCC',
-                color: '#FFFFFF',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: inputQuestion.trim() && !isLoading ? 'pointer' : 'default',
-                transition: 'background-color 0.2s'
-              }}
+              className={styles.sendBtn}
               aria-label="Gửi câu hỏi"
             >
               <Send size={16} />
@@ -399,4 +216,3 @@ export default function AiAdvisorWidget() {
     </>
   );
 }
-
