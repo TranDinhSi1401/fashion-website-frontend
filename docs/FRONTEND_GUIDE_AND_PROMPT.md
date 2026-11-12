@@ -153,9 +153,9 @@ B. Quản lý Sổ địa chỉ cá nhân (/api/v1/users/addresses)
 STT	Method & Path	Quyền	Request Body (application/json)	Mô tả & Response data
 1	GET /users/addresses	CUSTOMER, STAFF, ADMIN	-	Lấy danh sách địa chỉ của user đang đăng nhập (List<UserAddressResponse>).
 2	GET /users/addresses/{id}	CUSTOMER, STAFF, ADMIN	-	Lấy chi tiết 1 địa chỉ của user hiện tại (UserAddressResponse).
-3	POST /users/addresses	CUSTOMER, STAFF, ADMIN	{ "fullAddress": "12 Nguyễn Văn Bảo, Gò Vấp, TP.HCM", "addressType": "HOME", "isDefault": true }	Thêm địa chỉ mới (addressType nhận: "HOME", "OFFICE", "OTHER").
+3	POST /users/addresses	CUSTOMER, STAFF, ADMIN	{ "fullAddress": "12 Nguyễn Văn Bảo", "provinceName": "TP.HCM", "wardName": "Phường 4", "addressType": "HOME", "isDefault": true }	Thêm địa chỉ mới (addressType nhận: "HOME", "OFFICE", "OTHER"). Response gồm fullAddress, provinceName, wardName, addressType, isDefault, userId.
 4	PATCH /users/addresses/{id}/default	CUSTOMER, STAFF, ADMIN	-	Đặt địa chỉ {id} làm địa chỉ mặc định (isDefault: true).
-5	PUT /users/addresses/{id}	ADMIN, STAFF	{ "fullAddress": "...", "addressType": "OFFICE", "isDefault": false }	Cập nhật địa chỉ theo ID.
+5	PUT /users/addresses/{id}	ADMIN, STAFF	{ "fullAddress": "...", "provinceName": "TP.HCM", "wardName": "Phường 4", "addressType": "OFFICE", "isDefault": false }	Cập nhật địa chỉ theo ID; các trường trong request là tùy chọn.
 6	DELETE /users/addresses/{id}	ADMIN, STAFF	-	Xóa địa chỉ theo ID.
 C. Dành cho Quản trị viên (ADMIN / STAFF) quản lý Users
 STT	Method & Path	Quyền	Mô tả
@@ -287,8 +287,9 @@ Mọi response từ Backend đều có dạng `{ code, message, data }`.
    - Gọi `PUT /users/change-password` với body `{ oldPassword, newPassword, confirmPassword }`.
    - Sau khi đổi mật khẩu thành công, gọi logout và điều hướng người dùng đăng nhập lại.
 3. **Tab Sổ địa chỉ (`/account/addresses`)**:
-   - Danh sách địa chỉ của tôi: `GET /users/addresses` → `[{ id, fullAddress, addressType, isDefault, userId }]`.
-   - Thêm địa chỉ mới: `POST /users/addresses` với body `{ fullAddress, addressType: "HOME" | "OFFICE" | "OTHER", isDefault }`.
+   - Danh sách địa chỉ của tôi: `GET /users/addresses` → `[{ id, fullAddress, provinceName, wardName, addressType, isDefault, userId }]`.
+   - Thêm địa chỉ mới: `POST /users/addresses` với body `{ fullAddress, provinceName, wardName, addressType: "HOME" | "OFFICE" | "OTHER", isDefault }`.
+   - Cập nhật địa chỉ: `PUT /users/addresses/:id` với các trường tùy chọn `fullAddress`, `provinceName`, `wardName`, `addressType`, `isDefault`; xóa địa chỉ qua `DELETE /users/addresses/:id`.
    - Đặt địa chỉ mặc định: `PATCH /users/addresses/:id/default`.
 4. **Trang Quản lý Người dùng cho Admin/Staff (`/admin/users`)**:
    - Danh sách user: `GET /users` (`ADMIN`, `STAFF`).

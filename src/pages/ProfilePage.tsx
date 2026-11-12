@@ -4,12 +4,11 @@ import { User, KeyRound, MapPin, Camera, Trash2, Plus, AlertCircle, CheckCircle2
 import PreferenceMatrixTab from '../components/profile/PreferenceMatrixTab';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
-import { UserAddressResponse, AddressType } from '../types/user';
+import { UserAddressResponse } from '../types/user';
+import AddressFormModal from '../components/profile/AddressFormModal';
 import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import Modal from '../components/ui/Modal';
 import { isValidVietnamPhone, extractErrorMessage } from '../utils/format';
 
 export default function ProfilePage() {
@@ -39,16 +38,7 @@ export default function ProfilePage() {
 
   const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState<boolean>(false);
-  const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
-  const [addressForm, setAddressForm] = useState<{
-    fullAddress: string;
-    addressType: AddressType;
-    isDefault: boolean;
-  }>({
-    fullAddress: '',
-    addressType: 'HOME',
-    isDefault: false,
-  });
+  const [editingAddress, setEditingAddress] = useState<UserAddressResponse | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [avatarUploading, setAvatarUploading] = useState<boolean>(false);
@@ -197,46 +187,8 @@ export default function ProfilePage() {
   };
 
   const handleOpenAddressModal = (addr: UserAddressResponse | null = null) => {
-    if (addr) {
-      setEditingAddressId(addr.id);
-      setAddressForm({
-        fullAddress: addr.fullAddress,
-        addressType: addr.addressType || 'HOME',
-        isDefault: !!addr.isDefault,
-      });
-    } else {
-      setEditingAddressId(null);
-      setAddressForm({
-        fullAddress: '',
-        addressType: 'HOME',
-        isDefault: addresses.length === 0,
-      });
-    }
+    setEditingAddress(addr);
     setIsAddressModalOpen(true);
-  };
-
-  const handleSaveAddress = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!addressForm.fullAddress.trim()) {
-      alert('Vui lòng nhập địa chỉ chi tiết');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      if (editingAddressId) {
-        await userService.updateAddress(editingAddressId, addressForm);
-      } else {
-        await userService.createAddress(addressForm);
-      }
-      setIsAddressModalOpen(false);
-      await fetchAddresses();
-      setSuccessMessage(editingAddressId ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ mới thành công!');
-    } catch (err: any) {
-      alert(extractErrorMessage(err, 'Lưu địa chỉ thất bại'));
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleSetDefaultAddress = async (id: number) => {
@@ -671,7 +623,7 @@ export default function ProfilePage() {
                             )}
                           </div>
                           <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {addr.fullAddress}
+                            {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
                           </p>
                         </div>
 
@@ -775,51 +727,17 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <Modal
+      <AddressFormModal
+        key={`${isAddressModalOpen}-${editingAddress?.id ?? 'new'}`}
         isOpen={isAddressModalOpen}
         onClose={() => setIsAddressModalOpen(false)}
-        title={editingAddressId ? 'Cập Nhật Địa Chỉ' : 'Thêm Địa Chỉ Mới'}
-      >
-        <form onSubmit={handleSaveAddress} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <Input
-            label="Địa chỉ chi tiết (Số nhà, đường, phường, quận, TP)"
-            value={addressForm.fullAddress}
-            onChange={(e) => setAddressForm({ ...addressForm, fullAddress: e.target.value })}
-            placeholder="Ví dụ: 12 Nguyễn Văn Bảo, Phường 4, Gò Vấp, TP.HCM"
-            required
-          />
-
-          <Select
-            label="Loại địa chỉ"
-            value={addressForm.addressType}
-            onChange={(e) => setAddressForm({ ...addressForm, addressType: e.target.value as AddressType })}
-            options={[
-              { value: 'HOME', label: 'Nhà riêng' },
-              { value: 'OFFICE', label: 'Văn phòng / Công ty' },
-              { value: 'OTHER', label: 'Khác' },
-            ]}
-          />
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={addressForm.isDefault}
-              onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
-            />
-            <span>Đặt làm địa chỉ nhận hàng mặc định</span>
-          </label>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
-            <Button variant="secondary" onClick={() => setIsAddressModalOpen(false)}>
-              Hủy
-            </Button>
-            <Button type="submit" variant="primary" loading={isLoading}>
-              Lưu Địa Chỉ
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        address={editingAddress}
+        defaultAddress={addresses.length === 0}
+        onSaved={() => {
+          setSuccessMessage(editingAddress ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ mới thành công!');
+          void fetchAddresses();
+        }}
+      />
     </div>
   );
 }
-

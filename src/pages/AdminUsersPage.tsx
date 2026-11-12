@@ -459,7 +459,9 @@ export default function AdminUsersPage() {
                   </Badge>
                   {addr.isDefault && <Badge variant="success">Mặc định</Badge>}
                 </div>
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{addr.fullAddress}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>
+                  {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
+                </div>
               </div>
             ))}
           </div>

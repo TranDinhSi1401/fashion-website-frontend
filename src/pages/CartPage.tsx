@@ -34,8 +34,8 @@ export default function CartPage() {
   };
 
   return <div className="container cart-page">
-    <BackButton />
     <Breadcrumb items={[{ label: 'Sản phẩm', to: '/products' }, { label: 'Giỏ hàng' }]} />
+    <BackButton />
     <div className="cart-heading"><h1>Giỏ hàng của bạn</h1>
       <Button variant="ghost" disabled={busy || loading} onClick={() => { setActionError(''); void refresh(); }}>Tải lại giỏ hàng</Button>
     </div>
@@ -72,7 +72,7 @@ export default function CartPage() {
         <div><span>Số lượng</span><strong>{cart.totalQuantity}</strong></div>
         <div><span>Tổng tiền sản phẩm</span><strong className="cart-total-price">{formatCurrencyVND(cart.totalPrice)}</strong></div>
         <p>Chưa bao gồm phí giao hàng. Giá và tồn kho được kiểm tra lại khi cập nhật giỏ hàng.</p>
-        <Link to="/products" className="cart-continue">Tiếp tục mua sắm</Link>
+        <Link to="/checkout" className="cart-continue">Thanh toán</Link>
       </aside>
     </div>}
     <Modal isOpen={confirmClear} onClose={() => { if (!busy) setConfirmClear(false); }} title="Xóa toàn bộ giỏ hàng">
