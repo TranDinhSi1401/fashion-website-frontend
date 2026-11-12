@@ -1,12 +1,20 @@
-import React, { ButtonHTMLAttributes, ElementType } from 'react';
+import { ButtonHTMLAttributes, ElementType } from 'react';
 import { Loader2 } from 'lucide-react';
+import { cn } from '../../utils/cn';
+import styles from './Button.module.css';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   icon?: ElementType;
 }
+
+const SIZE_CLASSES: Record<NonNullable<ButtonProps['size']>, string> = {
+  sm: 'h-9 px-4 text-xs',
+  md: 'h-btn px-6 text-base',
+  lg: 'h-btn-lg px-8 text-base',
+};
 
 export default function Button({
   children,
@@ -21,78 +29,22 @@ export default function Button({
   style,
   ...props
 }: ButtonProps) {
-  const getVariantStyles = (): React.CSSProperties => {
-    switch (variant) {
-      case 'secondary':
-        return {
-          backgroundColor: 'var(--bg-surface)',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--border-default)',
-        };
-      case 'outline':
-        return {
-          backgroundColor: 'transparent',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--color-primary)',
-        };
-      case 'danger':
-        return {
-          backgroundColor: 'var(--status-error)',
-          color: 'var(--text-inverse)',
-          border: '1px solid var(--status-error)',
-        };
-      case 'ghost':
-        return {
-          backgroundColor: 'transparent',
-          color: 'var(--text-primary)',
-          border: '1px solid transparent',
-        };
-      case 'primary':
-      default:
-        return {
-          backgroundColor: 'var(--color-primary)',
-          color: 'var(--text-inverse)',
-          border: '1px solid var(--color-primary)',
-        };
-    }
-  };
-
-  const getSizeStyles = (): React.CSSProperties => {
-    switch (size) {
-      case 'sm':
-        return { padding: '8px 16px', fontSize: '0.78rem' };
-      case 'lg':
-        return { padding: '16px 32px', fontSize: '0.95rem' };
-      case 'md':
-      default:
-        return { padding: '12px 24px', fontSize: '0.85rem' };
-    }
-  };
+  const isGhost = variant === 'ghost';
 
   return (
     <button
       type={type}
       disabled={disabled || loading}
       onClick={onClick}
-      style={{
-        ...getVariantStyles(),
-        ...getSizeStyles(),
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        fontWeight: 600,
-        borderRadius: 'var(--radius-btn)',
-        cursor: disabled || loading ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.6 : 1,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '8px',
-        transition: 'all var(--transition-fast)',
-        position: 'relative',
-        overflow: 'hidden',
-        ...style,
-      }}
-      className={`btn-editorial ${className}`}
+      style={style}
+      className={cn(
+        'inline-flex items-center justify-center gap-2 rounded-btn font-semibold uppercase tracking-wide',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+        !isGhost && SIZE_CLASSES[size],
+        styles.button,
+        styles[variant],
+        className
+      )}
       {...props}
     >
       {loading ? (
@@ -109,4 +61,3 @@ export default function Button({
     </button>
   );
 }
-

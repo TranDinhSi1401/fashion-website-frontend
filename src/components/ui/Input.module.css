@@ -1,0 +1,7 @@
+.control {
+  transition: var(--transition-fast);
+}
+
+.control:focus-visible {
+  outline: none;
+}

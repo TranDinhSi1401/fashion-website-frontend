@@ -6,10 +6,10 @@ import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
 import { UserAddressResponse } from '../types/user';
 import AddressFormModal from '../components/profile/AddressFormModal';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
+import { Badge, Button, Input } from '../components/ui';
 import { isValidVietnamPhone, extractErrorMessage } from '../utils/format';
+import { cn } from '../utils/cn';
+import styles from './ProfilePage.module.css';
 
 export default function ProfilePage() {
   const { user, updateUserLocal, logout } = useAuth();
@@ -100,7 +100,7 @@ export default function ProfilePage() {
         updateUserLocal(res.data);
       }
       setSuccessMessage('Cập nhật hồ sơ cá nhân thành công!');
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(extractErrorMessage(err, 'Cập nhật hồ sơ thất bại.'));
     } finally {
       setIsLoading(false);
@@ -121,7 +121,7 @@ export default function ProfilePage() {
         updateUserLocal(res.data);
         setSuccessMessage('Tải ảnh đại diện thành công!');
       }
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(extractErrorMessage(err, 'Không thể tải ảnh đại diện lên.'));
     } finally {
       setAvatarUploading(false);
@@ -141,7 +141,7 @@ export default function ProfilePage() {
         updateUserLocal(res.data);
       }
       setSuccessMessage('Đã xóa ảnh đại diện thành công!');
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(extractErrorMessage(err, 'Xóa ảnh đại diện thất bại.'));
     } finally {
       setAvatarUploading(false);
@@ -179,7 +179,7 @@ export default function ProfilePage() {
         await logout();
         navigate('/login');
       }, 2000);
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(extractErrorMessage(err, 'Đổi mật khẩu không thành công. Kiểm tra lại mật khẩu cũ.'));
     } finally {
       setIsLoading(false);
@@ -195,7 +195,7 @@ export default function ProfilePage() {
     try {
       await userService.setDefaultAddress(id);
       await fetchAddresses();
-    } catch (err: any) {
+    } catch (err) {
       alert(extractErrorMessage(err, 'Không thể đặt làm mặc định'));
     }
   };
@@ -205,94 +205,51 @@ export default function ProfilePage() {
     try {
       await userService.deleteAddress(id);
       await fetchAddresses();
-    } catch (err: any) {
+    } catch (err) {
       alert(extractErrorMessage(err, 'Xóa địa chỉ thất bại'));
     }
   };
 
   return (
-    <div style={{ padding: '40px 0 80px' }}>
+    <div className="pt-10 pb-20">
       <div className="container">
-        <h1
-          style={{
-            fontSize: '1.8rem',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            marginBottom: '32px',
-          }}
-        >
+        <h1 className="text-[1.8rem] font-extrabold uppercase tracking-[0.04em] mb-8 text-content-primary">
           Tài Khoản Của Tôi
         </h1>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '260px 1fr',
-            gap: '32px',
-            alignItems: 'start',
-          }}
-        >
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-8 items-start">
           {/* Navigation Sidebar */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-light)',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+          <div className="bg-surface border border-line-light p-6 flex flex-col gap-1.5">
+            <div className="flex items-center gap-3 mb-5">
               {user?.avt ? (
                 <img
                   src={user.avt}
                   alt={user.fullname || user.username}
-                  style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }}
+                  className="w-12 h-12 rounded-full object-cover"
                 />
               ) : (
-                <div
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    backgroundColor: 'var(--bg-dark)',
-                    color: 'var(--text-inverse)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                  }}
-                >
+                <div className="w-12 h-12 bg-surface-dark text-content-inverse flex items-center justify-center text-[1.1rem] font-bold">
                   {(user?.fullname || user?.username || 'U')[0].toUpperCase()}
                 </div>
               )}
               <div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{user?.fullname || user?.username}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>@{user?.username}</div>
-                {user?.role && <Badge variant="dark" style={{ marginTop: '4px' }}>{user.role}</Badge>}
+                <div className="text-[0.9rem] font-bold text-content-primary">{user?.fullname || user?.username}</div>
+                <div className="text-[0.75rem] text-content-muted">@{user?.username}</div>
+                {user?.role && <Badge variant="dark" className="mt-1">{user.role}</Badge>}
               </div>
             </div>
 
-            <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 0 12px' }} />
+            <div className="h-px bg-line my-1 mb-3" />
 
             <button
               type="button"
-              onClick={() => navigate('/account/profile')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                fontSize: '0.85rem',
-                fontWeight: activeTab === 'profile' ? 700 : 500,
-                backgroundColor: activeTab === 'profile' ? 'var(--bg-dark)' : 'transparent',
-                color: activeTab === 'profile' ? 'var(--text-inverse)' : 'var(--text-primary)',
-                textAlign: 'left',
-                cursor: 'pointer',
-                borderRadius: 'var(--radius-btn)',
-              }}
+              onClick={() => navigate('/account/profile', { state: { keepScroll: true } })}
+              className={cn(
+                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
+                activeTab === 'profile'
+                  ? 'bg-surface-dark text-content-inverse font-bold'
+                  : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
+              )}
             >
               <User size={16} />
               Thông Tin Cá Nhân
@@ -300,20 +257,13 @@ export default function ProfilePage() {
 
             <button
               type="button"
-              onClick={() => navigate('/account/addresses')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                fontSize: '0.85rem',
-                fontWeight: activeTab === 'addresses' ? 700 : 500,
-                backgroundColor: activeTab === 'addresses' ? 'var(--bg-dark)' : 'transparent',
-                color: activeTab === 'addresses' ? 'var(--text-inverse)' : 'var(--text-primary)',
-                textAlign: 'left',
-                cursor: 'pointer',
-                borderRadius: 'var(--radius-btn)',
-              }}
+              onClick={() => navigate('/account/addresses', { state: { keepScroll: true } })}
+              className={cn(
+                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
+                activeTab === 'addresses'
+                  ? 'bg-surface-dark text-content-inverse font-bold'
+                  : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
+              )}
             >
               <MapPin size={16} />
               Sổ Địa Chỉ ({addresses.length})
@@ -321,20 +271,13 @@ export default function ProfilePage() {
 
             <button
               type="button"
-              onClick={() => navigate('/account/password')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                fontSize: '0.85rem',
-                fontWeight: activeTab === 'password' ? 700 : 500,
-                backgroundColor: activeTab === 'password' ? 'var(--bg-dark)' : 'transparent',
-                color: activeTab === 'password' ? 'var(--text-inverse)' : 'var(--text-primary)',
-                textAlign: 'left',
-                cursor: 'pointer',
-                borderRadius: 'var(--radius-btn)',
-              }}
+              onClick={() => navigate('/account/password', { state: { keepScroll: true } })}
+              className={cn(
+                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
+                activeTab === 'password'
+                  ? 'bg-surface-dark text-content-inverse font-bold'
+                  : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
+              )}
             >
               <KeyRound size={16} />
               Đổi Mật Khẩu
@@ -342,70 +285,31 @@ export default function ProfilePage() {
 
             <button
               type="button"
-              onClick={() => navigate('/account/preferences')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                fontSize: '0.85rem',
-                fontWeight: activeTab === 'preferences' ? 700 : 500,
-                backgroundColor: activeTab === 'preferences' ? 'var(--bg-dark)' : 'transparent',
-                color: activeTab === 'preferences' ? '#C5A059' : 'var(--text-primary)',
-                textAlign: 'left',
-                cursor: 'pointer',
-                borderRadius: 'var(--radius-btn)',
-              }}
+              onClick={() => navigate('/account/preferences', { state: { keepScroll: true } })}
+              className={cn(
+                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
+                activeTab === 'preferences'
+                  ? 'bg-surface-dark text-accent-gold font-bold'
+                  : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
+              )}
             >
-              <Sparkles size={16} color={activeTab === 'preferences' ? '#C5A059' : undefined} />
-              Gu & Sở Thích (AI)
+              <Sparkles size={16} className={activeTab === 'preferences' ? 'text-accent-gold' : ''} />
+              Gu &amp; Sở Thích (AI)
             </button>
           </div>
 
           {/* Tab Main Content */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-body)',
-              border: '1px solid var(--border-light)',
-              padding: '36px',
-            }}
-          >
+          <div className="bg-surface-body border border-line-light p-6 md:p-9">
             {errorMessage && (
-              <div
-                className="animate-fade-in"
-                style={{
-                  padding: '12px 16px',
-                  backgroundColor: 'var(--status-error-bg)',
-                  borderLeft: '3px solid var(--status-error)',
-                  color: 'var(--status-error)',
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '24px',
-                }}
-              >
-                <AlertCircle size={18} />
+              <div className={cn('animate-fade-in', styles.alertError)}>
+                <AlertCircle size={18} className="shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
             {successMessage && (
-              <div
-                className="animate-fade-in"
-                style={{
-                  padding: '12px 16px',
-                  backgroundColor: 'var(--status-success-bg)',
-                  borderLeft: '3px solid var(--status-success)',
-                  color: 'var(--status-success)',
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '24px',
-                }}
-              >
-                <CheckCircle2 size={18} />
+              <div className={cn('animate-fade-in', styles.alertSuccess)}>
+                <CheckCircle2 size={18} className="shrink-0" />
                 <span>{successMessage}</span>
               </div>
             )}
@@ -413,56 +317,20 @@ export default function ProfilePage() {
             {/* TAB 1: PROFILE INFO */}
             {activeTab === 'profile' && (
               <div>
-                <h3
-                  style={{
-                    fontSize: '1.2rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    marginBottom: '24px',
-                  }}
-                >
+                <h3 className="text-[1.2rem] font-bold uppercase tracking-[0.05em] mb-6 text-content-primary">
                   Hồ Sơ Của Bạn
                 </h3>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
-                    paddingBottom: '24px',
-                    marginBottom: '24px',
-                    borderBottom: '1px solid var(--border-light)',
-                  }}
-                >
-                  <div style={{ position: 'relative' }}>
+                <div className="flex items-center gap-6 pb-6 mb-6 border-b border-line-light flex-wrap">
+                  <div className="relative">
                     {user?.avt ? (
                       <img
                         src={user.avt}
                         alt="Avatar"
-                        style={{
-                          width: '84px',
-                          height: '84px',
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                          border: '2px solid var(--border-default)',
-                        }}
+                        className="w-[84px] h-[84px] rounded-full object-cover border-2 border-line"
                       />
                     ) : (
-                      <div
-                        style={{
-                          width: '84px',
-                          height: '84px',
-                          backgroundColor: 'var(--bg-dark)',
-                          color: 'var(--text-inverse)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '2rem',
-                          fontWeight: 700,
-                          borderRadius: '50%',
-                        }}
-                      >
+                      <div className="w-[84px] h-[84px] bg-surface-dark text-content-inverse flex items-center justify-center text-[2rem] font-bold rounded-full">
                         {(user?.fullname || user?.username || 'U')[0].toUpperCase()}
                       </div>
                     )}
@@ -474,9 +342,9 @@ export default function ProfilePage() {
                       ref={fileInputRef}
                       onChange={handleAvatarChange}
                       accept="image/png, image/jpeg, image/webp"
-                      style={{ display: 'none' }}
+                      className="hidden"
                     />
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                    <div className="flex gap-2.5 mb-2">
                       <Button
                         type="button"
                         variant="secondary"
@@ -500,13 +368,13 @@ export default function ProfilePage() {
                         </Button>
                       )}
                     </div>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <p className="text-[0.75rem] text-content-muted m-0">
                       Dung lượng tối đa 5MB. Định dạng: JPG, PNG, WEBP.
                     </p>
                   </div>
                 </div>
 
-                <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <form onSubmit={handleUpdateProfile} className="flex flex-col gap-2">
                   <Input
                     label="Tên đăng nhập"
                     value={user?.username || ''}
@@ -522,7 +390,7 @@ export default function ProfilePage() {
                     required
                   />
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
                       label="Email"
                       type="email"
@@ -545,7 +413,7 @@ export default function ProfilePage() {
                     type="submit"
                     variant="primary"
                     loading={isLoading}
-                    style={{ alignSelf: 'flex-start', marginTop: '16px' }}
+                    className="self-start mt-4"
                   >
                     Lưu Thay Đổi
                   </Button>
@@ -556,22 +424,8 @@ export default function ProfilePage() {
             {/* TAB 2: ADDRESSES */}
             {activeTab === 'addresses' && (
               <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '24px',
-                  }}
-                >
-                  <h3
-                    style={{
-                      fontSize: '1.2rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
+                <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">
+                  <h3 className="text-[1.2rem] font-bold uppercase tracking-[0.05em] m-0 text-content-primary">
                     Sổ Địa Chỉ Giao Hàng
                   </h3>
 
@@ -586,35 +440,22 @@ export default function ProfilePage() {
                 </div>
 
                 {addresses.length === 0 ? (
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      padding: '48px 20px',
-                      backgroundColor: 'var(--bg-surface)',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    <MapPin size={36} style={{ marginBottom: '12px', opacity: 0.5 }} />
-                    <p>Bạn chưa lưu địa chỉ giao hàng nào.</p>
+                  <div className="text-center py-12 px-5 bg-surface text-content-muted">
+                    <MapPin size={36} className="mb-3 opacity-50 mx-auto" />
+                    <p className="m-0">Bạn chưa lưu địa chỉ giao hàng nào.</p>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="flex flex-col gap-4">
                     {addresses.map((addr) => (
                       <div
                         key={addr.id}
-                        style={{
-                          padding: '20px',
-                          border: '1px solid',
-                          borderColor: addr.isDefault ? 'var(--color-primary)' : 'var(--border-light)',
-                          backgroundColor: addr.isDefault ? 'var(--bg-surface)' : 'transparent',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          gap: '16px',
-                        }}
+                        className={cn(
+                          'p-5 border flex justify-between items-center gap-4 flex-wrap',
+                          addr.isDefault ? 'border-primary bg-surface' : 'border-line-light bg-transparent'
+                        )}
                       >
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <div className="flex items-center gap-2 mb-1.5">
                             <Badge variant={addr.addressType === 'HOME' ? 'default' : 'dark'}>
                               {addr.addressType === 'HOME' ? 'Nhà riêng' : addr.addressType === 'OFFICE' ? 'Văn phòng' : 'Khác'}
                             </Badge>
@@ -622,12 +463,12 @@ export default function ProfilePage() {
                               <Badge variant="success">Mặc định</Badge>
                             )}
                           </div>
-                          <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          <p className="text-[0.9rem] font-semibold text-content-primary m-0">
                             {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
                           </p>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className="flex gap-2">
                           {!addr.isDefault && (
                             <Button
                               variant="outline"
@@ -662,22 +503,14 @@ export default function ProfilePage() {
             {/* TAB 3: CHANGE PASSWORD */}
             {activeTab === 'password' && (
               <div>
-                <h3
-                  style={{
-                    fontSize: '1.2rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    marginBottom: '8px',
-                  }}
-                >
+                <h3 className="text-[1.2rem] font-bold uppercase tracking-[0.05em] mb-2 text-content-primary">
                   Đổi Mật Khẩu
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                <p className="text-[0.82rem] text-content-secondary mb-6">
                   Sau khi đổi mật khẩu thành công, tất cả các phiên đăng nhập khác sẽ tự động bị đăng xuất.
                 </p>
 
-                <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '440px' }}>
+                <form onSubmit={handleChangePassword} className="flex flex-col gap-2 max-w-[440px]">
                   <Input
                     label="Mật khẩu hiện tại"
                     type="password"
@@ -709,7 +542,7 @@ export default function ProfilePage() {
                     type="submit"
                     variant="primary"
                     loading={isLoading}
-                    style={{ alignSelf: 'flex-start', marginTop: '16px' }}
+                    className="self-start mt-4"
                   >
                     Xác Nhận Đổi Mật Khẩu
                   </Button>

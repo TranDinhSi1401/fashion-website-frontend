@@ -1,0 +1,4 @@
+.control {
+  accent-color: var(--color-primary);
+  transition: var(--transition-fast);
+}

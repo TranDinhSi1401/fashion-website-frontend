@@ -1,0 +1,29 @@
+.refreshBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-inverse);
+  padding: 8px 14px;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background-color var(--transition-fast);
+}
+
+.refreshBtn:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+.bannerDesc {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.progressFill {
+  height: 100%;
+  background-color: var(--color-accent-gold);
+  border-radius: var(--radius-btn);
+  transition: width 0.4s ease;
+}

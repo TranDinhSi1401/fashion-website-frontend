@@ -1,0 +1,25 @@
+.panel {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: var(--transition-fast);
+}
+
+.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.subLink {
+  display: block;
+  transition: var(--transition-fast);
+}
+
+.subLink:hover {
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+  transform: translateX(4px);
+}

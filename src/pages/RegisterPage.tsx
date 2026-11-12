@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Lock, Mail, Phone, UserCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { authService } from '../services/authService';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
+import { Button, Input } from '../components/ui';
 import { isValidVietnamPhone, extractErrorMessage } from '../utils/format';
+import { cn } from '../utils/cn';
+import styles from './AuthPages.module.css';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -83,7 +84,7 @@ export default function RegisterPage() {
       setTimeout(() => {
         navigate('/login');
       }, 1500);
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(extractErrorMessage(err, 'Đăng ký không thành công. Vui lòng thử lại.'));
     } finally {
       setIsLoading(false);
@@ -91,116 +92,32 @@ export default function RegisterPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: 'calc(100vh - var(--header-height) - var(--topbar-height))',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        backgroundColor: '#0c0d10',
-        padding: '50px 20px',
-      }}
-    >
+    <div className={cn(styles.authViewport, styles.authViewportAmbient)}>
       {/* Background Ambience */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '-10%',
-          right: '-10%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(197, 160, 89, 0.15) 0%, rgba(0,0,0,0) 70%)',
-          borderRadius: '50%',
-          filter: 'blur(60px)',
-          animation: 'floatOrb 14s ease-in-out infinite alternate',
-          pointerEvents: 'none',
-        }}
-      />
+      <div className={styles.ambientOrbRight} />
 
-      <div
-        className="animate-slide-up"
-        style={{
-          width: '100%',
-          maxWidth: '520px',
-          backgroundColor: 'rgba(255, 255, 255, 0.96)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.45)',
-          borderRadius: 'var(--radius-modal)',
-          position: 'relative',
-          zIndex: 10,
-          padding: '44px 36px',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '3px',
-            background: 'linear-gradient(90deg, var(--color-accent-gold) 0%, var(--color-primary) 100%)',
-          }}
-        />
+      <div className={cn('animate-slide-up max-w-[520px]', styles.lightGlassCard)}>
+        <div className={styles.lightCardTopBar} />
 
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <h2
-            style={{
-              fontSize: '1.65rem',
-              fontWeight: 800,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--color-primary)',
-              marginBottom: '8px',
-            }}
-          >
+        <div className="text-center mb-7">
+          <h2 className="text-[1.65rem] font-extrabold tracking-[0.06em] uppercase text-primary mb-2">
             Tạo Tài Khoản
           </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <p className="text-[0.85rem] text-content-secondary">
             Gia nhập cộng đồng thành viên để nhận ưu đãi đặc quyền
           </p>
         </div>
 
         {errorMessage && (
-          <div
-            className="animate-fade-in"
-            style={{
-              padding: '12px 14px',
-              backgroundColor: 'var(--status-error-bg)',
-              borderLeft: '3px solid var(--status-error)',
-              color: 'var(--status-error)',
-              fontSize: '0.84rem',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '20px',
-            }}
-          >
-            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <div className={cn('animate-fade-in', styles.lightAlertError)}>
+            <AlertCircle size={18} className="shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {successMessage && (
-          <div
-            className="animate-fade-in"
-            style={{
-              padding: '12px 14px',
-              backgroundColor: 'var(--status-success-bg)',
-              borderLeft: '3px solid var(--status-success)',
-              color: 'var(--status-success)',
-              fontSize: '0.84rem',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '20px',
-            }}
-          >
-            <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+          <div className={cn('animate-fade-in', styles.lightAlertSuccess)}>
+            <CheckCircle2 size={18} className="shrink-0" />
             <span>{successMessage}</span>
           </div>
         )}
@@ -228,7 +145,7 @@ export default function RegisterPage() {
             required
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Email"
               name="email"
@@ -253,7 +170,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Mật khẩu"
               name="password"
@@ -284,28 +201,17 @@ export default function RegisterPage() {
             variant="primary"
             size="lg"
             loading={isLoading}
-            style={{
-              width: '100%',
-              fontSize: '0.88rem',
-              fontWeight: 700,
-              marginTop: '12px',
-              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
-            }}
+            className="w-full text-[0.88rem] font-bold mt-3 shadow-dropdown"
           >
             Đăng Ký Tài Khoản
           </Button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+        <div className="text-center mt-6 text-[0.85rem] text-content-secondary">
           Đã có tài khoản?{' '}
           <Link
             to="/login"
-            style={{
-              fontWeight: 700,
-              color: 'var(--color-primary)',
-              textDecoration: 'underline',
-              letterSpacing: '0.02em',
-            }}
+            className="font-bold text-primary underline tracking-[0.02em]"
           >
             Đăng nhập ngay
           </Link>
@@ -314,4 +220,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

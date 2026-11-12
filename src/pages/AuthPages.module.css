@@ -1,0 +1,500 @@
+/* Shared styles for Auth pages (Login, Register, ForgotPassword) */
+
+.authViewport {
+  min-height: calc(100vh - var(--header-height) - var(--topbar-height));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 50px 20px;
+}
+
+.authViewportDark {
+  background-color: rgb(7, 7, 9);
+}
+
+.authViewportAmbient {
+  background-color: rgb(12, 13, 16);
+}
+
+/* Login dark atmosphere layers */
+.loginVignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(24, 21, 18, 0.9) 0%,
+    rgba(10, 10, 13, 0.98) 65%,
+    rgb(5, 5, 7) 100%
+  );
+  pointer-events: none;
+}
+
+.loginWarmGlow {
+  position: absolute;
+  top: 20%;
+  right: 5%;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(
+    circle,
+    rgba(212, 175, 55, 0.16) 0%,
+    rgba(184, 134, 11, 0.05) 50%,
+    transparent 70%
+  );
+  filter: blur(75px);
+  pointer-events: none;
+  animation: pulseGlow 8s ease-in-out infinite;
+}
+
+.loginBronzeGlow {
+  position: absolute;
+  top: 10%;
+  left: 2%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(160, 120, 50, 0.14) 0%, transparent 65%);
+  filter: blur(70px);
+  pointer-events: none;
+}
+
+.silkLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 420px;
+  height: 480px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.85;
+}
+
+.cubesLayer {
+  position: absolute;
+  bottom: 8%;
+  left: 4%;
+  width: 260px;
+  height: 240px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ribbonLayer {
+  position: absolute;
+  top: 8%;
+  right: 3%;
+  width: 420px;
+  height: 520px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sparkleStar {
+  position: absolute;
+  bottom: 75px;
+  left: -10px;
+  width: 42px;
+  height: 42px;
+  animation: pulseGlow 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.7));
+}
+
+/* SVG metallic gold & obsidian stops */
+.stopSilk1a { stop-color: rgb(74, 59, 34); stop-opacity: 0.9; }
+.stopSilk1b { stop-color: rgb(168, 137, 78); stop-opacity: 0.85; }
+.stopSilk1c { stop-color: rgb(217, 186, 118); stop-opacity: 0.95; }
+.stopSilk1d { stop-color: rgb(117, 88, 41); stop-opacity: 0.9; }
+.stopSilk1e { stop-color: rgb(37, 29, 18); stop-opacity: 0.95; }
+
+.stopSilk2a { stop-color: rgb(47, 37, 22); stop-opacity: 0.95; }
+.stopSilk2b { stop-color: rgb(179, 147, 85); stop-opacity: 0.8; }
+.stopSilk2c { stop-color: rgb(240, 213, 151); stop-opacity: 0.9; }
+.stopSilk2d { stop-color: rgb(94, 70, 32); stop-opacity: 0.95; }
+.stopSilk2e { stop-color: rgb(24, 19, 11); stop-opacity: 0.98; }
+
+.stopShadowA { stop-color: rgb(5, 5, 7); stop-opacity: 0.8; }
+.stopShadowB { stop-color: rgb(18, 14, 8); stop-opacity: 0.4; }
+.stopShadowC { stop-color: rgb(5, 5, 7); stop-opacity: 0.9; }
+
+.stopFrameA { stop-color: rgb(249, 223, 152); }
+.stopFrameB { stop-color: rgb(212, 175, 55); }
+.stopFrameC { stop-color: rgb(138, 106, 35); }
+.stopFrameD { stop-color: rgb(74, 56, 16); }
+
+.stopCubeTopA { stop-color: rgb(42, 42, 50); }
+.stopCubeTopB { stop-color: rgb(21, 21, 26); }
+.stopCubeLeftA { stop-color: rgb(28, 28, 34); }
+.stopCubeLeftB { stop-color: rgb(14, 14, 18); }
+.stopCubeRightA { stop-color: rgb(18, 18, 22); }
+.stopCubeRightB { stop-color: rgb(8, 8, 10); }
+
+.stopRibbonGoldA { stop-color: rgb(255, 240, 194); }
+.stopRibbonGoldB { stop-color: rgb(236, 200, 128); }
+.stopRibbonGoldC { stop-color: rgb(212, 175, 55); }
+.stopRibbonGoldD { stop-color: rgb(150, 116, 37); }
+.stopRibbonGoldE { stop-color: rgb(236, 200, 128); }
+.stopRibbonGoldF { stop-color: rgb(92, 69, 16); }
+
+.stopRibbonCoreA { stop-color: rgb(48, 48, 56); }
+.stopRibbonCoreB { stop-color: rgb(28, 28, 34); }
+.stopRibbonCoreC { stop-color: rgb(15, 15, 19); }
+.stopRibbonCoreD { stop-color: rgb(26, 26, 32); }
+.stopRibbonCoreE { stop-color: rgb(8, 8, 10); }
+
+.stopSpecA { stop-color: rgb(255, 255, 255); stop-opacity: 0.9; }
+.stopSpecB { stop-color: rgb(236, 200, 128); stop-opacity: 0; }
+
+.svgBevelStroke {
+  stroke: rgb(255, 242, 204);
+}
+
+.svgShadowPath {
+  stroke: rgb(0, 0, 0);
+}
+
+.svgRibbonSpine {
+  stroke: rgb(236, 200, 128);
+}
+
+.svgDropShadowBlack {
+  flood-color: rgb(0, 0, 0);
+}
+
+.svgFrameDropShadow {
+  filter: drop-shadow(0px 10px 18px rgba(0, 0, 0, 0.85));
+}
+
+.googleBlue { fill: rgb(66, 133, 244); }
+.googleGreen { fill: rgb(52, 168, 83); }
+.googleYellow { fill: rgb(251, 188, 5); }
+.googleRed { fill: rgb(234, 67, 53); }
+
+/* Ambient orbs for Register & ForgotPassword */
+.ambientOrbRight {
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(197, 160, 89, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+  border-radius: 50%;
+  filter: blur(60px);
+  animation: floatOrb 14s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.ambientOrbLeft {
+  position: absolute;
+  bottom: -10%;
+  left: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(197, 160, 89, 0.14) 0%, rgba(0, 0, 0, 0) 70%);
+  border-radius: 50%;
+  filter: blur(60px);
+  animation: floatOrb 14s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+/* Central Login Dark Glassmorphic Card */
+.loginCard {
+  width: 100%;
+  max-width: 450px;
+  background-color: rgba(20, 20, 26, 0.68);
+  backdrop-filter: blur(32px) saturate(160%);
+  -webkit-backdrop-filter: blur(32px) saturate(160%);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(212, 175, 55, 0.15),
+    0 0 40px rgba(212, 175, 55, 0.08);
+  position: relative;
+  z-index: 10;
+  padding: 42px 36px 36px;
+}
+
+.loginTopGleam {
+  position: absolute;
+  top: 0;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(236, 200, 128, 0.65), transparent);
+}
+
+.loginTitle {
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.loginInput {
+  width: 100%;
+  height: 46px;
+  padding-left: 42px;
+  padding-right: 14px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  color: var(--text-inverse);
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.loginInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.loginInput:focus {
+  border-color: rgba(212, 175, 55, 0.7);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+}
+
+.loginPasswordInput {
+  padding-right: 42px;
+}
+
+.goldSubmitBtn {
+  width: 100%;
+  height: 48px;
+  margin-top: 4px;
+  background: linear-gradient(
+    135deg,
+    rgb(243, 208, 138) 0%,
+    rgb(212, 175, 55) 45%,
+    rgb(170, 130, 50) 85%,
+    var(--color-accent-gold) 100%
+  );
+  color: rgb(15, 14, 12);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.15s ease, box-shadow var(--transition-fast), opacity var(--transition-fast);
+}
+
+.goldSubmitBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.goldSubmitBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.googleFallbackBtn {
+  width: 100%;
+  height: 46px;
+  background-color: rgba(255, 255, 255, 0.88);
+  color: rgb(28, 28, 30);
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.googleFallbackBtn:hover {
+  background-color: var(--bg-page);
+}
+
+.demoHelperBox {
+  margin-top: 20px;
+  padding: 10px 12px;
+  background-color: rgba(0, 0, 0, 0.35);
+  border: 1px dashed rgba(212, 175, 55, 0.3);
+  border-radius: 8px;
+  font-size: 0.72rem;
+}
+
+.demoHelperBtn {
+  padding: 4px 8px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.demoHelperBtn:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+.goldAccentText {
+  color: rgb(236, 200, 128);
+}
+
+.goldIcon {
+  color: rgb(212, 175, 55);
+}
+
+.forgotLink {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: color var(--transition-fast);
+}
+
+.forgotLink:hover {
+  color: rgb(236, 200, 128);
+}
+
+.subtitleDark {
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.68);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.labelDark {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 6px;
+}
+
+.inputIconDark {
+  position: absolute;
+  left: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.eyeToggleDark {
+  position: absolute;
+  right: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.eyeToggleDark:hover {
+  color: var(--text-inverse);
+}
+
+.dividerDark {
+  display: flex;
+  align-items: center;
+  margin: 22px 0 16px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.dividerLineDark {
+  flex: 1;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.registerPromptDark {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Dark alerts */
+.darkAlertError {
+  padding: 11px 14px;
+  background-color: rgba(208, 2, 27, 0.15);
+  border: 1px solid rgba(208, 2, 27, 0.4);
+  border-radius: 8px;
+  color: rgb(255, 107, 107);
+  font-size: 0.82rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.darkAlertSuccess {
+  padding: 11px 14px;
+  background-color: rgba(31, 139, 76, 0.18);
+  border: 1px solid rgba(31, 139, 76, 0.4);
+  border-radius: 8px;
+  color: rgb(74, 222, 128);
+  font-size: 0.82rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+/* Light glassmorphic card for Register & ForgotPassword */
+.lightGlassCard {
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+  border-radius: var(--radius-modal);
+  position: relative;
+  z-index: 10;
+  padding: 44px 36px;
+}
+
+.lightCardTopBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-accent-gold) 0%, var(--color-primary) 100%);
+}
+
+.lightAlertError {
+  padding: 12px 14px;
+  background-color: rgba(208, 2, 27, 0.08);
+  border-left: 3px solid var(--status-error);
+  color: var(--status-error);
+  font-size: 0.84rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.lightAlertSuccess {
+  padding: 12px 14px;
+  background-color: rgba(31, 139, 76, 0.08);
+  border-left: 3px solid var(--status-success);
+  color: var(--status-success);
+  font-size: 0.84rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}

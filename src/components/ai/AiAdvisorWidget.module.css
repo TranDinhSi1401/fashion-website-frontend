@@ -1,0 +1,114 @@
+.launcherBtn {
+  position: fixed;
+  bottom: 88px;
+  right: 24px;
+  z-index: 998;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+  border: 1px solid var(--color-accent-gold);
+  padding: 12px 20px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 0.25s ease, background-color 0.25s ease;
+}
+
+.launcherBtn:hover {
+  transform: translateY(-3px);
+  background-color: var(--color-primary-hover);
+}
+
+.widgetShell {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  height: 580px;
+  max-height: calc(100vh - 48px);
+  background-color: var(--bg-body);
+  border-radius: var(--radius-modal);
+  box-shadow: var(--shadow-modal);
+  border: 1px solid var(--border-light);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.userBubble {
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+  padding: 10px 14px;
+  border-radius: 12px 12px 2px 12px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  white-space: pre-wrap;
+}
+
+.aiBubble {
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: 12px 12px 12px 2px;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-light);
+  white-space: pre-wrap;
+}
+
+.suggestedBtn {
+  text-align: left;
+  padding: 6px 10px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.suggestedBtn:hover {
+  background-color: var(--bg-disabled);
+}
+
+.chatInput {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  font-size: 0.84rem;
+  outline: none;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast);
+}
+
+.chatInput:focus {
+  border-color: var(--border-focus);
+}
+
+.sendBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background-color: var(--color-accent-gold);
+  color: var(--text-inverse);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.sendBtn:disabled {
+  background-color: var(--border-default);
+  cursor: default;
+}

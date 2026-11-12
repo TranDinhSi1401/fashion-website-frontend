@@ -1,0 +1,170 @@
+.heroSection {
+  position: relative;
+  height: 84vh;
+  min-height: 620px;
+  max-height: 880px;
+  background-color: var(--bg-dark);
+  overflow: hidden;
+}
+
+.heroSlide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.8s ease-in-out, visibility 0.8s ease-in-out;
+  z-index: 1;
+}
+
+.heroSlideActive {
+  opacity: 1;
+  visibility: visible;
+  z-index: 2;
+}
+
+.heroBg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 25%;
+  transform: scale(1);
+  transition: transform 7s ease-out;
+}
+
+.heroSlideActive .heroBg {
+  transform: scale(1.03);
+}
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(17, 17, 17, 0.92) 0%,
+    rgba(17, 17, 17, 0.65) 45%,
+    rgba(17, 17, 17, 0.2) 100%
+  );
+}
+
+.heroBottomFade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 160px;
+  background: linear-gradient(to top, rgba(17, 17, 17, 0.95), transparent);
+}
+
+.heroContent {
+  transform: translateY(24px);
+  opacity: 0;
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
+}
+
+.heroSlideActive .heroContent {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.heroBadge {
+  background-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(197, 160, 89, 0.45);
+}
+
+.heroPrimaryCta {
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-modal);
+  transition: var(--transition-fast);
+}
+
+.heroPrimaryCta:hover {
+  background-color: var(--color-accent-gold);
+  color: var(--text-inverse);
+}
+
+.heroSecondaryCta {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: var(--text-inverse);
+  transition: var(--transition-fast);
+}
+
+.heroSecondaryCta:hover {
+  border-color: var(--text-inverse);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.carouselControl {
+  background-color: rgba(17, 17, 17, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  transition: var(--transition-fast);
+}
+
+.carouselControl:hover {
+  background-color: var(--color-primary);
+}
+
+.categoryBg {
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.categoryCard:hover .categoryBg {
+  transform: scale(1.08);
+}
+
+.categoryVignette {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.2) 50%,
+    rgba(0, 0, 0, 0.05) 100%
+  );
+}
+
+.storyImageFrame {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.storyTag {
+  background-color: rgba(17, 17, 17, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.goldIconCircle {
+  background-color: rgba(197, 160, 89, 0.18);
+  color: var(--color-accent-gold);
+}
+
+.goldCta {
+  background-color: var(--color-accent-gold);
+  color: var(--text-inverse);
+  transition: var(--transition-fast);
+}
+
+.goldCta:hover {
+  opacity: 0.9;
+}
+
+.vipSection {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vipInput {
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.vipInput:focus {
+  border-color: var(--text-inverse);
+}
+
+.vipSuccess {
+  background-color: rgba(31, 139, 76, 0.18);
+  border: 1px solid var(--status-success);
+  color: var(--text-inverse);
+}

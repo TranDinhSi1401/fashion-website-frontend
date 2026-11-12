@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, KeyRound, Lock, ArrowLeft, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { authService } from '../services/authService';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
+import { Button, Input } from '../components/ui';
 import { extractErrorMessage } from '../utils/format';
+import { cn } from '../utils/cn';
+import styles from './AuthPages.module.css';
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -21,12 +22,10 @@ export default function ForgotPasswordPage() {
   const [successMessage, setSuccessMessage] = useState<string>('');
 
   useEffect(() => {
-    let timer: any;
-    if (cooldown > 0) {
-      timer = setInterval(() => {
-        setCooldown((prev) => prev - 1);
-      }, 1000);
-    }
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => prev - 1);
+    }, 1000);
     return () => clearInterval(timer);
   }, [cooldown]);
 
@@ -53,8 +52,9 @@ export default function ForgotPasswordPage() {
       );
       setCooldown(60);
       setStep(2);
-    } catch (err: any) {
-      if (err.response?.status === 429) {
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 429) {
         setErrorMessage('Yêu cầu quá thường xuyên. Vui lòng đợi đủ 60 giây.');
         setCooldown(60);
       } else {
@@ -96,7 +96,7 @@ export default function ForgotPasswordPage() {
       setTimeout(() => {
         navigate('/login');
       }, 1800);
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(extractErrorMessage(err, 'Không thể đặt lại mật khẩu. Mật khẩu tạm thời không đúng hoặc đã hết hạn (15 phút).'));
     } finally {
       setIsLoading(false);
@@ -104,117 +104,45 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: 'calc(100vh - var(--header-height) - var(--topbar-height))',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        backgroundColor: '#0c0d10',
-        padding: '50px 20px',
-      }}
-    >
+    <div className={cn(styles.authViewport, styles.authViewportAmbient)}>
       {/* Background Ambience */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '-10%',
-          left: '-10%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(197, 160, 89, 0.14) 0%, rgba(0,0,0,0) 70%)',
-          borderRadius: '50%',
-          filter: 'blur(60px)',
-          animation: 'floatOrb 14s ease-in-out infinite alternate',
-          pointerEvents: 'none',
-        }}
-      />
+      <div className={styles.ambientOrbLeft} />
 
-      <div
-        className="animate-slide-up"
-        style={{
-          width: '100%',
-          maxWidth: '480px',
-          backgroundColor: 'rgba(255, 255, 255, 0.96)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.45)',
-          borderRadius: 'var(--radius-modal)',
-          position: 'relative',
-          zIndex: 10,
-          padding: '44px 36px',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '3px',
-            background: 'linear-gradient(90deg, var(--color-accent-gold) 0%, var(--color-primary) 100%)',
-          }}
-        />
+      <div className={cn('animate-slide-up max-w-[480px]', styles.lightGlassCard)}>
+        <div className={styles.lightCardTopBar} />
 
         {/* Step Indicator */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            marginBottom: '24px',
-          }}
-        >
-          <div
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <button
+            type="button"
             onClick={() => setStep(1)}
-            style={{
-              padding: '4px 12px',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              backgroundColor: step === 1 ? 'var(--color-primary)' : 'var(--bg-surface)',
-              color: step === 1 ? 'var(--text-inverse)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
+            className={cn(
+              'px-3 py-1 text-[0.72rem] font-bold uppercase tracking-[0.05em] border-0 cursor-pointer transition-colors',
+              step === 1 ? 'bg-primary text-content-inverse' : 'bg-surface text-content-secondary'
+            )}
           >
             Bước 1: Gửi mã tạm
-          </div>
-          <div style={{ color: 'var(--border-default)' }}>&rarr;</div>
-          <div
+          </button>
+          <div className="text-line">&rarr;</div>
+          <button
+            type="button"
             onClick={() => email && setStep(2)}
-            style={{
-              padding: '4px 12px',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              backgroundColor: step === 2 ? 'var(--color-primary)' : 'var(--bg-surface)',
-              color: step === 2 ? 'var(--text-inverse)' : 'var(--text-secondary)',
-              cursor: email ? 'pointer' : 'not-allowed',
-            }}
+            disabled={!email}
+            className={cn(
+              'px-3 py-1 text-[0.72rem] font-bold uppercase tracking-[0.05em] border-0 transition-colors',
+              step === 2 ? 'bg-primary text-content-inverse' : 'bg-surface text-content-secondary',
+              email ? 'cursor-pointer' : 'cursor-not-allowed'
+            )}
           >
             Bước 2: Đổi mật khẩu
-          </div>
+          </button>
         </div>
 
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h2
-            style={{
-              fontSize: '1.5rem',
-              fontWeight: 800,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: 'var(--color-primary)',
-              marginBottom: '8px',
-            }}
-          >
+        <div className="text-center mb-6">
+          <h2 className="text-[1.5rem] font-extrabold tracking-[0.06em] uppercase text-primary mb-2">
             {step === 1 ? 'Quên Mật Khẩu' : 'Đặt Lại Mật Khẩu'}
           </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <p className="text-[0.85rem] text-content-secondary">
             {step === 1
               ? 'Nhập email tài khoản để nhận Tên đăng nhập và Mật khẩu tạm thời'
               : 'Nhập mật khẩu tạm thời đã nhận trong email và thiết lập mật khẩu mới'}
@@ -222,43 +150,15 @@ export default function ForgotPasswordPage() {
         </div>
 
         {errorMessage && (
-          <div
-            className="animate-fade-in"
-            style={{
-              padding: '12px 14px',
-              backgroundColor: 'var(--status-error-bg)',
-              borderLeft: '3px solid var(--status-error)',
-              color: 'var(--status-error)',
-              fontSize: '0.84rem',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '20px',
-            }}
-          >
-            <AlertCircle size={18} style={{ flexShrink: 0 }} />
+          <div className={cn('animate-fade-in', styles.lightAlertError)}>
+            <AlertCircle size={18} className="shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {successMessage && (
-          <div
-            className="animate-fade-in"
-            style={{
-              padding: '12px 14px',
-              backgroundColor: 'var(--status-success-bg)',
-              borderLeft: '3px solid var(--status-success)',
-              color: 'var(--status-success)',
-              fontSize: '0.84rem',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '20px',
-            }}
-          >
-            <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+          <div className={cn('animate-fade-in', styles.lightAlertSuccess)}>
+            <CheckCircle2 size={18} className="shrink-0" />
             <span>{successMessage}</span>
           </div>
         )}
@@ -281,12 +181,7 @@ export default function ForgotPasswordPage() {
               size="lg"
               loading={isLoading}
               disabled={cooldown > 0}
-              style={{
-                width: '100%',
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                marginTop: '12px',
-              }}
+              className="w-full text-[0.88rem] font-bold mt-3"
             >
               {cooldown > 0 ? (
                 <>
@@ -340,13 +235,13 @@ export default function ForgotPasswordPage() {
               required
             />
 
-            <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+            <div className="flex gap-3 mt-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => handleRequestTempCode()}
                 disabled={cooldown > 0 || isLoading}
-                style={{ flex: 1, fontSize: '0.78rem' }}
+                className="flex-1 text-[0.78rem]"
               >
                 {cooldown > 0 ? `Gửi lại (${cooldown}s)` : 'Gửi lại mã'}
               </Button>
@@ -355,7 +250,7 @@ export default function ForgotPasswordPage() {
                 type="submit"
                 variant="primary"
                 loading={isLoading}
-                style={{ flex: 1.5, fontSize: '0.82rem' }}
+                className="flex-[1.5] text-[0.82rem]"
               >
                 Xác Nhận Đổi Mật Khẩu
               </Button>
@@ -363,17 +258,10 @@ export default function ForgotPasswordPage() {
           </form>
         )}
 
-        <div style={{ textAlign: 'center', marginTop: '28px' }}>
+        <div className="text-center mt-7">
           <Link
             to="/login"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.82rem',
-              color: 'var(--text-secondary)',
-              fontWeight: 600,
-            }}
+            className="inline-flex items-center gap-1.5 text-[0.82rem] text-content-secondary hover:text-primary font-semibold transition-colors"
           >
             <ArrowLeft size={16} />
             Quay lại trang Đăng nhập
@@ -383,4 +271,3 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
-

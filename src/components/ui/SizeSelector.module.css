@@ -1,0 +1,17 @@
+.option {
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition-fast);
+}
+
+.disabled::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -10%;
+  width: 120%;
+  height: 1px;
+  background-color: var(--text-disabled);
+  transform: rotate(-22deg);
+  pointer-events: none;
+}

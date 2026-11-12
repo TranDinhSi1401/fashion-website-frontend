@@ -1,122 +1,97 @@
-import React, { useEffect, ReactNode } from 'react';
+import { MouseEvent, ReactNode, useLayoutEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { cn } from '../../utils/cn';
+import styles from './Modal.module.css';
 
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  size?: 'size-guide' | 'quick-view';
   maxWidth?: string;
+  className?: string;
 }
+
+const SIZE_CLASSES: Record<NonNullable<ModalProps['size']>, string> = {
+  'size-guide': 'max-w-[720px]',
+  'quick-view': 'max-w-[920px]',
+};
 
 export default function Modal({
   isOpen,
   onClose,
   title,
   children,
-  maxWidth = '550px',
+  size = 'size-guide',
+  maxWidth,
+  className = '',
 }: ModalProps) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
     if (isOpen) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
       document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
+    } else if (dialog.open) {
+      dialog.close();
+      document.body.style.overflow = '';
     }
+
     return () => {
-      document.body.style.overflow = 'unset';
-      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
+
+  const handleBackdropClick = (e: MouseEvent<HTMLDialogElement>) => {
+    if (e.target === dialogRef.current) {
+      onClose();
+    }
+  };
 
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(3px)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
+    <dialog
+      ref={dialogRef}
+      aria-label={title}
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
       }}
-      onClick={onClose}
+      onClick={handleBackdropClick}
+      style={maxWidth ? { maxWidth } : undefined}
+      className={cn(styles.dialog, !maxWidth && SIZE_CLASSES[size], className)}
     >
       <div
-        className="animate-slide-up"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        style={{
-          backgroundColor: 'var(--bg-body)',
-          width: '100%',
-          maxWidth,
-          borderRadius: 'var(--radius-modal)',
-          boxShadow: 'var(--shadow-modal)',
-          overflow: 'hidden',
-          border: '1px solid var(--border-light)',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '90vh',
-        }}
+        className="flex max-h-[90vh] flex-col overflow-hidden rounded-modal p-8"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div
-          style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--border-light)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: 'var(--bg-surface-elevated)',
-          }}
-        >
-          <h3
-            style={{
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              fontSize: '1rem',
-              fontWeight: 700,
-            }}
-          >
+        <div className="relative mb-6 flex items-center justify-center border-b border-line-light pb-4">
+          <h3 className="px-10 text-center text-lg font-bold uppercase tracking-wide text-content-primary">
             {title}
           </h3>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              color: 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '4px',
-            }}
             aria-label="Đóng"
+            className={cn(
+              'absolute right-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-sm text-content-secondary',
+              'hover:bg-surface hover:text-content-primary',
+              styles.closeButton
+            )}
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Content */}
-        <div
-          style={{
-            padding: '24px',
-            overflowY: 'auto',
-          }}
-        >
-          {children}
-        </div>
+        <div className="overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </dialog>
   );
 }
-

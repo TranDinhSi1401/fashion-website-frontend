@@ -8,10 +8,7 @@ import {
   UserAddressUpdateRequest,
 } from '../../types/user';
 import { extractErrorMessage } from '../../utils/format';
-import Input from '../ui/Input';
-import Select from '../ui/Select';
-import Button from '../ui/Button';
-import Modal from '../ui/Modal';
+import { Button, Checkbox, Input, Modal, Select } from '../ui';
 
 interface AddressFormModalProps {
   isOpen: boolean;
@@ -149,7 +146,7 @@ export default function AddressFormModal({
       onClose={onClose}
       title={address ? 'Cập Nhật Địa Chỉ' : 'Thêm Địa Chỉ Mới'}
     >
-      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <form onSubmit={handleSave} className="flex flex-col gap-3.5">
         <Input
           label="Địa chỉ chi tiết (Số nhà, tên đường)"
           value={form.fullAddress}
@@ -180,14 +177,18 @@ export default function AddressFormModal({
               required
             />
             {provinceError && (
-              <div role="alert" style={{ color: 'var(--status-error)', fontSize: '0.8rem', marginTop: '-10px' }}>
+              <div role="alert" className="text-status-error text-[0.8rem] -mt-2.5">
                 {provinceError}{' '}
-                <button type="button" onClick={() => {
-                  setProvinces([]);
-                  setProvincesLoading(true);
-                  setProvinceError('');
-                  setProvinceRetry(value => value + 1);
-                }} style={{ textDecoration: 'underline' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProvinces([]);
+                    setProvincesLoading(true);
+                    setProvinceError('');
+                    setProvinceRetry(value => value + 1);
+                  }}
+                  className="underline bg-transparent border-0 text-inherit cursor-pointer font-semibold"
+                >
                   Thử lại
                 </button>
               </div>
@@ -209,15 +210,19 @@ export default function AddressFormModal({
               required
             />
             {wardError && (
-              <div role="alert" style={{ color: 'var(--status-error)', fontSize: '0.8rem', marginTop: '-10px' }}>
+              <div role="alert" className="text-status-error text-[0.8rem] -mt-2.5">
                 {wardError}{' '}
-                <button type="button" onClick={() => {
-                  setWardId('');
-                  setWards([]);
-                  setWardsLoading(true);
-                  setWardError('');
-                  setWardRetry(value => value + 1);
-                }} style={{ textDecoration: 'underline' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWardId('');
+                    setWards([]);
+                    setWardsLoading(true);
+                    setWardError('');
+                    setWardRetry(value => value + 1);
+                  }}
+                  className="underline bg-transparent border-0 text-inherit cursor-pointer font-semibold"
+                >
                   Thử lại
                 </button>
               </div>
@@ -236,18 +241,15 @@ export default function AddressFormModal({
           ]}
         />
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={form.isDefault}
-            onChange={event => setForm({ ...form, isDefault: event.target.checked })}
-          />
-          <span>Đặt làm địa chỉ nhận hàng mặc định</span>
-        </label>
+        <Checkbox
+          label="Đặt làm địa chỉ nhận hàng mặc định"
+          checked={form.isDefault}
+          onChange={event => setForm({ ...form, isDefault: event.target.checked })}
+        />
 
-        {formError && <p role="alert" style={{ color: 'var(--status-error)', fontSize: '0.85rem' }}>{formError}</p>}
+        {formError && <p role="alert" className="text-status-error text-[0.85rem] m-0">{formError}</p>}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+        <div className="flex justify-end gap-2.5 mt-4">
           <Button variant="secondary" disabled={saving} onClick={onClose}>Hủy</Button>
           <Button type="submit" variant="primary" loading={saving}>Lưu Địa Chỉ</Button>
         </div>

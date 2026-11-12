@@ -1,46 +1,34 @@
-import React from 'react';
-import { Phone, Mail, ShieldCheck } from 'lucide-react';
+import { Mail, Phone, ShieldCheck } from 'lucide-react';
 
 export default function Topbar() {
   return (
-    <aside
-      style={{
-        height: 'var(--topbar-height)',
-        backgroundColor: 'var(--bg-dark)',
-        color: 'var(--text-inverse)',
-        fontSize: '0.75rem',
-        letterSpacing: '0.05em',
-        textTransform: 'uppercase',
-        fontWeight: 500,
-        display: 'flex',
-        alignItems: 'center',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-      }}
-    >
-      <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <ShieldCheck size={14} style={{ color: 'var(--color-accent-gold)' }} />
-            Chính hãng 100% & Bảo hành độc quyền
-          </span>
-          <span style={{ opacity: 0.4 }}>|</span>
-          <span>
-            Miễn phí giao hàng cho đơn từ 500.000₫
+    <aside className="h-topbar w-full rounded-none bg-surface-dark text-xs font-medium text-content-inverse">
+      <div className="mx-auto flex h-full max-w-container items-center justify-between gap-4 px-6">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldCheck size={14} className="text-accent-gold" />
+            <span>Chính hãng 100%</span>
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <p className="hidden text-center md:block">
+          Miễn phí giao hàng cho đơn từ 500.000₫
+        </p>
+
+        <div className="flex items-center gap-4">
           <a
             href="tel:19001234"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'inherit' }}
+            className="inline-flex items-center gap-1.5 transition-colors hover:text-accent-gold"
           >
             <Phone size={13} />
             <span>Hotline: 1900 1234</span>
           </a>
-          <span style={{ opacity: 0.4 }}>|</span>
+          <span className="text-content-muted" aria-hidden="true">
+            |
+          </span>
           <a
             href="mailto:support@fashionwebsite.com"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'inherit' }}
+            className="inline-flex items-center gap-1.5 transition-colors hover:text-accent-gold"
           >
             <Mail size={13} />
             <span>Hỗ trợ</span>
@@ -50,4 +38,3 @@ export default function Topbar() {
     </aside>
   );
 }
-

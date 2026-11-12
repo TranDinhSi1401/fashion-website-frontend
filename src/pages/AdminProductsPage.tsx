@@ -5,12 +5,9 @@ import { categoryService } from '../services/categoryService';
 import { CategoryResponse } from '../types/category';
 import { useAuth } from '../context/AuthContext';
 import { ProductResponse } from '../types/product';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
-import Badge from '../components/ui/Badge';
-import Modal from '../components/ui/Modal';
+import { Badge, Button, Checkbox, Input, Modal, Select } from '../components/ui';
 import { formatCurrencyVND, extractErrorMessage } from '../utils/format';
+import styles from './AdminPages.module.css';
 
 export default function AdminProductsPage() {
   const { isAdmin, isStaff } = useAuth();
@@ -125,7 +122,7 @@ export default function AdminProductsPage() {
       }
       setIsModalOpen(false);
       await fetchProducts();
-    } catch (err: any) {
+    } catch (err) {
       alert(extractErrorMessage(err, 'Lưu sản phẩm thất bại'));
     } finally {
       setIsSubmitting(false);
@@ -143,7 +140,7 @@ export default function AdminProductsPage() {
       await productService.deleteProduct(id);
       setNotification({ type: 'success', message: 'Đã xóa sản phẩm thành công.' });
       await fetchProducts();
-    } catch (err: any) {
+    } catch (err) {
       alert(extractErrorMessage(err, 'Xóa sản phẩm thất bại'));
     }
   };
@@ -153,39 +150,23 @@ export default function AdminProductsPage() {
   );
 
   return (
-    <div style={{ padding: '40px 0 80px' }}>
+    <div className="pt-10 pb-20">
       <div className="container">
         {/* Header toolbar */}
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '16px',
-            marginBottom: '32px',
-          }}
-        >
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-accent-gold)', marginBottom: '4px' }}>
+            <div className="flex items-center gap-2 text-accent-gold mb-1">
               <Shield size={16} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <span className="text-[0.75rem] font-bold uppercase tracking-[0.08em]">
                 Hệ Thống Quản Trị
               </span>
             </div>
-            <h1
-              style={{
-                fontSize: '1.8rem',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-              }}
-            >
+            <h1 className="text-[1.8rem] font-extrabold uppercase tracking-[0.04em] text-content-primary m-0">
               Quản Lý Sản Phẩm
             </h1>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div className="flex gap-3">
             <Button variant="secondary" onClick={fetchProducts} icon={RefreshCw}>
               Làm Mới
             </Button>
@@ -198,7 +179,7 @@ export default function AdminProductsPage() {
         </div>
 
         {/* Search bar */}
-        <div style={{ maxWidth: '400px', marginBottom: '24px' }}>
+        <div className="max-w-[400px] mb-6">
           <Input
             placeholder="Tìm theo tên sản phẩm..."
             value={searchTerm}
@@ -208,98 +189,60 @@ export default function AdminProductsPage() {
         </div>
 
         {notification.message && (
-          <div
-            style={{
-              padding: '12px 16px',
-              backgroundColor: notification.type === 'error' ? 'var(--status-error-bg)' : 'var(--status-success-bg)',
-              color: notification.type === 'error' ? 'var(--status-error)' : 'var(--status-success)',
-              marginBottom: '20px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-            }}
-          >
+          <div className={notification.type === 'error' ? styles.alertError : styles.alertSuccess}>
             {notification.message}
           </div>
         )}
 
         {/* Data Table */}
-        <div
-          style={{
-            overflowX: 'auto',
-            border: '1px solid var(--border-light)',
-            backgroundColor: 'var(--bg-body)',
-          }}
-        >
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              textAlign: 'left',
-              fontSize: '0.85rem',
-            }}
-          >
+        <div className="overflow-x-auto border border-line-light bg-surface-body">
+          <table className="w-full border-collapse text-left text-[0.85rem]">
             <thead>
-              <tr
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  borderBottom: '1px solid var(--border-light)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <th style={{ padding: '16px' }}>ID</th>
-                <th style={{ padding: '16px' }}>Tên Sản Phẩm</th>
-                <th style={{ padding: '16px' }}>Danh Mục</th>
-                <th style={{ padding: '16px' }}>Giá Cơ Bản</th>
-                <th style={{ padding: '16px' }}>Đánh Giá</th>
-                <th style={{ padding: '16px' }}>Trạng Thái</th>
-                <th style={{ padding: '16px', textAlign: 'right' }}>Thao Tác</th>
+              <tr className="bg-surface border-b border-line-light uppercase tracking-[0.05em] text-[0.75rem] font-bold text-content-secondary">
+                <th className="p-4">ID</th>
+                <th className="p-4">Tên Sản Phẩm</th>
+                <th className="p-4">Danh Mục</th>
+                <th className="p-4">Giá Cơ Bản</th>
+                <th className="p-4">Đánh Giá</th>
+                <th className="p-4">Trạng Thái</th>
+                <th className="p-4 text-right">Thao Tác</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={7} className="p-10 text-center text-content-muted">
                     Đang tải danh sách sản phẩm...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={7} className="p-10 text-center text-content-muted">
                     Không có sản phẩm nào phù hợp.
                   </td>
                 </tr>
               ) : (
                 filtered.map((prod) => (
-                  <tr
-                    key={prod.id}
-                    style={{
-                      borderBottom: '1px solid var(--border-light)',
-                      transition: 'background var(--transition-fast)',
-                    }}
-                  >
-                    <td style={{ padding: '16px', fontWeight: 700 }}>#{prod.id}</td>
-                    <td style={{ padding: '16px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{prod.name}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{prod.slug}</div>
+                  <tr key={prod.id} className={styles.tableRow}>
+                    <td className="p-4 font-bold">#{prod.id}</td>
+                    <td className="p-4">
+                      <div className="font-semibold text-content-primary">{prod.name}</div>
+                      <div className="text-[0.72rem] text-content-muted">{prod.slug}</div>
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td className="p-4">
                       <Badge variant="default">Cat #{prod.categoryId}</Badge>
                     </td>
-                    <td style={{ padding: '16px', fontWeight: 700 }}>{formatCurrencyVND(prod.basePrice)}</td>
-                    <td style={{ padding: '16px' }}>
+                    <td className="p-4 font-bold">{formatCurrencyVND(prod.basePrice)}</td>
+                    <td className="p-4">
                       {prod.averageRating ? Number(prod.averageRating).toFixed(1) : '5.0'} ★ ({prod.reviewCount || 0})
                     </td>
-                    <td style={{ padding: '16px' }}>
+                    <td className="p-4">
                       <Badge variant={prod.isActive ? 'success' : 'error'}>
                         {prod.isActive ? 'Hoạt động' : 'Đang ẩn'}
                       </Badge>
                     </td>
-                    <td style={{ padding: '16px', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '6px' }}>
+                    <td className="p-4 text-right">
+                      <div className="inline-flex gap-1.5">
                         <Button
                           variant="secondary"
                           size="sm"
@@ -335,7 +278,7 @@ export default function AdminProductsPage() {
         title={editingProduct ? `Cập Nhật Sản Phẩm #${editingProduct.id}` : 'Thêm Sản Phẩm Mới'}
         maxWidth="600px"
       >
-        <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form onSubmit={handleFormSubmit} className="flex flex-col gap-3.5">
           <Input
             label="Tên sản phẩm"
             value={formData.name}
@@ -344,7 +287,7 @@ export default function AdminProductsPage() {
             required
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Giá cơ bản (VND)"
               type="number"
@@ -377,27 +320,22 @@ export default function AdminProductsPage() {
             placeholder="Ví dụ: https://res.cloudinary.com/... hoặc /images/product1.jpg"
           />
 
-          <div className="form-group">
-            <label className="form-label">Mô tả sản phẩm</label>
-            <textarea
-              className="form-input"
-              rows={4}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Chất liệu, tính năng, hướng dẫn giặt ủi..."
-            />
-          </div>
+          <Input
+            label="Mô tả sản phẩm"
+            multiline
+            rows={4}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Chất liệu, tính năng, hướng dẫn giặt ủi..."
+          />
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={formData.isActive}
-              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-            />
-            <span>Kích hoạt hiển thị sản phẩm trên cửa hàng</span>
-          </label>
+          <Checkbox
+            label="Kích hoạt hiển thị sản phẩm trên cửa hàng"
+            checked={formData.isActive}
+            onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+          />
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+          <div className="flex justify-end gap-2.5 mt-4">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
               Hủy
             </Button>
@@ -410,4 +348,3 @@ export default function AdminProductsPage() {
     </div>
   );
 }
-
