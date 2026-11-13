@@ -60,6 +60,18 @@ export function flushBehaviorQueue(): void {
   trackBehaviorBatch(itemsToSend);
 }
 
+// Tự động xả hàng đợi khi người dùng rời trang hoặc chuyển tab
+if (typeof window !== 'undefined') {
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushBehaviorQueue();
+    }
+  });
+  window.addEventListener('beforeunload', () => {
+    flushBehaviorQueue();
+  });
+}
+
 // ==========================================
 // FEATURE STORE & MA TRẬN ĐIỂM SỞ THÍCH
 // ==========================================

@@ -43,23 +43,79 @@ export function isValidVietnamPhone(phone: string): boolean {
 }
 
 /**
+ * Từ điển ánh xạ mã lỗi hệ thống sang thông báo tiếng Việt thân thiện
+ */
+export const ERROR_CODE_TRANSLATIONS: Record<string, string> = {
+  'error.unauthenticated': 'Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.',
+  'error.invalid_password': 'Mật khẩu phải có độ dài từ 6 đến 100 ký tự.',
+  'error.old_password_incorrect': 'Mật khẩu cũ không chính xác.',
+  'error.password_confirmation_mismatch': 'Mật khẩu xác nhận không trùng khớp.',
+  'error.new_password_same_as_old': 'Mật khẩu mới không được trùng với mật khẩu hiện tại.',
+  'error.user_inactive': 'Tài khoản của bạn đang bị khóa hoặc chưa kích hoạt. Vui lòng liên hệ quản trị viên.',
+  'error.user_not_found': 'Tài khoản không tồn tại trên hệ thống.',
+  'error.user_existed': 'Tên đăng nhập hoặc thông tin người dùng đã tồn tại.',
+  'error.duplicate_username': 'Tên đăng nhập này đã được sử dụng. Vui lòng chọn tên khác.',
+  'error.duplicate_email': 'Địa chỉ email này đã được đăng ký tài khoản khác.',
+  'error.token_expired': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+  'error.token_invalid': 'Mã xác thực không hợp lệ hoặc đã bị hủy.',
+  'error.reset_token_invalid': 'Mã khôi phục mật khẩu không hợp lệ.',
+  'error.reset_token_expired': 'Mã khôi phục mật khẩu đã hết hạn. Vui lòng gửi yêu cầu mới.',
+  'error.reset_password_cooldown': 'Bạn vừa yêu cầu mã gần đây. Vui lòng đợi trong giây lát.',
+  'error.unauthorized': 'Bạn không có quyền thực hiện thao tác này.',
+  'error.bad_request': 'Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại.',
+  'error.product_not_found': 'Không tìm thấy thông tin sản phẩm.',
+  'error.product_variant_not_found': 'Biến thể sản phẩm (màu/size) không tồn tại.',
+  'error.product_variant_unavailable': 'Biến thể sản phẩm này hiện không khả dụng.',
+  'error.cart_item_not_found': 'Sản phẩm không có trong giỏ hàng.',
+  'error.insufficient_stock': 'Số lượng sản phẩm trong kho không đủ đáp ứng.',
+  'error.category_not_found': 'Không tìm thấy danh mục sản phẩm.',
+  'error.order_not_found': 'Không tìm thấy đơn hàng.',
+  'error.address_not_found': 'Không tìm thấy địa chỉ giao hàng.',
+  'error.user_address_not_found': 'Không tìm thấy địa chỉ giao hàng.',
+  'error.email_send_failed': 'Không thể gửi email. Vui lòng thử lại sau ít phút.',
+};
+
+/**
+ * Dịch chuỗi thông báo lỗi kỹ thuật sang tiếng Việt thân thiện
+ */
+export function translateErrorMessage(msg: any): string {
+  if (!msg || typeof msg !== 'string') return '';
+  const trimmed = msg.trim();
+  if (ERROR_CODE_TRANSLATIONS[trimmed]) {
+    return ERROR_CODE_TRANSLATIONS[trimmed];
+  }
+  // Nếu chuỗi có tiền tố error. nhưng chưa có trong từ điển
+  if (trimmed.startsWith('error.')) {
+    return 'Thao tác không thành công. Vui lòng kiểm tra lại thông tin.';
+  }
+  return trimmed;
+}
+
+/**
  * Extract clean error message from API response or Error object
  */
 export function extractErrorMessage(error: any, fallback = 'Đã có lỗi xảy ra. Vui lòng thử lại.'): string {
   if (!error) return fallback;
-  if (typeof error === 'string') return error;
+  if (typeof error === 'string') return translateErrorMessage(error) || fallback;
 
   if (error.response) {
     const data = error.response.data;
     if (data) {
       if (typeof data.message === 'string' && data.message.trim() !== '') {
-        return data.message;
+        const translated = translateErrorMessage(data.message);
+        if (translated) return translated;
       }
-      if (typeof data === 'string') return data;
-      if (data.error) return data.error;
+      if (typeof data === 'string' && data.trim() !== '') {
+        const translated = translateErrorMessage(data);
+        if (translated) return translated;
+      }
+      if (data.error && typeof data.error === 'string' && data.error.trim() !== '') {
+        const translated = translateErrorMessage(data.error);
+        if (translated) return translated;
+      }
     }
     if (error.response.status === 401) {
-      return 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ.';
+      return 'Tên đăng nhập hoặc mật khẩu không chính xác.';
     }
     if (error.response.status === 403) {
       return 'Bạn không có quyền thực hiện thao tác này.';
@@ -69,7 +125,13 @@ export function extractErrorMessage(error: any, fallback = 'Đã có lỗi xảy
     }
   }
 
-  return error.message || fallback;
+  const rawMsg = error.message;
+  if (rawMsg) {
+    const translated = translateErrorMessage(rawMsg);
+    if (translated) return translated;
+  }
+
+  return fallback;
 }
 
 /**

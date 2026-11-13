@@ -21,6 +21,8 @@ export interface UserAddressResponse {
   addressType: AddressType;
   isDefault: boolean;
   userId?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface UserAddressCreationRequest {

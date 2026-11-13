@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Shield, Search, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, RefreshCw } from 'lucide-react';
+import AdminNav from '../components/admin/AdminNav';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { CategoryResponse } from '../types/category';
@@ -150,33 +151,30 @@ export default function AdminProductsPage() {
   );
 
   return (
-    <div className="pt-10 pb-20">
+    <div className="py-8">
       <div className="container">
-        {/* Header toolbar */}
-        <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2 text-accent-gold mb-1">
-              <Shield size={16} />
-              <span className="text-[0.75rem] font-bold uppercase tracking-[0.08em]">
-                Hệ Thống Quản Trị
-              </span>
-            </div>
-            <h1 className="text-[1.8rem] font-extrabold uppercase tracking-[0.04em] text-content-primary m-0">
-              Quản Lý Sản Phẩm
-            </h1>
-          </div>
-
-          <div className="flex gap-3">
-            <Button variant="secondary" onClick={fetchProducts} icon={RefreshCw}>
-              Làm Mới
-            </Button>
-            {(isAdmin || isStaff) && (
-              <Button variant="primary" onClick={handleOpenCreateModal} icon={Plus} disabled={!categories.some(category => category.isActive)}>
-                Thêm Sản Phẩm Mới
+        {/* Admin Navigation & Header */}
+        <AdminNav
+          title="Quản Lý Sản Phẩm"
+          subtitle={`Quản lý danh mục, giá niêm yết và trạng thái hiển thị của ${products.length} sản phẩm thời trang.`}
+          actions={
+            <>
+              <Button variant="secondary" onClick={fetchProducts} icon={RefreshCw}>
+                Làm Mới
               </Button>
-            )}
-          </div>
-        </div>
+              {(isAdmin || isStaff) && (
+                <Button
+                  variant="primary"
+                  onClick={handleOpenCreateModal}
+                  icon={Plus}
+                  disabled={!categories.some(category => category.isActive)}
+                >
+                  Thêm Sản Phẩm Mới
+                </Button>
+              )}
+            </>
+          }
+        />
 
         {/* Search bar */}
         <div className="max-w-[400px] mb-6">
