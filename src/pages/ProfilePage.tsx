@@ -15,13 +15,12 @@ export default function ProfilePage() {
   const { user, updateUserLocal, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const addressSectionRef = useRef<HTMLDivElement>(null);
 
   const activeTab = location.pathname.includes('/preferences')
     ? 'preferences'
     : location.pathname.includes('/password')
     ? 'password'
-    : location.pathname.includes('/addresses')
-    ? 'addresses'
     : 'profile';
 
   const [profileForm, setProfileForm] = useState({
@@ -68,12 +67,20 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (activeTab === 'addresses') {
+    if (activeTab === 'profile') {
       fetchAddresses();
     }
     setErrorMessage('');
     setSuccessMessage('');
   }, [activeTab]);
+
+  useEffect(() => {
+    if (location.pathname.includes('/addresses')) {
+      setTimeout(() => {
+        addressSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  }, [location.pathname]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,21 +259,7 @@ export default function ProfilePage() {
               )}
             >
               <User size={16} />
-              Thông Tin Cá Nhân
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/account/addresses', { state: { keepScroll: true } })}
-              className={cn(
-                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
-                activeTab === 'addresses'
-                  ? 'bg-surface-dark text-content-inverse font-bold'
-                  : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
-              )}
-            >
-              <MapPin size={16} />
-              Sổ Địa Chỉ ({addresses.length})
+              Thông Tin &amp; Địa Chỉ
             </button>
 
             <button
@@ -314,7 +307,7 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* TAB 1: PROFILE INFO */}
+            {/* TAB 1: PROFILE INFO & ADDRESSES MERGED */}
             {activeTab === 'profile' && (
               <div>
                 <h3 className="text-[1.2rem] font-bold uppercase tracking-[0.05em] mb-6 text-content-primary">
@@ -418,85 +411,109 @@ export default function ProfilePage() {
                     Lưu Thay Đổi
                   </Button>
                 </form>
-              </div>
-            )}
 
-            {/* TAB 2: ADDRESSES */}
-            {activeTab === 'addresses' && (
-              <div>
-                <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">
-                  <h3 className="text-[1.2rem] font-bold uppercase tracking-[0.05em] m-0 text-content-primary">
-                    Sổ Địa Chỉ Giao Hàng
-                  </h3>
-
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    icon={Plus}
-                    onClick={() => handleOpenAddressModal()}
-                  >
-                    Thêm Địa Chỉ Mới
-                  </Button>
-                </div>
-
-                {addresses.length === 0 ? (
-                  <div className="text-center py-12 px-5 bg-surface text-content-muted">
-                    <MapPin size={36} className="mb-3 opacity-50 mx-auto" />
-                    <p className="m-0">Bạn chưa lưu địa chỉ giao hàng nào.</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4">
-                    {addresses.map((addr) => (
-                      <div
-                        key={addr.id}
-                        className={cn(
-                          'p-5 border flex justify-between items-center gap-4 flex-wrap',
-                          addr.isDefault ? 'border-primary bg-surface' : 'border-line-light bg-transparent'
-                        )}
-                      >
-                        <div>
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <Badge variant={addr.addressType === 'HOME' ? 'default' : 'dark'}>
-                              {addr.addressType === 'HOME' ? 'Nhà riêng' : addr.addressType === 'OFFICE' ? 'Văn phòng' : 'Khác'}
-                            </Badge>
-                            {addr.isDefault && (
-                              <Badge variant="success">Mặc định</Badge>
-                            )}
-                          </div>
-                          <p className="text-[0.9rem] font-semibold text-content-primary m-0">
-                            {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
-                          </p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          {!addr.isDefault && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSetDefaultAddress(addr.id)}
-                            >
-                              Đặt Mặc Định
-                            </Button>
-                          )}
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleOpenAddressModal(addr)}
-                          >
-                            Sửa
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => handleDeleteAddress(addr.id)}
-                          >
-                            Xóa
-                          </Button>
-                        </div>
+                {/* SỔ ĐỊA CHỈ NHẬN HÀNG (GỘP TRỰC TIẾP VÀO THÔNG TIN CÁ NHÂN) */}
+                <div ref={addressSectionRef} className="mt-10 pt-8 border-t border-line-light">
+                  <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">
+                    <div>
+                      <div className="flex items-center gap-2.5">
+                        <h3 className="text-[1.2rem] font-bold uppercase tracking-[0.05em] m-0 text-content-primary">
+                          Sổ Địa Chỉ Giao Hàng
+                        </h3>
+                        <Badge variant="dark" className="text-[0.75rem] font-bold px-2 py-0.5">
+                          {addresses.length}
+                        </Badge>
                       </div>
-                    ))}
+                      <p className="text-[0.8rem] text-content-secondary mt-1 m-0">
+                        Địa chỉ nhận hàng mặc định sẽ được ưu tiên tự động điền khi đặt mua đơn hàng
+                      </p>
+                    </div>
+
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={Plus}
+                      onClick={() => handleOpenAddressModal()}
+                    >
+                      Thêm Địa Chỉ Mới
+                    </Button>
                   </div>
-                )}
+
+                  {addresses.length === 0 ? (
+                    <div className="text-center py-10 px-5 bg-surface border border-dashed border-line-light rounded-sm text-content-muted">
+                      <MapPin size={32} className="mb-2.5 opacity-40 mx-auto" />
+                      <p className="text-[0.875rem] font-medium m-0">Bạn chưa lưu địa chỉ giao hàng nào.</p>
+                      <p className="text-[0.75rem] text-content-muted mt-1 mb-3">
+                        Thêm địa chỉ ngay để đơn hàng được giao đến đúng nơi nhanh chóng.
+                      </p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={Plus}
+                        onClick={() => handleOpenAddressModal()}
+                      >
+                        Thêm Địa Chỉ Đầu Tiên
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3.5">
+                      {addresses.map((addr) => (
+                        <div
+                          key={addr.id}
+                          className={cn(
+                            'p-4 sm:p-5 border flex justify-between items-center gap-4 flex-wrap transition-colors',
+                            addr.isDefault
+                              ? 'border-primary bg-surface/80 shadow-xs'
+                              : 'border-line-light bg-surface-body hover:border-line'
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <MapPin size={18} className={cn('mt-0.5 shrink-0', addr.isDefault ? 'text-primary' : 'text-content-muted')} />
+                            <div>
+                              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                <Badge variant={addr.addressType === 'HOME' ? 'default' : 'dark'} className="text-[0.7rem]">
+                                  {addr.addressType === 'HOME' ? 'Nhà riêng' : addr.addressType === 'OFFICE' ? 'Văn phòng' : 'Khác'}
+                                </Badge>
+                                {addr.isDefault && (
+                                  <Badge variant="success" className="text-[0.7rem]">Mặc định</Badge>
+                                )}
+                              </div>
+                              <p className="text-[0.9rem] font-semibold text-content-primary m-0">
+                                {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 shrink-0">
+                            {!addr.isDefault && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSetDefaultAddress(addr.id)}
+                              >
+                                Đặt Mặc Định
+                              </Button>
+                            )}
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleOpenAddressModal(addr)}
+                            >
+                              Sửa
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => handleDeleteAddress(addr.id)}
+                            >
+                              Xóa
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

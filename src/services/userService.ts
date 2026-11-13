@@ -119,5 +119,24 @@ export const userService = {
     const res = await apiClient.get<ApiResponse<UserAddressResponse[]>>(`/users/${userId}/addresses`);
     return res.data;
   },
+
+  async getUserAddressDetailByAdmin(userId: number, addressId: number): Promise<ApiResponse<UserAddressResponse>> {
+    const res = await apiClient.get<ApiResponse<UserAddressResponse>>(`/users/${userId}/addresses/${addressId}`);
+    return res.data;
+  },
+
+  async uploadAvatarByAdmin(userId: number, file: File): Promise<ApiResponse<UserResponse>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post<ApiResponse<UserResponse>>(`/users/${userId}/avatar`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+
+  async deleteAvatarByAdmin(userId: number): Promise<ApiResponse<UserResponse>> {
+    const res = await apiClient.delete<ApiResponse<UserResponse>>(`/users/${userId}/avatar`);
+    return res.data;
+  },
 };
 

@@ -86,6 +86,7 @@ export default function Header() {
   const { user, isAuthenticated, isAdmin, isStaff, logout } = useAuth();
   const { cart } = useCart();
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
+  const [adminDropdownOpen, setAdminDropdownOpen] = useState<boolean>(false);
   const [activeMenu, setActiveMenu] = useState<'ao' | 'quan' | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState<boolean>(false);
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
@@ -99,6 +100,7 @@ export default function Header() {
   if (routeKey !== prevRouteKey) {
     setPrevRouteKey(routeKey);
     setDropdownOpen(false);
+    setAdminDropdownOpen(false);
     setActiveMenu(null);
     setCartDrawerOpen(false);
   }
@@ -167,7 +169,7 @@ export default function Header() {
           {/* Main Navigation */}
           <nav
             aria-label="Điều hướng chính"
-            className="hidden items-center gap-6 text-base font-semibold uppercase tracking-wide lg:flex"
+            className="hidden items-center gap-3.5 xl:gap-5 text-sm font-semibold uppercase tracking-wider lg:flex"
           >
             <Link
               to="/"
@@ -257,17 +259,62 @@ export default function Header() {
             </Link>
 
             {(isAdmin || isStaff) && (
-              <Link
-                to="/admin/products"
-                className={cn(
-                  'text-accent-gold',
-                  styles.navLink,
-                  location.pathname.startsWith('/admin') && styles.navLinkActive
-                )}
+              <div
+                className="relative flex h-header items-center"
+                onMouseEnter={() => setAdminDropdownOpen(true)}
+                onMouseLeave={() => setAdminDropdownOpen(false)}
               >
-                <Shield size={14} />
-                <span>Quản trị</span>
-              </Link>
+                <Link
+                  to="/admin/products"
+                  className={cn(
+                    'text-accent-gold flex items-center gap-1.5',
+                    styles.navLink,
+                    location.pathname.startsWith('/admin') && styles.navLinkActive
+                  )}
+                >
+                  <Shield size={14} />
+                  <span>Quản trị</span>
+                  <ChevronDown size={13} className={cn('transition-transform', adminDropdownOpen && 'rotate-180')} />
+                </Link>
+
+                {adminDropdownOpen && (
+                  <div className="absolute top-[calc(100%-10px)] left-0 z-50 w-56 rounded-sm border border-line-light bg-surface-elevated shadow-dropdown py-1.5 animate-slide-up">
+                    <div className="px-3 py-1.5 border-b border-line-light mb-1">
+                      <span className="text-[0.68rem] font-bold uppercase tracking-wider text-accent-gold">
+                        Phân Hệ Quản Trị
+                      </span>
+                    </div>
+
+                    <Link
+                      to="/admin/products"
+                      onClick={() => setAdminDropdownOpen(false)}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
+                        location.pathname === '/admin/products'
+                          ? 'bg-accent-gold/10 text-accent-gold'
+                          : 'text-content-primary hover:bg-surface'
+                      )}
+                    >
+                      <Package size={15} className="text-accent-gold" />
+                      <span>Quản lý sản phẩm</span>
+                    </Link>
+
+                    <Link
+                      to="/admin/users"
+                      onClick={() => setAdminDropdownOpen(false)}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
+                        location.pathname === '/admin/users'
+                          ? 'bg-accent-gold/10 text-accent-gold'
+                          : 'text-content-primary hover:bg-surface'
+                      )}
+                    >
+                      <Users size={15} className="text-accent-gold" />
+                      <span>Quản lý người dùng</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
           </nav>
 

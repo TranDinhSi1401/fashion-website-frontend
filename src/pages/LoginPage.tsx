@@ -23,8 +23,21 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password) {
-      setErrorMessage('Vui lòng nhập tên đăng nhập và mật khẩu.');
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      setErrorMessage('Vui lòng nhập tên đăng nhập.');
+      return;
+    }
+    if (trimmedUsername.length < 3) {
+      setErrorMessage('Tên đăng nhập phải có ít nhất 3 ký tự.');
+      return;
+    }
+    if (!password) {
+      setErrorMessage('Vui lòng nhập mật khẩu.');
+      return;
+    }
+    if (password.length < 6 || password.length > 100) {
+      setErrorMessage('Mật khẩu phải từ 6 đến 100 ký tự.');
       return;
     }
 
@@ -33,7 +46,7 @@ export default function LoginPage() {
     setSuccessMessage('');
 
     try {
-      const res = await login(username.trim(), password);
+      const res = await login(trimmedUsername, password);
       setSuccessMessage('Đăng nhập thành công! Đang chuyển hướng...');
       setTimeout(() => {
         if (res?.user?.role === 'ADMIN' || res?.user?.role === 'STAFF') {
@@ -43,7 +56,7 @@ export default function LoginPage() {
         }
       }, 600);
     } catch (err) {
-      setErrorMessage(extractErrorMessage(err, 'Tên đăng nhập hoặc mật khẩu không chính xác.'));
+      setErrorMessage(extractErrorMessage(err, 'Tên đăng nhập hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.'));
     } finally {
       setIsLoading(false);
     }
