@@ -110,8 +110,26 @@ export default function MapLocationModal({
   }, [isOpen, initialStreet]);
 
   // Reverse Geocoding qua Photon Komoot + BigDataCloud (Không bị chặn ở VN)
-  const fetchAddressByCoords = async (lat: number, lng: number, forceUpdate = false) => {
+  const fetchAddressByCoords = async (
+    lat: number,
+    lng: number,
+    forceUpdate = false,
+    preserveCustomStreet = false
+  ) => {
     setIsLoadingAddress(true);
+
+    const isInvalidRoadName = (val: string) => {
+      if (!val) return true;
+      const lower = val.toLowerCase().trim();
+      return (
+        lower.includes('thành phố') ||
+        lower.includes('hồ chí minh') ||
+        lower.includes('việt nam') ||
+        lower.includes('vietnam') ||
+        lower === 'viet nam' ||
+        lower.includes('tỉnh')
+      );
+    };
 
     try {
       // 1. Thử Photon Komoot Reverse (Cực nhanh, mở, hỗ trợ Việt Nam)
@@ -123,16 +141,20 @@ export default function MapLocationModal({
         const p = photonData.features?.[0]?.properties;
 
         if (p) {
-          const road = p.name || p.street || '';
+          let road = p.street || '';
+          if (!road && p.name && !isInvalidRoadName(p.name)) {
+            road = p.name;
+          }
           const district = p.district || 'Gò Vấp';
           const suburb = p.locality || 'Phường 6';
           const rawCity = p.city || 'Hồ Chí Minh';
           const city = findNearestProvince(lat, lng, provinces) || rawCity;
+          const houseNumber = p.housenumber || '';
 
-          const streetFound = road || 'Đường Nguyễn Oanh';
+          const streetFound = [houseNumber, road].filter(Boolean).join(' ') || road || 'Đường Nguyễn Oanh';
 
           setDetectedAddress({
-            houseNumber: '',
+            houseNumber,
             road: streetFound,
             suburb,
             district,
@@ -140,19 +162,26 @@ export default function MapLocationModal({
             displayName: `${streetFound}, ${district}, ${city}`,
           });
 
-          if (forceUpdate) {
-            setCustomStreet(streetFound);
-          } else {
-            setCustomStreet((prev) => {
-              if (!prev || prev === 'Nguyễn Oanh, Gò Vấp' || prev.toLowerCase().includes('hồ chí minh')) {
+          if (!preserveCustomStreet) {
+            if (forceUpdate) {
+              setCustomStreet(streetFound);
+            } else {
+              setCustomStreet((prev) => {
+                if (
+                  !prev ||
+                  prev === 'Nguyễn Oanh, Gò Vấp' ||
+                  prev.toLowerCase().includes('hồ chí minh') ||
+                  prev === 'nbvnbvc'
+                ) {
+                  return streetFound;
+                }
+                const numMatch = prev.match(/^(\d+[\w\/\-]*)\s*(.*)$/);
+                if (numMatch && numMatch[1] && road) {
+                  return `${numMatch[1]} ${road}`;
+                }
                 return streetFound;
-              }
-              const numMatch = prev.match(/^(\d+[\w\/\-]*)\s*(.*)$/);
-              if (numMatch && numMatch[1] && road) {
-                return `${numMatch[1]} ${road}`;
-              }
-              return streetFound;
-            });
+              });
+            }
           }
 
           setIsLoadingAddress(false);
@@ -168,7 +197,8 @@ export default function MapLocationModal({
         const bdcData = await bdcRes.json();
         const city = findNearestProvince(lat, lng, provinces);
         const district = bdcData.locality || 'Gò Vấp';
-        const road = bdcData.localityInfo?.administrative?.[3]?.name || district;
+        const rawRoad = bdcData.localityInfo?.administrative?.[3]?.name;
+        const road = rawRoad && !isInvalidRoadName(rawRoad) ? rawRoad : 'Đường Nguyễn Oanh';
 
         setDetectedAddress({
           houseNumber: '',
@@ -179,15 +209,22 @@ export default function MapLocationModal({
           displayName: `${road}, ${district}, ${city}`,
         });
 
-        if (forceUpdate) {
-          setCustomStreet(road);
-        } else {
-          setCustomStreet((prev) => {
-            if (!prev || prev === 'Nguyễn Oanh, Gò Vấp' || prev.toLowerCase().includes('hồ chí minh')) {
-              return road;
-            }
-            return prev;
-          });
+        if (!preserveCustomStreet) {
+          if (forceUpdate) {
+            setCustomStreet(road);
+          } else {
+            setCustomStreet((prev) => {
+              if (
+                !prev ||
+                prev === 'Nguyễn Oanh, Gò Vấp' ||
+                prev.toLowerCase().includes('hồ chí minh') ||
+                prev === 'nbvnbvc'
+              ) {
+                return road;
+              }
+              return prev;
+            });
+          }
         }
 
         setIsLoadingAddress(false);
@@ -327,9 +364,9 @@ export default function MapLocationModal({
         const first = parsedResults[0];
         if (first && mapInstanceRef.current) {
           mapInstanceRef.current.flyTo([first.lat, first.lon], 17);
-          const fullStreetName = housePrefix ? `${housePrefix} ${first.road}` : first.road;
+          const fullStreetName = housePrefix ? `${housePrefix} ${first.road}` : (first.road || query);
           setCustomStreet(fullStreetName);
-          fetchAddressByCoords(first.lat, first.lon, true);
+          fetchAddressByCoords(first.lat, first.lon, false, true);
         }
       } else {
         // Fallback: Nếu không ra, tìm từ khóa gốc
@@ -340,7 +377,7 @@ export default function MapLocationModal({
           const [lon, lat] = first.geometry.coordinates;
           if (mapInstanceRef.current) {
             mapInstanceRef.current.flyTo([lat, lon], 17);
-            fetchAddressByCoords(lat, lon, true);
+            fetchAddressByCoords(lat, lon, false, true);
           }
         }
       }
@@ -374,7 +411,7 @@ export default function MapLocationModal({
       }
       setSearchResults([]);
       setSearchQuery('');
-      fetchAddressByCoords(lat, lon, false);
+      fetchAddressByCoords(lat, lon, false, true);
     }
   };
 

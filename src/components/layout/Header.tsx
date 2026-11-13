@@ -5,11 +5,13 @@ import {
   KeyRound,
   LogOut,
   MapPin,
+  Menu,
   Package,
   Shield,
   ShoppingBag,
   User,
   Users,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -89,6 +91,7 @@ export default function Header() {
   const [adminDropdownOpen, setAdminDropdownOpen] = useState<boolean>(false);
   const [activeMenu, setActiveMenu] = useState<'ao' | 'quan' | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -103,6 +106,7 @@ export default function Header() {
     setAdminDropdownOpen(false);
     setActiveMenu(null);
     setCartDrawerOpen(false);
+    setMobileMenuOpen(false);
   }
 
   useEffect(() => {
@@ -147,24 +151,36 @@ export default function Header() {
       <header
         onMouseLeave={() => setActiveMenu(null)}
         className={cn(
-          'sticky top-0 z-50 h-header w-full rounded-none border-b border-line-light bg-surface-body text-content-primary',
+          'sticky top-0 z-50 w-full rounded-none border-b border-line-light bg-surface-body text-content-primary',
           styles.header,
           isScrolled && 'shadow-header'
         )}
       >
-        <div className="mx-auto flex h-full max-w-container items-center justify-between gap-6 px-6">
-          {/* Logo */}
-          <Link
-            to="/"
-            className="flex w-[160px] shrink-0 items-center gap-2.5 text-content-primary"
-          >
-            <div className="flex h-8 w-8 items-center justify-center border-2 border-primary bg-primary text-xs font-bold tracking-wide text-content-inverse">
-              FW
-            </div>
-            <span className="text-md font-bold uppercase tracking-wider">
-              FASHION<span className="font-medium text-accent-gold">WEB</span>
-            </span>
-          </Link>
+        <div className="mx-auto flex h-14 sm:h-header max-w-container items-center justify-between gap-2.5 sm:gap-6 px-3.5 sm:px-6">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Mobile Hamburger Menu Button */}
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded text-content-primary hover:bg-surface lg:hidden"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Mở menu điều hướng"
+            >
+              <Menu size={22} />
+            </button>
+
+            {/* Logo */}
+            <Link
+              to="/"
+              className="flex w-[140px] sm:w-[160px] shrink-0 items-center gap-2 sm:gap-2.5 text-content-primary"
+            >
+              <div className="flex h-8 w-8 items-center justify-center border-2 border-primary bg-primary text-xs font-bold tracking-wide text-content-inverse">
+                FW
+              </div>
+              <span className="text-sm sm:text-md font-bold uppercase tracking-wider">
+                FASHION<span className="font-medium text-accent-gold">WEB</span>
+              </span>
+            </Link>
+          </div>
 
           {/* Main Navigation */}
           <nav
@@ -455,6 +471,205 @@ export default function Header() {
         isOpen={cartDrawerOpen}
         onClose={() => setCartDrawerOpen(false)}
       />
+
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[100] lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* Drawer Panel */}
+          <div className="fixed inset-y-0 left-0 w-[84vw] max-w-xs bg-surface-body border-r border-line shadow-2xl flex flex-col z-10 animate-slide-right pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between p-4 border-b border-line">
+              <Link
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2"
+              >
+                <div className="flex h-7 w-7 items-center justify-center border-2 border-primary bg-primary text-xs font-bold tracking-wide text-content-inverse">
+                  FW
+                </div>
+                <span className="text-sm font-bold uppercase tracking-wider">
+                  FASHION<span className="font-medium text-accent-gold">WEB</span>
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1.5 text-content-muted hover:text-content-primary rounded-full hover:bg-surface"
+                aria-label="Đóng menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Mobile Search Input */}
+            <div className="p-3.5 border-b border-line bg-surface">
+              <SearchInput
+                value={currentSearch}
+                placeholder="Tìm kiếm sản phẩm..."
+                onSearch={(q) => {
+                  handleSearch(q);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full"
+              />
+            </div>
+
+            {/* Navigation Links */}
+            <nav className="flex-1 overflow-y-auto p-3.5 space-y-1 text-sm font-semibold uppercase tracking-wider">
+              <Link
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
+                  location.pathname === '/' ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                )}
+              >
+                <span>Trang chủ</span>
+              </Link>
+              <Link
+                to="/products"
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
+                  location.pathname === '/products' && !location.search ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                )}
+              >
+                <span>Sản phẩm</span>
+              </Link>
+              <Link
+                to="/products?tag=new"
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
+                  location.search.includes('tag=new') ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                )}
+              >
+                <span>Hàng mới</span>
+              </Link>
+              <Link
+                to="/products?category=ao"
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
+                  location.search.includes('category=ao') ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                )}
+              >
+                <span>Áo nam</span>
+              </Link>
+              <Link
+                to="/products?category=quan"
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
+                  location.search.includes('category=quan') ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                )}
+              >
+                <span>Quần nam</span>
+              </Link>
+              <Link
+                to="/products?category=phukien"
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
+                  location.search.includes('category=phukien') ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                )}
+              >
+                <span>Phụ kiện</span>
+              </Link>
+              <Link
+                to="/products?tag=sale"
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center justify-between p-2.5 rounded text-accent-red hover:bg-surface transition-colors',
+                  location.search.includes('tag=sale') && 'bg-accent-red/10'
+                )}
+              >
+                <span>Ưu đãi đặc quyền</span>
+              </Link>
+              <Link
+                to="/#stores"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between p-2.5 rounded text-content-primary hover:bg-surface transition-colors"
+              >
+                <span>Hệ thống cửa hàng</span>
+              </Link>
+
+              {(isAdmin || isStaff) && (
+                <div className="pt-3 mt-3 border-t border-line space-y-1">
+                  <div className="px-2.5 text-[0.68rem] font-bold uppercase tracking-wider text-accent-gold">
+                    Phân Hệ Quản Trị
+                  </div>
+                  <Link
+                    to="/admin/products"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 p-2.5 rounded text-xs font-semibold text-content-primary hover:bg-surface"
+                  >
+                    <Package size={16} className="text-accent-gold" />
+                    <span>Quản lý sản phẩm</span>
+                  </Link>
+                  <Link
+                    to="/admin/users"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 p-2.5 rounded text-xs font-semibold text-content-primary hover:bg-surface"
+                  >
+                    <Users size={16} className="text-accent-gold" />
+                    <span>Quản lý người dùng</span>
+                  </Link>
+                </div>
+              )}
+            </nav>
+
+            {/* Mobile Footer User Section */}
+            <div className="p-4 border-t border-line bg-surface">
+              {isAuthenticated ? (
+                <div className="flex items-center justify-between">
+                  <Link
+                    to="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 min-w-0"
+                  >
+                    {user?.avt ? (
+                      <img src={user.avt} alt="" className="w-8 h-8 rounded-full object-cover border border-line" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-accent-gold/15 text-accent-gold flex items-center justify-center font-bold text-xs">
+                        <User size={16} />
+                      </div>
+                    )}
+                    <div className="text-xs min-w-0">
+                      <div className="font-bold text-content-primary truncate">{user?.fullname || user?.username}</div>
+                      <div className="text-[0.68rem] text-content-muted truncate">{user?.role || 'Khách hàng'}</div>
+                    </div>
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="p-2 text-status-error hover:bg-status-error/10 rounded transition-colors"
+                    title="Đăng xuất"
+                  >
+                    <LogOut size={16} />
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full py-2.5 text-center bg-primary text-content-inverse font-bold text-xs uppercase tracking-wider rounded block hover:bg-primary/90 transition-colors"
+                >
+                  Đăng nhập / Đăng ký
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

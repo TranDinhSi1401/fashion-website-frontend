@@ -147,6 +147,15 @@ const FALLBACK_SHOWCASE_PRODUCTS: ProductResponse[] = [
     reviewCount: 38,
     isActive: true,
     isNew: true,
+    productImages: [
+      {
+        id: 101,
+        imageUrl:
+          'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80',
+        isMain: true,
+        displayOrder: 0,
+      },
+    ],
   },
   {
     id: 2,
@@ -158,6 +167,15 @@ const FALLBACK_SHOWCASE_PRODUCTS: ProductResponse[] = [
     averageRating: 5.0,
     reviewCount: 52,
     isActive: true,
+    productImages: [
+      {
+        id: 102,
+        imageUrl:
+          'https://images.unsplash.com/photo-1581655353564-df123a1eb820?auto=format&fit=crop&w=800&q=80',
+        isMain: true,
+        displayOrder: 0,
+      },
+    ],
   },
   {
     id: 4,
@@ -170,6 +188,15 @@ const FALLBACK_SHOWCASE_PRODUCTS: ProductResponse[] = [
     reviewCount: 46,
     isActive: true,
     isNew: true,
+    productImages: [
+      {
+        id: 103,
+        imageUrl:
+          'https://images.unsplash.com/photo-1625910513413-7e4d2a1a8c9b?auto=format&fit=crop&w=800&q=80',
+        isMain: true,
+        displayOrder: 0,
+      },
+    ],
   },
   {
     id: 5,
@@ -181,6 +208,15 @@ const FALLBACK_SHOWCASE_PRODUCTS: ProductResponse[] = [
     averageRating: 5.0,
     reviewCount: 64,
     isActive: true,
+    productImages: [
+      {
+        id: 104,
+        imageUrl:
+          'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=80',
+        isMain: true,
+        displayOrder: 0,
+      },
+    ],
   },
   {
     id: 6,
@@ -192,6 +228,15 @@ const FALLBACK_SHOWCASE_PRODUCTS: ProductResponse[] = [
     averageRating: 4.9,
     reviewCount: 33,
     isActive: true,
+    productImages: [
+      {
+        id: 105,
+        imageUrl:
+          'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80',
+        isMain: true,
+        displayOrder: 0,
+      },
+    ],
   },
   {
     id: 8,
@@ -203,6 +248,15 @@ const FALLBACK_SHOWCASE_PRODUCTS: ProductResponse[] = [
     averageRating: 5.0,
     reviewCount: 19,
     isActive: true,
+    productImages: [
+      {
+        id: 106,
+        imageUrl:
+          'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80',
+        isMain: true,
+        displayOrder: 0,
+      },
+    ],
   },
 ];
 
@@ -369,21 +423,21 @@ export default function HomePage() {
       </section>
 
       {/* 2. VALUE PROPOSITION BAR */}
-      <section className="border-b border-line-light bg-surface py-6">
-        <div className="mx-auto max-w-container px-6">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="border-b border-line-light bg-surface py-5 sm:py-6">
+        <div className="mx-auto max-w-container px-3.5 sm:px-6">
+          <div className="grid grid-cols-2 gap-3.5 sm:gap-6 lg:grid-cols-4">
             {VALUE_PROMISES.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.title} className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-primary text-content-inverse">
-                    <Icon size={20} />
+                <div key={item.title} className="flex items-center gap-2.5 sm:gap-4">
+                  <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center bg-primary text-content-inverse">
+                    <Icon size={18} />
                   </div>
                   <div>
-                    <h4 className="text-base font-bold uppercase tracking-wide text-content-primary">
+                    <h4 className="text-xs sm:text-base font-bold uppercase tracking-wide text-content-primary">
                       {item.title}
                     </h4>
-                    <p className="mt-0.5 text-xs text-content-secondary">{item.desc}</p>
+                    <p className="mt-0.5 text-[11px] sm:text-xs text-content-secondary line-clamp-1 sm:line-clamp-none">{item.desc}</p>
                   </div>
                 </div>
               );
@@ -393,17 +447,17 @@ export default function HomePage() {
       </section>
 
       {/* 3. FEATURED CATEGORIES GRID */}
-      <section className="py-16">
-        <div className="mx-auto max-w-container px-6">
+      <section className="py-10 sm:py-16">
+        <div className="mx-auto max-w-container px-3.5 sm:px-6">
           <SectionHeader title="Không gian mua sắm theo phong cách" align="center" />
 
-          <div className="grid grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-[var(--grid-gap)] lg:grid-cols-4">
             {FEATURED_CATEGORIES.map((cat) => (
               <Link
                 key={cat.title}
                 to={cat.link}
                 className={cn(
-                  'relative block h-[420px] overflow-hidden bg-surface-dark',
+                  'relative block h-[240px] sm:h-[340px] lg:h-[420px] overflow-hidden bg-surface-dark',
                   styles.categoryCard
                 )}
               >
@@ -413,19 +467,19 @@ export default function HomePage() {
                 />
                 <div className={cn('absolute inset-0', styles.categoryVignette)} />
 
-                <div className="absolute bottom-0 left-0 right-0 z-[2] p-7 text-content-inverse">
-                  <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-accent-gold">
+                <div className="absolute bottom-0 left-0 right-0 z-[2] p-3.5 sm:p-7 text-content-inverse">
+                  <span className="mb-1 block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-accent-gold">
                     {cat.count}
                   </span>
-                  <h3 className="mb-1.5 text-lg font-bold uppercase tracking-wide text-content-inverse">
+                  <h3 className="mb-1 text-sm sm:text-lg font-bold uppercase tracking-wide text-content-inverse">
                     {cat.title}
                   </h3>
-                  <p className="mb-4 text-sm leading-snug text-content-disabled">
+                  <p className="mb-2 sm:mb-4 text-xs sm:text-sm leading-snug text-content-disabled line-clamp-1 sm:line-clamp-none">
                     {cat.subtitle}
                   </p>
-                  <span className="inline-flex items-center gap-2 border-b border-line pb-0.5 text-xs font-bold uppercase tracking-wide text-content-inverse">
+                  <span className="inline-flex items-center gap-1.5 sm:gap-2 border-b border-line pb-0.5 text-[11px] sm:text-xs font-bold uppercase tracking-wide text-content-inverse">
                     <span>Khám phá ngay</span>
-                    <ArrowUpRight size={14} />
+                    <ArrowUpRight size={13} />
                   </span>
                 </div>
               </Link>
@@ -435,29 +489,29 @@ export default function HomePage() {
       </section>
 
       {/* 4. NEW ARRIVALS */}
-      <section className="py-14">
-        <div className="mx-auto max-w-container px-6">
+      <section className="py-10 sm:py-14">
+        <div className="mx-auto max-w-container px-3.5 sm:px-6">
           <SectionHeader
             title="Hàng mới về | New Arrivals"
             align="left"
             action={
               <Link
                 to="/products?tag=new"
-                className="inline-flex items-center gap-2 border-b border-primary pb-1 text-sm font-semibold uppercase tracking-wide text-content-primary transition-colors hover:text-content-secondary"
+                className="inline-flex items-center gap-2 border-b border-primary pb-1 text-xs sm:text-sm font-semibold uppercase tracking-wide text-content-primary transition-colors hover:text-content-secondary"
               >
                 <span>Xem tất cả</span>
-                <ArrowRight size={16} />
+                <ArrowRight size={15} />
               </Link>
             }
           />
 
-          <div className="grid grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-[var(--grid-gap)] lg:grid-cols-4">
             {newArrivals.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
 
-          <div className="mt-12 text-center">
+          <div className="mt-8 sm:mt-12 text-center">
             <Link to="/products">
               <Button variant="primary" size="lg">
                 <span>Xem toàn bộ sản phẩm</span>
@@ -543,23 +597,23 @@ export default function HomePage() {
       </section>
 
       {/* 6. BEST SELLERS */}
-      <section className="py-16">
-        <div className="mx-auto max-w-container px-6">
+      <section className="py-10 sm:py-16">
+        <div className="mx-auto max-w-container px-3.5 sm:px-6">
           <SectionHeader
             title="Sản phẩm bán chạy | Best Sellers"
             align="left"
             action={
               <Link
                 to="/products"
-                className="inline-flex items-center gap-2 border-b border-primary pb-1 text-sm font-semibold uppercase tracking-wide text-content-primary transition-colors hover:text-content-secondary"
+                className="inline-flex items-center gap-2 border-b border-primary pb-1 text-xs sm:text-sm font-semibold uppercase tracking-wide text-content-primary transition-colors hover:text-content-secondary"
               >
                 <span>Xem toàn bộ bán chạy</span>
-                <ArrowRight size={16} />
+                <ArrowRight size={15} />
               </Link>
             }
           />
 
-          <div className="grid grid-cols-1 gap-[var(--grid-gap)] sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-[var(--grid-gap)] lg:grid-cols-4">
             {bestSellers.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

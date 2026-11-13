@@ -121,9 +121,9 @@ export default function ProductCard({
         </LinkComponent>
 
         {resolvedBadges.length > 0 && (
-          <div className="pointer-events-none absolute left-2.5 top-2.5 z-[2] flex flex-col items-start gap-1">
+          <div className="pointer-events-none absolute left-2 top-2 sm:left-2.5 sm:top-2.5 z-[2] flex flex-col items-start gap-1">
             {resolvedBadges.map((badge) => (
-              <Badge key={badge} variant={badge}>
+              <Badge key={badge} variant={badge} className="text-[10px] sm:text-xs px-1.5 py-0.5 sm:px-2">
                 {BADGE_LABEL_MAP[badge]}
               </Badge>
             ))}
@@ -139,12 +139,12 @@ export default function ProductCard({
           aria-label="Yêu thích"
           aria-pressed={isFavorite}
           className={cn(
-            'absolute right-2.5 top-2.5 z-[2] flex h-8 w-8 items-center justify-center rounded-full',
+            'absolute right-2 top-2 sm:right-2.5 sm:top-2.5 z-[2] flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full',
             isFavorite ? 'text-accent-red' : 'text-content-secondary',
             styles.wishlist
           )}
         >
-          <Heart size={16} fill={isFavorite ? 'currentColor' : 'none'} />
+          <Heart size={15} fill={isFavorite ? 'currentColor' : 'none'} />
         </button>
 
         {onQuickBuy ? (
@@ -162,36 +162,36 @@ export default function ProductCard({
         )}
       </div>
 
-      <div className="mt-3 flex flex-col">
+      <div className="mt-2.5 sm:mt-3 flex flex-col">
         {swatchOptions.length > 0 && (
           <ColorSwatches
             options={swatchOptions}
             value={selectedColor || swatchOptions[0]?.value}
             onChange={handleSelectColor}
             size="sm"
-            className="mb-2"
+            className="mb-1.5 sm:mb-2"
           />
         )}
 
         <LinkComponent
           to={`/products/${id}`}
           title={name}
-          className="mb-1.5 line-clamp-1 overflow-hidden text-ellipsis text-base font-medium text-content-primary hover:text-content-secondary"
+          className="mb-1 line-clamp-2 min-h-[2.2rem] sm:min-h-[2.75rem] overflow-hidden text-ellipsis text-xs sm:text-base font-medium text-content-primary hover:text-content-secondary leading-snug"
         >
           {name}
         </LinkComponent>
 
-        <div className="flex items-baseline gap-2">
+        <div className="flex flex-wrap items-baseline gap-1.5 sm:gap-2">
           <span
             className={cn(
-              'text-md font-bold',
+              'text-sm sm:text-md font-bold',
               hasDiscount ? 'text-accent-red' : 'text-content-primary'
             )}
           >
             {formatCurrencyVND(basePrice)}
           </span>
           {hasDiscount && (
-            <span className="text-sm font-normal text-content-muted line-through">
+            <span className="text-xs sm:text-sm font-normal text-content-muted line-through">
               {formatCurrencyVND(originalPrice)}
             </span>
           )}
