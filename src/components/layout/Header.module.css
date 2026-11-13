@@ -1,5 +1,6 @@
 .header {
   transition: var(--transition-fast);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .navLink {

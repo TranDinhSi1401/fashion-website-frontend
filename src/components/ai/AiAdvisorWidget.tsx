@@ -93,10 +93,10 @@ export default function AiAdvisorWidget() {
           className={styles.launcherBtn}
           aria-label="Tư vấn thời trang AI"
         >
-          <div className="w-7 h-7 rounded-full bg-accent-gold flex items-center justify-center text-content-inverse">
+          <div className="w-7 h-7 rounded-full bg-accent-gold flex items-center justify-center text-content-inverse shrink-0">
             <Sparkles size={16} />
           </div>
-          <span className="text-[0.84rem] font-bold tracking-[0.04em]">
+          <span className={styles.launcherText}>
             AI Stylist Tư Vấn
           </span>
         </button>

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import axios from 'axios';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { productService } from '../services/productService';
 import { ProductResponse } from '../types/product';
@@ -27,6 +27,8 @@ import styles from './ProductDetailPage.module.css';
 
 const EMPTY_RECOMMENDATIONS: ProductResponse[] = [];
 
+const TryOnModal = lazy(() => import('../components/tryon/TryOnModal'));
+
 const SIZE_GUIDE_ROWS = [
   { size: 'S', height: '1m62 – 1m68', weight: '54 – 61 kg', chest: '88 – 92 cm' },
   { size: 'M', height: '1m68 – 1m74', weight: '62 – 68 kg', chest: '92 – 96 cm' },
@@ -48,6 +50,7 @@ export default function ProductDetailPage() {
   const [quantityError, setQuantityError] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [failedImage, setFailedImage] = useState<string | null>(null);
+  const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
@@ -481,7 +484,7 @@ export default function ProductDetailPage() {
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               size="lg"
               loading={busy}
@@ -494,13 +497,27 @@ export default function ProductDetailPage() {
                 (isAuthenticated && !isCustomer)
               }
               onClick={() => void handleAddToCart()}
+              className="flex-1 sm:flex-none"
             >
               {isAuthenticated ? 'Thêm vào giỏ hàng' : 'Đăng nhập để thêm vào giỏ'}
             </Button>
 
+            {/* NÚT THỬ ĐỒ AI ✨ */}
+            <Button
+              type="button"
+              size="lg"
+              variant="secondary"
+              icon={Sparkles}
+              onClick={() => setIsTryOnOpen(true)}
+              className="border-accent-gold/40 text-accent-gold hover:bg-accent-gold/10 hover:border-accent-gold shadow-sm font-bold flex-1 sm:flex-none"
+              title="Thử trang phục này trực tiếp lên vóc dáng người mẫu hoặc ảnh của bạn bằng AI"
+            >
+              Thử đồ AI ✨
+            </Button>
+
             <Link
               to="/cart"
-              className="text-sm font-medium text-content-secondary underline underline-offset-4 hover:text-content-primary"
+              className="text-sm font-medium text-content-secondary underline underline-offset-4 hover:text-content-primary ml-auto sm:ml-0"
             >
               Xem giỏ hàng
             </Link>
@@ -627,6 +644,18 @@ export default function ProductDetailPage() {
           </table>
         </div>
       </Modal>
+
+      {/* PHÒNG THỬ ĐỒ ẢO AI IDM-VTON */}
+      {isTryOnOpen && product && (
+        <Suspense fallback={null}>
+          <TryOnModal
+            productId={product.id}
+            productName={product.name}
+            productImage={activeImage || ''}
+            onClose={() => setIsTryOnOpen(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

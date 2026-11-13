@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gradio/client": "^2.8.0",
     "@react-oauth/google": "^0.13.5",
     "@types/leaflet": "^1.9.22",
     "axios": "^1.21.0",
