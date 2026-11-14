@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
 import { UserAddressResponse } from '../types/user';
 import AddressFormModal from '../components/profile/AddressFormModal';
-import { Badge, Button, Input } from '../components/ui';
+import { Badge, Button, Input, Select } from '../components/ui';
 import { isValidVietnamPhone, extractErrorMessage } from '../utils/format';
 import { cn } from '../utils/cn';
 import styles from './ProfilePage.module.css';
@@ -25,6 +25,7 @@ export default function ProfilePage() {
 
   const [profileForm, setProfileForm] = useState({
     fullname: '',
+    gender: 'MALE',
     email: '',
     phone: '',
   });
@@ -49,6 +50,7 @@ export default function ProfilePage() {
     if (user) {
       setProfileForm({
         fullname: user.fullname || '',
+        gender: user.gender || 'OTHER',
         email: user.email || '',
         phone: user.phone || '',
       });
@@ -100,6 +102,7 @@ export default function ProfilePage() {
     try {
       const res = await userService.updateCurrentUser({
         fullname: profileForm.fullname.trim(),
+        gender: profileForm.gender,
         email: profileForm.email.trim(),
         phone: profileForm.phone.trim(),
       });
@@ -248,7 +251,14 @@ export default function ProfilePage() {
               <div>
                 <div className="text-[0.9rem] font-bold text-content-primary">{user?.fullname || user?.username}</div>
                 <div className="text-[0.75rem] text-content-muted">@{user?.username}</div>
-                {user?.role && <Badge variant="dark" className="mt-1">{user.role}</Badge>}
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {user?.role && <Badge variant="dark">{user.role}</Badge>}
+                  {user?.gender && (
+                    <Badge variant="default">
+                      {user.gender === 'MALE' ? 'Nam' : user.gender === 'FEMALE' ? 'Nữ' : 'Khác'}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -381,13 +391,28 @@ export default function ProfilePage() {
                     helperText="Tên đăng nhập không thể thay đổi"
                   />
 
-                  <Input
-                    label="Họ và tên"
-                    name="fullname"
-                    value={profileForm.fullname}
-                    onChange={(e) => setProfileForm({ ...profileForm, fullname: e.target.value })}
-                    required
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Họ và tên"
+                      name="fullname"
+                      value={profileForm.fullname}
+                      onChange={(e) => setProfileForm({ ...profileForm, fullname: e.target.value })}
+                      required
+                    />
+
+                    <Select
+                      label="Giới tính"
+                      name="gender"
+                      value={profileForm.gender}
+                      onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                      options={[
+                        { value: 'MALE', label: 'Nam' },
+                        { value: 'FEMALE', label: 'Nữ' },
+                        { value: 'OTHER', label: 'Khác' },
+                      ]}
+                      required
+                    />
+                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input

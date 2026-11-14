@@ -38,8 +38,16 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [genderFilter, setGenderFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<string>('id_desc');
+
+  const formatGender = (gender?: string | null) => {
+    if (gender === 'MALE') return 'Nam';
+    if (gender === 'FEMALE') return 'Nữ';
+    if (gender === 'OTHER') return 'Khác';
+    return 'Chưa cập nhật';
+  };
 
   // Confirmation / Alert Dialog State (Replaces native window.confirm & alert)
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -65,6 +73,7 @@ export default function AdminUsersPage() {
     username: '',
     password: '',
     fullname: '',
+    gender: 'MALE',
     email: '',
     phone: '',
     role: 'CUSTOMER',
@@ -123,6 +132,7 @@ export default function AdminUsersPage() {
       username: '',
       password: '',
       fullname: '',
+      gender: 'MALE',
       email: '',
       phone: '',
       role: 'CUSTOMER',
@@ -143,6 +153,7 @@ export default function AdminUsersPage() {
       username: u.username || '',
       password: '',
       fullname: u.fullname || '',
+      gender: u.gender || 'OTHER',
       email: u.email || '',
       phone: u.phone || '',
       role: u.role || 'CUSTOMER',
@@ -350,8 +361,18 @@ export default function AdminUsersPage() {
       return;
     }
 
+    if (!['MALE', 'FEMALE', 'OTHER'].includes(formData.gender)) {
+      setFormError('Vui lòng chọn giới tính hợp lệ.');
+      return;
+    }
+
     if (!cleanEmail) {
       setFormError('Vui lòng nhập email.');
+      return;
+    }
+
+    if (!editingUser && !cleanPhone) {
+      setFormError('Vui lòng nhập số điện thoại khi tạo tài khoản mới.');
       return;
     }
 
@@ -377,6 +398,7 @@ export default function AdminUsersPage() {
         // Cập nhật người dùng: chỉ gửi phone và password nếu có giá trị
         const payload: Record<string, any> = {
           fullname: cleanFullname,
+          gender: formData.gender,
           email: cleanEmail,
           role: formData.role,
           status: formData.status,
@@ -403,6 +425,7 @@ export default function AdminUsersPage() {
           formPayload.append('username', formData.username.trim());
           formPayload.append('password', cleanPassword);
           formPayload.append('fullname', cleanFullname);
+          formPayload.append('gender', formData.gender);
           formPayload.append('email', cleanEmail);
           formPayload.append('role', formData.role);
           if (cleanPhone) {
@@ -415,6 +438,7 @@ export default function AdminUsersPage() {
             username: formData.username.trim(),
             password: cleanPassword,
             fullname: cleanFullname,
+            gender: formData.gender,
             email: cleanEmail,
             role: formData.role,
           };
@@ -438,12 +462,14 @@ export default function AdminUsersPage() {
   const isFiltered =
     searchTerm.trim() !== '' ||
     roleFilter !== 'ALL' ||
+    genderFilter !== 'ALL' ||
     statusFilter !== 'ALL' ||
     sortBy !== 'id_desc';
 
   const handleResetFilters = () => {
     setSearchTerm('');
     setRoleFilter('ALL');
+    setGenderFilter('ALL');
     setStatusFilter('ALL');
     setSortBy('id_desc');
   };
@@ -462,11 +488,14 @@ export default function AdminUsersPage() {
       // Lọc theo vai trò
       const matchRole = roleFilter === 'ALL' || u.role === roleFilter;
 
+      // Lọc theo giới tính
+      const matchGender = genderFilter === 'ALL' || u.gender === genderFilter;
+
       // Lọc theo trạng thái
       const currentStatus = u.status || 'ACTIVE';
       const matchStatus = statusFilter === 'ALL' || currentStatus === statusFilter;
 
-      return matchSearch && matchRole && matchStatus;
+      return matchSearch && matchRole && matchGender && matchStatus;
     })
     .sort((a, b) => {
       if (sortBy === 'id_desc') return b.id - a.id;
@@ -534,7 +563,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Role Filter */}
-            <div className="lg:col-span-3">
+            <div className="lg:col-span-2">
               <label className="block text-[0.72rem] uppercase tracking-wider font-bold text-content-secondary mb-1.5">
                 Vai trò
               </label>
@@ -543,9 +572,26 @@ export default function AdminUsersPage() {
                 onChange={(e) => setRoleFilter(e.target.value)}
                 options={[
                   { value: 'ALL', label: 'Tất cả vai trò' },
-                  { value: 'CUSTOMER', label: 'CUSTOMER (Khách hàng)' },
-                  { value: 'STAFF', label: 'STAFF (Nhân viên)' },
-                  { value: 'ADMIN', label: 'ADMIN (Quản trị viên)' },
+                  { value: 'CUSTOMER', label: 'CUSTOMER' },
+                  { value: 'STAFF', label: 'STAFF' },
+                  { value: 'ADMIN', label: 'ADMIN' },
+                ]}
+              />
+            </div>
+
+            {/* Gender Filter */}
+            <div className="lg:col-span-2">
+              <label className="block text-[0.72rem] uppercase tracking-wider font-bold text-content-secondary mb-1.5">
+                Giới tính
+              </label>
+              <Select
+                value={genderFilter}
+                onChange={(e) => setGenderFilter(e.target.value)}
+                options={[
+                  { value: 'ALL', label: 'Tất cả giới tính' },
+                  { value: 'MALE', label: 'Nam (MALE)' },
+                  { value: 'FEMALE', label: 'Nữ (FEMALE)' },
+                  { value: 'OTHER', label: 'Khác (OTHER)' },
                 ]}
               />
             </div>
@@ -567,7 +613,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Sort Filter */}
-            <div className="lg:col-span-3">
+            <div className="lg:col-span-2">
               <label className="block text-[0.72rem] uppercase tracking-wider font-bold text-content-secondary mb-1.5">
                 Sắp xếp
               </label>
@@ -575,10 +621,10 @@ export default function AdminUsersPage() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 options={[
-                  { value: 'id_desc', label: 'Mới nhất (ID giảm dần)' },
-                  { value: 'id_asc', label: 'Cũ nhất (ID tăng dần)' },
-                  { value: 'name_asc', label: 'Tên người dùng (A → Z)' },
-                  { value: 'name_desc', label: 'Tên người dùng (Z → A)' },
+                  { value: 'id_desc', label: 'Mới nhất' },
+                  { value: 'id_asc', label: 'Cũ nhất' },
+                  { value: 'name_asc', label: 'Tên (A → Z)' },
+                  { value: 'name_desc', label: 'Tên (Z → A)' },
                 ]}
               />
             </div>
@@ -605,6 +651,15 @@ export default function AdminUsersPage() {
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface border border-line-light text-content-primary">
                   Vai trò: {roleFilter}
                   <button type="button" onClick={() => setRoleFilter('ALL')} className="hover:text-status-error">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+
+              {genderFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface border border-line-light text-content-primary">
+                  Giới tính: {formatGender(genderFilter)}
+                  <button type="button" onClick={() => setGenderFilter('ALL')} className="hover:text-status-error">
                     <X size={12} />
                   </button>
                 </span>
@@ -680,7 +735,9 @@ export default function AdminUsersPage() {
                       <div className="font-bold text-sm text-content-primary group-hover:text-accent-gold transition-colors truncate">
                         {u.fullname || u.username}
                       </div>
-                      <div className="text-xs text-content-muted truncate">@{u.username} • #{u.id}</div>
+                      <div className="text-xs text-content-muted truncate">
+                        @{u.username} • #{u.id} • {formatGender(u.gender)}
+                      </div>
                     </div>
                   </div>
 
@@ -750,6 +807,7 @@ export default function AdminUsersPage() {
               <tr className="bg-surface border-b border-line-light uppercase tracking-wider text-[0.72rem] font-bold text-content-secondary">
                 <th className="p-3.5 pl-4">ID</th>
                 <th className="p-3.5">Người Dùng</th>
+                <th className="p-3.5">Giới Tính</th>
                 <th className="p-3.5">Liên Hệ</th>
                 <th className="p-3.5">Vai Trò</th>
                 <th className="p-3.5">Trạng Thái</th>
@@ -759,14 +817,14 @@ export default function AdminUsersPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center text-content-muted">
+                  <td colSpan={7} className="p-10 text-center text-content-muted">
                     <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-accent-gold" />
                     Đang tải danh sách người dùng...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center text-content-muted">
+                  <td colSpan={7} className="p-10 text-center text-content-muted">
                     Không tìm thấy người dùng phù hợp.
                   </td>
                 </tr>
@@ -798,6 +856,11 @@ export default function AdminUsersPage() {
                           <div className="text-[0.72rem] text-content-muted">@{u.username}</div>
                         </div>
                       </div>
+                    </td>
+                    <td className="p-3.5">
+                      <Badge variant="default">
+                        {formatGender(u.gender)}
+                      </Badge>
                     </td>
                     <td className="p-3.5">
                       <div className="text-content-primary">{u.email}</div>
@@ -899,6 +962,8 @@ export default function AdminUsersPage() {
                   <div className="text-xs text-content-muted flex flex-wrap items-center justify-center sm:justify-start gap-3">
                     <span>Tên đăng nhập: <strong className="text-content-primary">@{detailUser.username}</strong></span>
                     <span>•</span>
+                    <span>Giới tính: <strong className="text-content-primary">{formatGender(detailUser.gender)}</strong></span>
+                    <span>•</span>
                     <span>Mã tài khoản: <strong className="text-content-primary">#{detailUser.id}</strong></span>
                   </div>
                 </div>
@@ -906,7 +971,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Contact Info Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3.5 border border-line-light bg-surface-body flex items-center gap-3 rounded-sm shadow-xs">
                 <div className="w-9 h-9 rounded-full bg-accent-gold/10 flex items-center justify-center shrink-0 text-accent-gold">
                   <Mail size={18} />
@@ -924,6 +989,16 @@ export default function AdminUsersPage() {
                 <div className="min-w-0">
                   <div className="text-[0.7rem] uppercase tracking-wider font-bold text-content-muted">Số điện thoại</div>
                   <div className="text-sm font-semibold text-content-primary">{detailUser.phone || 'Chưa cập nhật'}</div>
+                </div>
+              </div>
+
+              <div className="p-3.5 border border-line-light bg-surface-body flex items-center gap-3 rounded-sm shadow-xs">
+                <div className="w-9 h-9 rounded-full bg-accent-gold/10 flex items-center justify-center shrink-0 text-accent-gold">
+                  <UserIcon size={18} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[0.7rem] uppercase tracking-wider font-bold text-content-muted">Giới tính</div>
+                  <div className="text-sm font-semibold text-content-primary">{formatGender(detailUser.gender)}</div>
                 </div>
               </div>
             </div>
@@ -1225,13 +1300,27 @@ export default function AdminUsersPage() {
             required={!editingUser}
           />
 
-          <Input
-            label="Họ và tên"
-            value={formData.fullname}
-            onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
-            placeholder="Ví dụ: Nguyễn Văn A"
-            required
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <Input
+              label="Họ và tên"
+              value={formData.fullname}
+              onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
+              placeholder="Ví dụ: Nguyễn Văn A"
+              required
+            />
+
+            <Select
+              label="Giới tính"
+              value={formData.gender}
+              onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+              options={[
+                { value: 'MALE', label: 'Nam (MALE)' },
+                { value: 'FEMALE', label: 'Nữ (FEMALE)' },
+                { value: 'OTHER', label: 'Khác (OTHER)' },
+              ]}
+              required
+            />
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <Input
@@ -1248,6 +1337,7 @@ export default function AdminUsersPage() {
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="Ví dụ: 0901000001"
+              required={!editingUser}
             />
           </div>
 
