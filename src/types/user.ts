@@ -1,10 +1,12 @@
 export type UserRole = 'ADMIN' | 'STAFF' | 'CUSTOMER' | string;
+export type UserGender = 'MALE' | 'FEMALE' | 'OTHER' | string;
 export type AddressType = 'HOME' | 'OFFICE' | 'OTHER';
 
 export interface UserResponse {
   id: number;
   username: string;
   fullname?: string | null;
+  gender?: UserGender | null;
   email: string;
   phone?: string | null;
   address?: string | null;
@@ -43,6 +45,7 @@ export interface UserAddressUpdateRequest {
 
 export interface UpdateUserRequest {
   fullname?: string;
+  gender?: UserGender;
   email?: string;
   phone?: string;
   avt?: string;

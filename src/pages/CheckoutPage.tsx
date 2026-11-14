@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { CreditCard, ShoppingBag } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { CreditCard, ShoppingBag, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { userService } from '../services/userService';
+import { orderService } from '../services/orderService';
 import { shippingService, ShippingOrderPreview } from '../services/shippingService';
 import { UserAddressResponse } from '../types/user';
 import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
@@ -47,6 +48,10 @@ export default function CheckoutPage() {
   const [shippingPreview, setShippingPreview] = useState<ShippingOrderPreview | null>(null);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingError, setShippingError] = useState('');
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [orderError, setOrderError] = useState('');
+  const [orderSuccess, setOrderSuccess] = useState<string>('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     void refresh();
@@ -146,6 +151,30 @@ export default function CheckoutPage() {
       }).format(new Date(shippingPreview.expected_delivery_time))
     : '';
 
+  const handlePlaceOrder = async () => {
+    if (typeof selectedAddressId !== 'number' || selectedAddressId <= 0) {
+      setOrderError('Vui lòng chọn địa chỉ nhận hàng trước khi đặt mua.');
+      return;
+    }
+    setPlacingOrder(true);
+    setOrderError('');
+    setOrderSuccess('');
+    try {
+      const res = await orderService.createOrder({
+        userAddressId: selectedAddressId,
+        paymentMethodId: paymentMethod === 'COD' ? 1 : 2,
+      });
+      await refresh();
+      setOrderSuccess(
+        `Đặt hàng thành công! Mã đơn hàng: ${res.data?.orderCode || '#' + res.data?.id}. Tồn kho sản phẩm và thông báo đơn hàng đã được đồng bộ realtime.`
+      );
+    } catch (err) {
+      setOrderError(extractErrorMessage(err, 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại tồn kho.'));
+    } finally {
+      setPlacingOrder(false);
+    }
+  };
+
   return (
     <div className="container pb-16">
       <Breadcrumb
@@ -187,7 +216,19 @@ export default function CheckoutPage() {
           {error}
         </p>
       )}
-      {!loading && !error && cart && cart.items.length === 0 && (
+      {orderSuccess && (
+        <div className="mx-auto mb-6 max-w-[1060px] border border-emerald-200 bg-emerald-50 p-6 text-center text-emerald-900">
+          <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-600" />
+          <p className="mb-4 text-sm font-semibold">{orderSuccess}</p>
+          <div className="flex justify-center gap-3">
+            <Button variant="primary" onClick={() => navigate('/products')}>
+              Tiếp tục mua sắm
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && !orderSuccess && cart && cart.items.length === 0 && (
         <div className="mx-auto mb-6 max-w-[1060px] bg-surface p-6 text-center">
           <p className="mb-4 text-base text-content-secondary">Giỏ hàng đang trống.</p>
           <Link to="/products">
@@ -329,7 +370,20 @@ export default function CheckoutPage() {
               />
             </section>
 
-            <Button type="button" size="lg" className="mt-5 w-full">
+            {orderError && (
+              <p className="mt-4 text-xs font-medium text-status-error" role="alert">
+                {orderError}
+              </p>
+            )}
+
+            <Button
+              type="button"
+              size="lg"
+              className="mt-5 w-full"
+              loading={placingOrder}
+              disabled={!selectedAddressId || placingOrder}
+              onClick={() => void handlePlaceOrder()}
+            >
               Đặt hàng
             </Button>
           </form>

@@ -12,6 +12,7 @@
   "dependencies": {
     "@gradio/client": "^2.8.0",
     "@react-oauth/google": "^0.13.5",
+    "@stomp/stompjs": "^7.5.0",
     "@types/leaflet": "^1.9.22",
     "axios": "^1.21.0",
     "clsx": "^2.1.1",

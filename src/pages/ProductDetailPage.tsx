@@ -22,6 +22,7 @@ import { formatCurrencyVND, extractAllProductImages } from '../utils/format';
 import { normalizeSize } from '../utils/catalog';
 import { availableVariants, findVariant, quantityWithinStock } from '../utils/variants';
 import { trackBehavior } from '../services/behaviorService';
+import { useLiveStock } from '../components/product/useLiveStock';
 import { cn } from '../utils/cn';
 import styles from './ProductDetailPage.module.css';
 
@@ -175,10 +176,19 @@ export default function ProductDetailPage() {
     });
   };
 
-  const variants = (product?.variants || []).filter((variant) => variant.isActive);
+  const liveStocks = useLiveStock(product?.id);
+  const variants = (product?.variants || [])
+    .filter((variant) => variant.isActive)
+    .map((variant) => ({
+      ...variant,
+      stockQuantity:
+        typeof liveStocks[variant.id] === 'number'
+          ? liveStocks[variant.id]
+          : variant.stockQuantity,
+    }));
   const sellable = availableVariants(variants);
   const selectedVariant = findVariant(variants, selection.color, selection.size);
-  const stock = selectedVariant?.stockQuantity || 0;
+  const stock = selectedVariant ? (liveStocks[selectedVariant.id] ?? selectedVariant.stockQuantity ?? 0) : 0;
   const alreadyInCart =
     cart?.items.find((item) => item.variantId === selectedVariant?.id)?.quantity || 0;
   const remaining = Math.max(0, stock - alreadyInCart);

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { User, KeyRound, MapPin, Camera, Trash2, Plus, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { User, KeyRound, MapPin, Camera, Trash2, Plus, AlertCircle, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react';
 import PreferenceMatrixTab from '../components/profile/PreferenceMatrixTab';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
 import { UserAddressResponse } from '../types/user';
 import AddressFormModal from '../components/profile/AddressFormModal';
-import { Badge, Button, Input } from '../components/ui';
+import { Badge, Button, Input, Select, Modal } from '../components/ui';
 import { isValidVietnamPhone, extractErrorMessage } from '../utils/format';
 import { cn } from '../utils/cn';
 import styles from './ProfilePage.module.css';
@@ -25,6 +25,7 @@ export default function ProfilePage() {
 
   const [profileForm, setProfileForm] = useState({
     fullname: '',
+    gender: 'MALE',
     email: '',
     phone: '',
   });
@@ -38,6 +39,8 @@ export default function ProfilePage() {
   const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState<boolean>(false);
   const [editingAddress, setEditingAddress] = useState<UserAddressResponse | null>(null);
+  const [confirmDeleteAddress, setConfirmDeleteAddress] = useState<UserAddressResponse | null>(null);
+  const [deletingAddress, setDeletingAddress] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [avatarUploading, setAvatarUploading] = useState<boolean>(false);
@@ -49,6 +52,7 @@ export default function ProfilePage() {
     if (user) {
       setProfileForm({
         fullname: user.fullname || '',
+        gender: user.gender || 'OTHER',
         email: user.email || '',
         phone: user.phone || '',
       });
@@ -100,6 +104,7 @@ export default function ProfilePage() {
     try {
       const res = await userService.updateCurrentUser({
         fullname: profileForm.fullname.trim(),
+        gender: profileForm.gender,
         email: profileForm.email.trim(),
         phone: profileForm.phone.trim(),
       });
@@ -132,6 +137,9 @@ export default function ProfilePage() {
       setErrorMessage(extractErrorMessage(err, 'Không thể tải ảnh đại diện lên.'));
     } finally {
       setAvatarUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -152,6 +160,9 @@ export default function ProfilePage() {
       setErrorMessage(extractErrorMessage(err, 'Xóa ảnh đại diện thất bại.'));
     } finally {
       setAvatarUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -199,21 +210,31 @@ export default function ProfilePage() {
   };
 
   const handleSetDefaultAddress = async (id: number) => {
+    setErrorMessage('');
+    setSuccessMessage('');
     try {
       await userService.setDefaultAddress(id);
       await fetchAddresses();
+      setSuccessMessage('Đã đặt làm địa chỉ giao hàng mặc định!');
     } catch (err) {
-      alert(extractErrorMessage(err, 'Không thể đặt làm mặc định'));
+      setErrorMessage(extractErrorMessage(err, 'Không thể đặt làm mặc định'));
     }
   };
 
-  const handleDeleteAddress = async (id: number) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) return;
+  const handleConfirmDeleteAddress = async () => {
+    if (!confirmDeleteAddress) return;
+    setDeletingAddress(true);
+    setErrorMessage('');
+    setSuccessMessage('');
     try {
-      await userService.deleteAddress(id);
+      await userService.deleteAddress(confirmDeleteAddress.id);
+      setConfirmDeleteAddress(null);
       await fetchAddresses();
+      setSuccessMessage('Đã xóa địa chỉ giao hàng khỏi sổ địa chỉ!');
     } catch (err) {
-      alert(extractErrorMessage(err, 'Xóa địa chỉ thất bại'));
+      setErrorMessage(extractErrorMessage(err, 'Xóa địa chỉ thất bại'));
+    } finally {
+      setDeletingAddress(false);
     }
   };
 
@@ -242,7 +263,14 @@ export default function ProfilePage() {
               <div>
                 <div className="text-[0.9rem] font-bold text-content-primary">{user?.fullname || user?.username}</div>
                 <div className="text-[0.75rem] text-content-muted">@{user?.username}</div>
-                {user?.role && <Badge variant="dark" className="mt-1">{user.role}</Badge>}
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {user?.role && <Badge variant="dark">{user.role}</Badge>}
+                  {user?.gender && (
+                    <Badge variant="default">
+                      {user.gender === 'MALE' ? 'Nam' : user.gender === 'FEMALE' ? 'Nữ' : 'Khác'}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -375,13 +403,28 @@ export default function ProfilePage() {
                     helperText="Tên đăng nhập không thể thay đổi"
                   />
 
-                  <Input
-                    label="Họ và tên"
-                    name="fullname"
-                    value={profileForm.fullname}
-                    onChange={(e) => setProfileForm({ ...profileForm, fullname: e.target.value })}
-                    required
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Họ và tên"
+                      name="fullname"
+                      value={profileForm.fullname}
+                      onChange={(e) => setProfileForm({ ...profileForm, fullname: e.target.value })}
+                      required
+                    />
+
+                    <Select
+                      label="Giới tính"
+                      name="gender"
+                      value={profileForm.gender}
+                      onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                      options={[
+                        { value: 'MALE', label: 'Nam' },
+                        { value: 'FEMALE', label: 'Nữ' },
+                        { value: 'OTHER', label: 'Khác' },
+                      ]}
+                      required
+                    />
+                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
@@ -504,7 +547,7 @@ export default function ProfilePage() {
                             <Button
                               variant="danger"
                               size="sm"
-                              onClick={() => handleDeleteAddress(addr.id)}
+                              onClick={() => setConfirmDeleteAddress(addr)}
                             >
                               Xóa
                             </Button>
@@ -588,6 +631,47 @@ export default function ProfilePage() {
           void fetchAddresses();
         }}
       />
+
+      <Modal
+        isOpen={Boolean(confirmDeleteAddress)}
+        onClose={() => !deletingAddress && setConfirmDeleteAddress(null)}
+        title="Xác nhận xóa địa chỉ"
+      >
+        {confirmDeleteAddress && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3 p-3.5 bg-red-50/70 border border-red-200 text-red-900">
+              <AlertTriangle size={20} className="text-red-600 shrink-0 mt-0.5" />
+              <div className="text-[0.85rem] leading-relaxed">
+                Bạn có chắc chắn muốn xóa địa chỉ{' '}
+                <span className="font-bold">
+                  {[confirmDeleteAddress.fullAddress, confirmDeleteAddress.wardName, confirmDeleteAddress.provinceName]
+                    .filter(Boolean)
+                    .join(', ')}
+                </span>
+                ? Hệ thống sẽ lưu trữ ẩn (xóa mềm) để bảo toàn lịch sử đơn hàng đã giao.
+              </div>
+            </div>
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-line-light">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmDeleteAddress(null)}
+                disabled={deletingAddress}
+              >
+                Hủy
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                loading={deletingAddress}
+                onClick={handleConfirmDeleteAddress}
+              >
+                Xác Nhận Xóa
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
