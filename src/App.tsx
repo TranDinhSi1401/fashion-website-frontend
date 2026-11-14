@@ -6,6 +6,7 @@ import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import ScrollManager from './components/common/ScrollManager';
 import AiAdvisorWidget from './components/ai/AiAdvisorWidget';
+import ChatWidget from './components/chat/ChatWidget';
 
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
@@ -18,6 +19,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminProductsPage from './pages/AdminProductsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
+import AdminChatPage from './pages/AdminChatPage';
 
 export default function App() {
   return (
@@ -89,6 +91,14 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/chat"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                <AdminChatPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* 404 Fallback */}
           <Route
@@ -107,8 +117,9 @@ export default function App() {
 
       <Footer />
 
-      {/* Floating AI Stylist Advisor Widget */}
+      {/* Floating AI Stylist Advisor Widget & Realtime Customer Support Chat Widget */}
       <AiAdvisorWidget />
+      <ChatWidget />
     </div>
   );
 }

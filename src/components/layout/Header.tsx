@@ -6,6 +6,7 @@ import {
   LogOut,
   MapPin,
   Menu,
+  MessageSquare,
   Package,
   Shield,
   ShoppingBag,
@@ -19,6 +20,7 @@ import { cn } from '../../utils/cn';
 import { Badge, IconButton, SearchInput } from '../ui';
 import MegaMenu, { MegaMenuColumn } from './MegaMenu';
 import MiniCartDrawer from './MiniCartDrawer';
+import NotificationBell from './NotificationBell';
 import styles from './Header.module.css';
 
 const MEGA_MENU_DATA: Record<'ao' | 'quan', MegaMenuColumn[]> = {
@@ -328,6 +330,20 @@ export default function Header() {
                       <Users size={15} className="text-accent-gold" />
                       <span>Quản lý người dùng</span>
                     </Link>
+
+                    <Link
+                      to="/admin/chat"
+                      onClick={() => setAdminDropdownOpen(false)}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
+                        location.pathname === '/admin/chat'
+                          ? 'bg-accent-gold/10 text-accent-gold'
+                          : 'text-content-primary hover:bg-surface'
+                      )}
+                    >
+                      <MessageSquare size={15} className="text-accent-gold" />
+                      <span>Chat hỗ trợ &amp; Thông báo</span>
+                    </Link>
                   </div>
                 )}
               </div>
@@ -342,6 +358,9 @@ export default function Header() {
               onSearch={handleSearch}
               className="hidden sm:flex"
             />
+
+            {/* Realtime Notification Bell */}
+            {isAuthenticated && <NotificationBell />}
 
             {/* User Account */}
             <div className="relative" ref={dropdownRef}>
@@ -430,6 +449,14 @@ export default function Header() {
                         >
                           <Users size={15} />
                           <span>Quản lý người dùng</span>
+                        </Link>
+                        <Link
+                          to="/admin/chat"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                        >
+                          <MessageSquare size={15} />
+                          <span>Chat hỗ trợ trực tuyến</span>
                         </Link>
                       </>
                     )}
@@ -620,6 +647,14 @@ export default function Header() {
                   >
                     <Users size={16} className="text-accent-gold" />
                     <span>Quản lý người dùng</span>
+                  </Link>
+                  <Link
+                    to="/admin/chat"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 p-2.5 rounded text-xs font-semibold text-content-primary hover:bg-surface"
+                  >
+                    <MessageSquare size={16} className="text-accent-gold" />
+                    <span>Chat hỗ trợ &amp; Thông báo</span>
                   </Link>
                 </div>
               )}
