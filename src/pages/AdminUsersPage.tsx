@@ -18,6 +18,9 @@ import {
   Home,
   Building2,
   User as UserIcon,
+  Filter,
+  SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
 import AddressFormModal from '../components/profile/AddressFormModal';
@@ -34,6 +37,9 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<string>('id_desc');
 
   // Confirmation / Alert Dialog State (Replaces native window.confirm & alert)
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -429,12 +435,54 @@ export default function AdminUsersPage() {
     }
   };
 
-  const filtered = users.filter(
-    (u) =>
-      (u.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.fullname || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const isFiltered =
+    searchTerm.trim() !== '' ||
+    roleFilter !== 'ALL' ||
+    statusFilter !== 'ALL' ||
+    sortBy !== 'id_desc';
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setRoleFilter('ALL');
+    setStatusFilter('ALL');
+    setSortBy('id_desc');
+  };
+
+  const filtered = users
+    .filter((u) => {
+      // Tìm kiếm theo username, họ tên, email, số điện thoại
+      const term = searchTerm.toLowerCase().trim();
+      const matchSearch =
+        !term ||
+        (u.username || '').toLowerCase().includes(term) ||
+        (u.fullname || '').toLowerCase().includes(term) ||
+        (u.email || '').toLowerCase().includes(term) ||
+        (u.phone || '').toLowerCase().includes(term);
+
+      // Lọc theo vai trò
+      const matchRole = roleFilter === 'ALL' || u.role === roleFilter;
+
+      // Lọc theo trạng thái
+      const currentStatus = u.status || 'ACTIVE';
+      const matchStatus = statusFilter === 'ALL' || currentStatus === statusFilter;
+
+      return matchSearch && matchRole && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'id_desc') return b.id - a.id;
+      if (sortBy === 'id_asc') return a.id - b.id;
+      if (sortBy === 'name_asc') {
+        const nameA = (a.fullname || a.username || '').toLowerCase();
+        const nameB = (b.fullname || b.username || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
+      if (sortBy === 'name_desc') {
+        const nameA = (a.fullname || a.username || '').toLowerCase();
+        const nameB = (b.fullname || b.username || '').toLowerCase();
+        return nameB.localeCompare(nameA);
+      }
+      return 0;
+    });
 
   return (
     <div className="py-8">
@@ -457,14 +505,142 @@ export default function AdminUsersPage() {
           }
         />
 
-        {/* Search Toolbar */}
-        <div className="max-w-[360px] mb-5">
-          <Input
-            placeholder="Tìm theo username, tên, email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            icon={Search}
-          />
+        {/* Search & Advanced Filters Toolbar */}
+        <div className="bg-surface-body border border-line-light p-4 rounded-sm shadow-xs mb-5 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+            {/* Search Input */}
+            <div className="lg:col-span-4">
+              <label className="block text-[0.72rem] uppercase tracking-wider font-bold text-content-secondary mb-1.5">
+                Tìm kiếm
+              </label>
+              <Input
+                placeholder="Tìm theo username, họ tên, email, SĐT..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                icon={Search}
+                rightElement={
+                  searchTerm ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      className="text-content-muted hover:text-content-primary p-1 focus:outline-none"
+                      title="Xóa tìm kiếm"
+                    >
+                      <X size={15} />
+                    </button>
+                  ) : null
+                }
+              />
+            </div>
+
+            {/* Role Filter */}
+            <div className="lg:col-span-3">
+              <label className="block text-[0.72rem] uppercase tracking-wider font-bold text-content-secondary mb-1.5">
+                Vai trò
+              </label>
+              <Select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                options={[
+                  { value: 'ALL', label: 'Tất cả vai trò' },
+                  { value: 'CUSTOMER', label: 'CUSTOMER (Khách hàng)' },
+                  { value: 'STAFF', label: 'STAFF (Nhân viên)' },
+                  { value: 'ADMIN', label: 'ADMIN (Quản trị viên)' },
+                ]}
+              />
+            </div>
+
+            {/* Status Filter */}
+            <div className="lg:col-span-2">
+              <label className="block text-[0.72rem] uppercase tracking-wider font-bold text-content-secondary mb-1.5">
+                Trạng thái
+              </label>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={[
+                  { value: 'ALL', label: 'Tất cả trạng thái' },
+                  { value: 'ACTIVE', label: 'ACTIVE (Kích hoạt)' },
+                  { value: 'INACTIVE', label: 'INACTIVE (Đã khóa)' },
+                ]}
+              />
+            </div>
+
+            {/* Sort Filter */}
+            <div className="lg:col-span-3">
+              <label className="block text-[0.72rem] uppercase tracking-wider font-bold text-content-secondary mb-1.5">
+                Sắp xếp
+              </label>
+              <Select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                options={[
+                  { value: 'id_desc', label: 'Mới nhất (ID giảm dần)' },
+                  { value: 'id_asc', label: 'Cũ nhất (ID tăng dần)' },
+                  { value: 'name_asc', label: 'Tên người dùng (A → Z)' },
+                  { value: 'name_desc', label: 'Tên người dùng (Z → A)' },
+                ]}
+              />
+            </div>
+          </div>
+
+          {/* Filter Summary & Active Badges */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-line-light/60 text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-content-muted font-medium">
+                Hiển thị <strong className="text-content-primary">{filtered.length}</strong> / {users.length} người dùng
+              </span>
+
+              {/* Active Filter Chips */}
+              {searchTerm && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface border border-line-light text-content-primary">
+                  Tìm: "{searchTerm}"
+                  <button type="button" onClick={() => setSearchTerm('')} className="hover:text-status-error">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+
+              {roleFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface border border-line-light text-content-primary">
+                  Vai trò: {roleFilter}
+                  <button type="button" onClick={() => setRoleFilter('ALL')} className="hover:text-status-error">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+
+              {statusFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface border border-line-light text-content-primary">
+                  Trạng thái: {statusFilter}
+                  <button type="button" onClick={() => setStatusFilter('ALL')} className="hover:text-status-error">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+
+              {sortBy !== 'id_desc' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface border border-line-light text-content-primary">
+                  Sắp xếp: {sortBy === 'id_asc' ? 'Cũ nhất' : sortBy === 'name_asc' ? 'Tên A-Z' : 'Tên Z-A'}
+                  <button type="button" onClick={() => setSortBy('id_desc')} className="hover:text-status-error">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+            </div>
+
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={RotateCcw}
+                onClick={handleResetFilters}
+                className="text-xs text-accent-gold hover:text-accent-gold hover:bg-accent-gold/10 h-7 px-2"
+              >
+                Đặt lại bộ lọc
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Mobile View: User Cards (Visible on screens < 768px) */}
