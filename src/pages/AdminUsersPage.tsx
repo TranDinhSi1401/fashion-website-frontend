@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, RefreshCw, MapPin, Eye, Calendar, Mail, Phone, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Edit2, Trash2, Search, RefreshCw, MapPin, Eye, Calendar, Mail, Phone, ShieldCheck, CheckCircle2, Camera } from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
 import AddressFormModal from '../components/profile/AddressFormModal';
 import { userService } from '../services/userService';
@@ -29,6 +29,12 @@ export default function AdminUsersPage() {
   });
   const [formError, setFormError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Avatar State for Create / Edit Modal
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [removeAvatar, setRemoveAvatar] = useState<boolean>(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // User Detail View Modal State
   const [isDetailModalOpen, setIsDetailModalOpen] = useState<boolean>(false);
@@ -66,6 +72,10 @@ export default function AdminUsersPage() {
   const handleOpenCreateModal = () => {
     setEditingUser(null);
     setFormError('');
+    setAvatarFile(null);
+    setAvatarPreview('');
+    setRemoveAvatar(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
     setFormData({
       username: '',
       password: '',
@@ -82,6 +92,10 @@ export default function AdminUsersPage() {
   const handleOpenEditModal = (u: UserResponse) => {
     setEditingUser(u);
     setFormError('');
+    setAvatarFile(null);
+    setAvatarPreview(u.avt || '');
+    setRemoveAvatar(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
     setFormData({
       username: u.username || '',
       password: '',
@@ -92,6 +106,37 @@ export default function AdminUsersPage() {
       status: u.status || 'ACTIVE',
     });
     setIsModalOpen(true);
+  };
+
+  // Avatar change handler
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setFormError('Chỉ hỗ trợ file ảnh định dạng JPG, PNG hoặc WEBP.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setFormError('Dung lượng ảnh tối đa là 5MB.');
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setRemoveAvatar(false);
+    setFormError('');
+  };
+
+  // Avatar remove handler
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview('');
+    setRemoveAvatar(true);
+    if (avatarInputRef.current) {
+      avatarInputRef.current.value = '';
+    }
   };
 
   // Open User Detail View Modal
@@ -217,20 +262,41 @@ export default function AdminUsersPage() {
         }
 
         await userService.updateUser(editingUser.id, payload);
+
+        // Xử lý cập nhật avatar riêng biệt
+        if (avatarFile) {
+          await userService.uploadAvatarByAdmin(editingUser.id, avatarFile);
+        } else if (removeAvatar && editingUser.avt) {
+          await userService.deleteAvatarByAdmin(editingUser.id);
+        }
       } else {
         // Tạo người dùng mới
-        const payload: Record<string, any> = {
-          username: formData.username.trim(),
-          password: cleanPassword,
-          fullname: cleanFullname,
-          email: cleanEmail,
-          role: formData.role,
-        };
-        if (cleanPhone) {
-          payload.phone = cleanPhone;
-        }
+        if (avatarFile) {
+          const formPayload = new FormData();
+          formPayload.append('username', formData.username.trim());
+          formPayload.append('password', cleanPassword);
+          formPayload.append('fullname', cleanFullname);
+          formPayload.append('email', cleanEmail);
+          formPayload.append('role', formData.role);
+          if (cleanPhone) {
+            formPayload.append('phone', cleanPhone);
+          }
+          formPayload.append('file', avatarFile);
+          await userService.createUser(formPayload);
+        } else {
+          const payload: Record<string, any> = {
+            username: formData.username.trim(),
+            password: cleanPassword,
+            fullname: cleanFullname,
+            email: cleanEmail,
+            role: formData.role,
+          };
+          if (cleanPhone) {
+            payload.phone = cleanPhone;
+          }
 
-        await userService.createUser(payload);
+          await userService.createUser(payload);
+        }
       }
 
       setIsModalOpen(false);
@@ -624,6 +690,63 @@ export default function AdminUsersPage() {
         maxWidth="540px"
       >
         <form onSubmit={handleFormSubmit} className="flex flex-col gap-3.5">
+          {/* Avatar Section */}
+          <div className="flex items-center gap-4 p-3.5 bg-surface border border-line-light rounded-sm">
+            <div className="relative shrink-0">
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Ảnh đại diện"
+                  className="w-16 h-16 rounded-full object-cover border-2 border-accent-gold shadow-sm"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-surface-dark text-content-inverse flex items-center justify-center font-bold text-xl border-2 border-line-light">
+                  {(formData.fullname || formData.username || 'U')[0]?.toUpperCase() || 'U'}
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <label className="block text-xs font-bold uppercase tracking-wider text-content-primary mb-1.5">
+                Ảnh Đại Diện (Avatar)
+              </label>
+              <input
+                type="file"
+                ref={avatarInputRef}
+                onChange={handleAvatarChange}
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  icon={Camera}
+                  onClick={() => avatarInputRef.current?.click()}
+                >
+                  {avatarPreview ? 'Đổi Ảnh Khác' : 'Tải Ảnh Lên'}
+                </Button>
+
+                {avatarPreview && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    className="text-status-error hover:bg-status-error/10 hover:text-status-error"
+                    onClick={handleRemoveAvatar}
+                  >
+                    Xóa Ảnh
+                  </Button>
+                )}
+              </div>
+              <p className="text-[11px] text-content-muted mt-1.5 mb-0">
+                Hỗ trợ JPG, PNG, WEBP (tối đa 5MB)
+              </p>
+            </div>
+          </div>
+
           <Input
             label="Tên đăng nhập"
             value={formData.username}
