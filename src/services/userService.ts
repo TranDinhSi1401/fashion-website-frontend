@@ -120,6 +120,11 @@ export const userService = {
     return res.data;
   },
 
+  async createAddressForUser(userId: number, data: UserAddressCreationRequest): Promise<ApiResponse<UserAddressResponse>> {
+    const res = await apiClient.post<ApiResponse<UserAddressResponse>>(`/users/${userId}/addresses`, data);
+    return res.data;
+  },
+
   async getUserAddressDetailByAdmin(userId: number, addressId: number): Promise<ApiResponse<UserAddressResponse>> {
     const res = await apiClient.get<ApiResponse<UserAddressResponse>>(`/users/${userId}/addresses/${addressId}`);
     return res.data;

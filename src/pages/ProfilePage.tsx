@@ -132,6 +132,9 @@ export default function ProfilePage() {
       setErrorMessage(extractErrorMessage(err, 'Không thể tải ảnh đại diện lên.'));
     } finally {
       setAvatarUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -152,6 +155,9 @@ export default function ProfilePage() {
       setErrorMessage(extractErrorMessage(err, 'Xóa ảnh đại diện thất bại.'));
     } finally {
       setAvatarUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
