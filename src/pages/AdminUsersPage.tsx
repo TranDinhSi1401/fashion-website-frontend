@@ -314,7 +314,7 @@ export default function AdminUsersPage() {
       alert('Chỉ ADMIN mới có quyền xóa người dùng.');
       return;
     }
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tài khoản "${name}"?`)) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn vô hiệu hóa (xóa mềm) tài khoản "${name}"? Tài khoản này sẽ chuyển sang trạng thái KHÓA và bị thu hồi quyền truy cập.`)) return;
 
     try {
       await userService.deleteUser(id);
@@ -323,7 +323,7 @@ export default function AdminUsersPage() {
         setIsDetailModalOpen(false);
       }
     } catch (err) {
-      alert(extractErrorMessage(err, 'Xóa người dùng thất bại'));
+      alert(extractErrorMessage(err, 'Vô hiệu hóa tài khoản thất bại'));
     }
   };
 
