@@ -7,9 +7,7 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  BellRing,
   AlertCircle,
-  CheckCircle2,
   ImagePlus,
   X,
   ZoomIn,
@@ -22,24 +20,14 @@ import {
 } from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
 import { chatService } from '../services/chatService';
-import { orderService, OrderResponse, OrderStatus } from '../services/orderService';
 import { stompService } from '../ws/stompService';
 import { useStompSubscription } from '../ws/useStompSubscription';
 import { useWsStatus } from '../ws/WebSocketProvider';
 import { mergeById } from '../utils/chat';
 import { ChatMessageResponse, WsErrorResponse } from '../types/realtime';
-import { Badge, Button, Select } from '../components/ui';
-import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
+import { Badge, Button } from '../components/ui';
+import { extractErrorMessage } from '../utils/format';
 import { cn } from '../utils/cn';
-
-const ORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
-  { value: 'PENDING_PAYMENT', label: 'PENDING_PAYMENT (Chờ thanh toán)' },
-  { value: 'PROCESSING', label: 'PROCESSING (Đang xử lý)' },
-  { value: 'SHIPPING', label: 'SHIPPING (Đang giao hàng)' },
-  { value: 'DELIVERED', label: 'DELIVERED (Đã giao thành công)' },
-  { value: 'CANCELLED', label: 'CANCELLED (Đã hủy)' },
-  { value: 'RETURNED', label: 'RETURNED (Đã trả hàng)' },
-];
 
 const QUICK_REPLIES = [
   {
@@ -140,13 +128,6 @@ export default function AdminChatPage() {
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
 
-  // Tiện ích cập nhật nhanh trạng thái đơn hàng để kiểm thử thông báo Realtime (OrderStatusChangedEvent)
-  const [orders, setOrders] = useState<OrderResponse[]>([]);
-  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
-  const [targetOrderStatus, setTargetOrderStatus] = useState<OrderStatus>('SHIPPING');
-  const [updatingOrder, setUpdatingOrder] = useState(false);
-  const [orderNotice, setOrderNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
   const selectedRef = useRef<string | null>(selected);
   const chatMessagesContainerRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -197,25 +178,9 @@ export default function AdminChatPage() {
     }
   }, []);
 
-  const loadOrders = useCallback(async () => {
-    try {
-      const res = await orderService.getAllOrders();
-      if (res?.data) {
-        const sorted = [...res.data].sort((a, b) => b.id - a.id);
-        setOrders(sorted);
-        if (sorted.length > 0 && !selectedOrderId) {
-          setSelectedOrderId(String(sorted[0].id));
-        }
-      }
-    } catch (err) {
-      console.warn('Could not load orders:', err);
-    }
-  }, [selectedOrderId]);
-
   useEffect(() => {
     void loadConversations();
-    void loadOrders();
-  }, [loadConversations, loadOrders]);
+  }, [loadConversations]);
 
   useEffect(() => {
     if (status === 'CONNECTED') {
@@ -363,30 +328,6 @@ export default function AdminChatPage() {
     }
   };
 
-  const handleTriggerOrderStatusNotification = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedOrderId) return;
-    setUpdatingOrder(true);
-    setOrderNotice(null);
-    try {
-      const updated = await orderService.updateOrderStatus(Number(selectedOrderId), targetOrderStatus);
-      setOrders((prev) =>
-        prev.map((o) => (o.id === Number(selectedOrderId) ? { ...o, orderStatus: targetOrderStatus } : o))
-      );
-      setOrderNotice({
-        type: 'success',
-        text: `Đã cập nhật đơn hàng #${updated.data?.id || selectedOrderId} sang ${targetOrderStatus} & bắn thông báo WebSocket realtime cho khách!`,
-      });
-    } catch (err) {
-      setOrderNotice({
-        type: 'error',
-        text: extractErrorMessage(err, 'Không thể cập nhật trạng thái đơn hàng'),
-      });
-    } finally {
-      setUpdatingOrder(false);
-    }
-  };
-
   const totalUnreadCount = useMemo(
     () => Object.values(unreadByUser).reduce((acc, c) => acc + c, 0),
     [unreadByUser]
@@ -406,8 +347,8 @@ export default function AdminChatPage() {
   return (
     <div className="container py-8">
       <AdminNav
-        title="Trung Tâm Chat Hỗ Trợ & Thông Báo Realtime (STOMP)"
-        subtitle="Tiếp nhận và phản hồi khách hàng trực tuyến (Văn bản & Hình ảnh) qua /topic/admin/chat • Đồng bộ thông báo đơn hàng"
+        title="Trung Tâm Chat Hỗ Trợ Khách Hàng (STOMP Realtime)"
+        subtitle="Tiếp nhận và phản hồi tư vấn khách hàng trực tuyến (Văn bản & Hình ảnh) qua kênh WebSocket STOMP realtime"
         actions={
           <div className="flex items-center gap-2.5">
             <Badge
@@ -421,10 +362,8 @@ export default function AdminChatPage() {
               variant="secondary"
               size="sm"
               icon={RefreshCw}
-              onClick={() => {
-                void loadConversations();
-                void loadOrders();
-              }}
+              onClick={() => void loadConversations()}
+              loading={loadingConversations}
             >
               Làm Mới
             </Button>
@@ -678,16 +617,16 @@ export default function AdminChatPage() {
                         Khách Hàng
                       </span>
                     </div>
-                    <p className="m-0 mt-0.5 text-[0.7rem] text-content-muted">
-                      Kênh nhận: <code>/user/{selected}/queue/chat</code> • Kênh đồng bộ: <code>/topic/admin/chat</code>
-                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2.5">
                   {/* Tìm trong cuộc trò chuyện */}
                   <div className="relative hidden sm:block">
-                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-content-muted" />
+                    <Search
+                      size={13}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-content-muted"
+                    />
                     <input
                       type="text"
                       value={messageSearch}
@@ -706,7 +645,9 @@ export default function AdminChatPage() {
                     )}
                   </div>
 
-                  <Badge variant="dark">{(byUser[selected] ?? []).length} tin nhắn</Badge>
+                  <Badge variant="dark">
+                    {(byUser[selected] ?? []).length} tin nhắn
+                  </Badge>
                 </div>
               </div>
 
@@ -951,7 +892,11 @@ export default function AdminChatPage() {
                   variant="primary"
                   icon={Send}
                   loading={uploadingImage}
-                  disabled={status !== 'CONNECTED' || (!text.trim() && !selectedImageFile) || uploadingImage}
+                  disabled={
+                    status !== 'CONNECTED' ||
+                    (!text.trim() && !selectedImageFile) ||
+                    uploadingImage
+                  }
                 >
                   {uploadingImage ? 'Đang Tải Ảnh...' : 'Gửi Phản Hồi'}
                 </Button>
@@ -966,68 +911,6 @@ export default function AdminChatPage() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Khu vực Cập nhật nhanh trạng thái đơn hàng -> Bắn thông báo Realtime (OrderStatusChangedEvent) */}
-      <div className="mt-8 border border-line bg-surface-elevated p-5 shadow-xs">
-        <div className="flex items-center gap-2.5 mb-3">
-          <BellRing size={18} className="text-accent-gold" />
-          <h3 className="m-0 text-sm font-bold uppercase tracking-wider text-content-primary">
-            Cập Nhật Trạng Thái Đơn Hàng &amp; Bắn Thông Báo Realtime (OrderStatusChangedEvent)
-          </h3>
-        </div>
-        <p className="m-0 mb-4 text-xs text-content-secondary">
-          Khi đổi trạng thái đơn hàng dưới đây, Backend sẽ lưu DB và phát <code>OrderStatusChangedEvent</code> ở pha <code>AFTER_COMMIT</code> để đẩy thông báo tức thì tới <code>/user/queue/notifications</code> của chủ đơn hàng.
-        </p>
-
-        {orderNotice && (
-          <div
-            className={cn(
-              'mb-4 flex items-center gap-2 border p-3 text-xs font-medium',
-              orderNotice.type === 'success'
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                : 'border-red-200 bg-red-50 text-red-800'
-            )}
-          >
-            {orderNotice.type === 'success' ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
-            <span>{orderNotice.text}</span>
-          </div>
-        )}
-
-        <form
-          onSubmit={handleTriggerOrderStatusNotification}
-          className="grid grid-cols-1 md:grid-cols-[1fr_280px_auto] gap-3 items-end"
-        >
-          <Select
-            label="Chọn đơn hàng"
-            value={selectedOrderId}
-            onChange={(e) => setSelectedOrderId(e.target.value)}
-            options={
-              orders.length > 0
-                ? orders.slice(0, 30).map((o) => ({
-                    value: String(o.id),
-                    label: `#${o.id} (${o.orderCode}) — Khách: ${o.shippingRecipientName} — Hiện tại: ${o.orderStatus} — ${formatCurrencyVND(o.totalAmount)}`,
-                  }))
-                : [{ value: '', label: 'Chưa có đơn hàng' }]
-            }
-          />
-
-          <Select
-            label="Trạng thái mới"
-            value={targetOrderStatus}
-            onChange={(e) => setTargetOrderStatus(e.target.value as OrderStatus)}
-            options={ORDER_STATUS_OPTIONS}
-          />
-
-          <Button
-            type="submit"
-            variant="primary"
-            loading={updatingOrder}
-            disabled={!selectedOrderId}
-          >
-            Cập Nhật &amp; Gửi Thông Báo
-          </Button>
-        </form>
       </div>
 
       {/* Modal Phóng To Hình Ảnh Trong Chat (Lightbox) */}

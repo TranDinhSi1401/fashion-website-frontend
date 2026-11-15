@@ -20,6 +20,7 @@ import ProfilePage from './pages/ProfilePage';
 import AdminProductsPage from './pages/AdminProductsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminChatPage from './pages/AdminChatPage';
+import AdminNotificationsPage from './pages/AdminNotificationsPage';
 
 export default function App() {
   return (
@@ -96,6 +97,14 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
                 <AdminChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/notifications"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                <AdminNotificationsPage />
               </ProtectedRoute>
             }
           />
