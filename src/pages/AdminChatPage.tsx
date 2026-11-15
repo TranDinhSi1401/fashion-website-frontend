@@ -64,6 +64,7 @@ export default function AdminChatPage() {
 
   const selectedRef = useRef<string | null>(selected);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatMessagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     selectedRef.current = selected;
@@ -157,8 +158,18 @@ export default function AdminChatPage() {
 
   const activeMessages = selected ? byUser[selected] ?? [] : [];
 
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    const container = chatMessagesContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior,
+      });
+    }
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToBottom('smooth');
   }, [activeMessages.length, selected]);
 
   const reply = () => {
@@ -228,9 +239,9 @@ export default function AdminChatPage() {
       />
 
       {/* Khung Chat 2 Cột: Danh sách hội thoại & Nội dung hội thoại */}
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] border border-line bg-surface-elevated shadow-xs min-h-[540px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] border border-line bg-surface-elevated shadow-xs h-[600px] overflow-hidden">
         {/* Cột trái: Danh sách khách hàng */}
-        <div className="flex flex-col border-b lg:border-b-0 lg:border-r border-line bg-surface">
+        <div className="flex flex-col border-b lg:border-b-0 lg:border-r border-line bg-surface h-full overflow-hidden">
           <div className="p-3.5 border-b border-line-light">
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-content-muted" />
@@ -244,7 +255,7 @@ export default function AdminChatPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-line-light max-h-[460px]">
+          <div className="flex-1 overflow-y-auto divide-y divide-line-light">
             {loadingConversations && conversations.length === 0 ? (
               <div className="p-6 text-center text-xs text-content-muted">
                 Đang tải danh sách hội thoại...
@@ -315,11 +326,11 @@ export default function AdminChatPage() {
         </div>
 
         {/* Cột phải: Nội dung chat với khách đang chọn */}
-        <div className="flex flex-col bg-surface-body">
+        <div className="flex flex-col bg-surface-body h-full overflow-hidden">
           {selected ? (
             <>
               {/* Header hội thoại */}
-              <div className="flex items-center justify-between border-b border-line-light bg-surface-elevated px-5 py-3.5">
+              <div className="flex items-center justify-between border-b border-line-light bg-surface-elevated px-5 py-3.5 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-bold uppercase text-content-inverse">
                     {selected[0]?.toUpperCase()}
@@ -337,7 +348,7 @@ export default function AdminChatPage() {
               </div>
 
               {/* Luồng tin nhắn */}
-              <div className="flex-1 space-y-3 overflow-y-auto p-5 max-h-[380px]">
+              <div ref={chatMessagesContainerRef} className="flex-1 space-y-3 overflow-y-auto p-5">
                 {activeMessages.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center py-12 text-center text-content-muted">
                     <MessageSquare size={28} className="mb-2 opacity-30" />
@@ -383,35 +394,35 @@ export default function AdminChatPage() {
               </div>
 
               {wsError && (
-                <div className="flex items-center gap-2 border-t border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700">
+                <div className="flex items-center gap-2 border-t border-red-200 bg-red-50 px-4 py-2 text-xs text-red-700 shrink-0">
                   <AlertCircle size={14} />
                   <span>{wsError}</span>
                 </div>
               )}
 
               {/* Ô nhập phản hồi */}
-              <div className="flex items-center gap-3 border-t border-line bg-surface-elevated p-4">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  reply();
+                }}
+                className="flex items-center gap-3 border-t border-line bg-surface-elevated p-4 shrink-0"
+              >
                 <Input
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      reply();
-                    }
-                  }}
                   placeholder={`Nhập phản hồi cho @${selected}...`}
                   className="flex-1"
                 />
                 <Button
+                  type="submit"
                   variant="primary"
                   icon={Send}
-                  onClick={reply}
                   disabled={status !== 'CONNECTED' || !text.trim()}
                 >
                   Trả Lời
                 </Button>
-              </div>
+              </form>
             </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center p-10 text-center text-content-muted">

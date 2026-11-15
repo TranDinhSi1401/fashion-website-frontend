@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
+  ChevronRight,
   KeyRound,
   LogOut,
   MapPin,
@@ -9,6 +10,7 @@ import {
   MessageSquare,
   Package,
   Shield,
+  ShieldCheck,
   ShoppingBag,
   User,
   Users,
@@ -388,87 +390,147 @@ export default function Header() {
               />
 
               {dropdownOpen && isAuthenticated && (
-                <div className="animate-slide-up absolute right-0 top-[calc(100%+8px)] z-50 w-60 overflow-hidden rounded-sm border border-line-light bg-surface-elevated shadow-dropdown">
-                  <div className="border-b border-line-light bg-surface px-4 py-3.5">
-                    <div className="text-base font-bold text-content-primary">
-                      {user?.fullname || user?.username}
-                    </div>
-                    <div className="mt-0.5 text-xs text-content-muted">
-                      {user?.email || `@${user?.username}`}
-                    </div>
-                    {user?.role && (
-                      <div className="mt-2">
-                        <Badge variant={isAdmin ? 'new' : 'vip'}>{user.role}</Badge>
+                <div className="animate-slide-up absolute right-0 top-[calc(100%+10px)] z-50 w-72 overflow-hidden rounded-sm border border-line-light bg-surface-elevated shadow-dropdown">
+                  {/* Luxury User Header Banner */}
+                  <div className="relative overflow-hidden border-b border-line-light bg-gradient-to-br from-surface via-surface-elevated to-surface p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="relative shrink-0">
+                        {user?.avt ? (
+                          <img
+                            src={user.avt}
+                            alt={user.fullname || user.username}
+                            className="h-11 w-11 rounded-full object-cover ring-2 ring-accent-gold/40 shadow-xs"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-dark font-bold text-sm text-content-inverse ring-2 ring-accent-gold/30 shadow-xs">
+                            {(user?.fullname || user?.username || 'U')[0]?.toUpperCase() || 'U'}
+                          </div>
+                        )}
+                        <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-surface-elevated border border-accent-gold/40 shadow-xs">
+                          <span className="h-2 w-2 rounded-full bg-status-success animate-pulse" />
+                        </div>
                       </div>
-                    )}
+
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-bold text-content-primary">
+                          {user?.fullname || user?.username}
+                        </div>
+                        <div className="truncate text-[0.72rem] text-content-muted">
+                          {user?.email || `@${user?.username}`}
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <Badge variant={isAdmin ? 'dark' : isStaff ? 'warning' : 'vip'}>
+                            {isAdmin ? 'ADMINISTRATOR' : isStaff ? 'STAFF OPERATOR' : 'CUSTOMER VIP'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="py-1.5">
+                  {/* Menu Links */}
+                  <div className="p-1.5 text-xs">
+                    {/* Section 1: Tài khoản cá nhân */}
+                    <div className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-content-muted">
+                      Tài Khoản
+                    </div>
+
                     <Link
                       to="/account/profile"
                       onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                      className="group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface hover:text-accent-gold"
                     >
-                      <User size={15} />
-                      <span>Thông tin tài khoản</span>
+                      <div className="flex items-center gap-2.5">
+                        <User size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Thông tin tài khoản</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
                     </Link>
 
                     <Link
                       to="/account/addresses"
                       onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                      className="group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface hover:text-accent-gold"
                     >
-                      <MapPin size={15} />
-                      <span>Sổ địa chỉ nhận hàng</span>
+                      <div className="flex items-center gap-2.5">
+                        <MapPin size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Sổ địa chỉ nhận hàng</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
                     </Link>
 
                     <Link
                       to="/account/password"
                       onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                      className="group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface hover:text-accent-gold"
                     >
-                      <KeyRound size={15} />
-                      <span>Đổi mật khẩu</span>
+                      <div className="flex items-center gap-2.5">
+                        <KeyRound size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Đổi mật khẩu</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
                     </Link>
 
+                    {/* Section 2: Quản trị hệ thống (Admin & Staff) */}
                     {(isAdmin || isStaff) && (
                       <>
-                        <div className="my-1 h-px bg-line-light" />
+                        <div className="my-1.5 h-px bg-line-light" />
+                        <div className="flex items-center gap-1.5 px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-accent-gold">
+                          <ShieldCheck size={12} />
+                          <span>Quản Trị Hệ Thống</span>
+                        </div>
+
                         <Link
                           to="/admin/products"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                          className="group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10 hover:text-accent-gold"
                         >
-                          <Package size={15} />
-                          <span>Quản lý sản phẩm</span>
+                          <div className="flex items-center gap-2.5">
+                            <Package size={15} className="text-accent-gold" />
+                            <span className="font-medium">Quản lý sản phẩm</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
+
                         <Link
                           to="/admin/users"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                          className="group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10 hover:text-accent-gold"
                         >
-                          <Users size={15} />
-                          <span>Quản lý người dùng</span>
+                          <div className="flex items-center gap-2.5">
+                            <Users size={15} className="text-accent-gold" />
+                            <span className="font-medium">Quản lý người dùng</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
+
                         <Link
                           to="/admin/chat"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                          className="group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10 hover:text-accent-gold"
                         >
-                          <MessageSquare size={15} />
-                          <span>Chat hỗ trợ trực tuyến</span>
+                          <div className="flex items-center gap-2.5">
+                            <MessageSquare size={15} className="text-accent-gold" />
+                            <span className="font-medium">Chat hỗ trợ trực tuyến</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
                       </>
                     )}
 
-                    <div className="my-1 h-px bg-line-light" />
+                    {/* Section 3: Đăng xuất */}
+                    <div className="my-1.5 h-px bg-line-light" />
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold text-accent-red hover:bg-surface"
+                      className="group flex w-full items-center justify-between rounded-sm px-3 py-2 text-left text-status-error transition-colors hover:bg-status-error/10 hover:text-status-error font-medium"
                     >
-                      <LogOut size={15} />
-                      <span>Đăng xuất</span>
+                      <div className="flex items-center gap-2.5">
+                        <LogOut size={15} />
+                        <span>Đăng xuất</span>
+                      </div>
+                      <span className="text-[10px] text-status-error/60 group-hover:text-status-error uppercase tracking-wider font-semibold">
+                        Thoát
+                      </span>
                     </button>
                   </div>
                 </div>

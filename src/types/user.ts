@@ -59,3 +59,15 @@ export interface ChangePasswordRequest {
   confirmPassword?: string;
 }
 
+export interface UserPageResponse {
+  content: UserResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
+}
+
+

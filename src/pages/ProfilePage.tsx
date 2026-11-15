@@ -253,18 +253,22 @@ export default function ProfilePage() {
                 <img
                   src={user.avt}
                   alt={user.fullname || user.username}
-                  className="w-12 h-12 rounded-full object-cover"
+                  className="w-12 h-12 rounded-full object-cover ring-2 ring-accent-gold/40 shadow-xs"
                 />
               ) : (
-                <div className="w-12 h-12 bg-surface-dark text-content-inverse flex items-center justify-center text-[1.1rem] font-bold">
+                <div className="w-12 h-12 rounded-full bg-surface-dark text-content-inverse flex items-center justify-center text-[1.1rem] font-bold ring-2 ring-accent-gold/30 shadow-xs">
                   {(user?.fullname || user?.username || 'U')[0].toUpperCase()}
                 </div>
               )}
-              <div>
-                <div className="text-[0.9rem] font-bold text-content-primary">{user?.fullname || user?.username}</div>
-                <div className="text-[0.75rem] text-content-muted">@{user?.username}</div>
+              <div className="min-w-0">
+                <div className="text-[0.9rem] font-bold text-content-primary truncate">{user?.fullname || user?.username}</div>
+                <div className="text-[0.75rem] text-content-muted truncate">@{user?.username}</div>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                  {user?.role && <Badge variant="dark">{user.role}</Badge>}
+                  {user?.role && (
+                    <Badge variant={user.role === 'ADMIN' ? 'dark' : user.role === 'STAFF' ? 'warning' : 'vip'}>
+                      {user.role}
+                    </Badge>
+                  )}
                   {user?.gender && (
                     <Badge variant="default">
                       {user.gender === 'MALE' ? 'Nam' : user.gender === 'FEMALE' ? 'Nữ' : 'Khác'}
@@ -342,22 +346,28 @@ export default function ProfilePage() {
                   Hồ Sơ Của Bạn
                 </h3>
 
-                <div className="flex items-center gap-6 pb-6 mb-6 border-b border-line-light flex-wrap">
+                <div className="flex items-center gap-6 p-4 mb-6 bg-gradient-to-r from-surface to-surface-body border border-accent-gold/30 rounded-sm shadow-xs flex-wrap">
                   <div className="relative">
                     {user?.avt ? (
                       <img
                         src={user.avt}
                         alt="Avatar"
-                        className="w-[84px] h-[84px] rounded-full object-cover border-2 border-line"
+                        className="w-20 h-20 rounded-full object-cover ring-2 ring-accent-gold shadow-md"
                       />
                     ) : (
-                      <div className="w-[84px] h-[84px] bg-surface-dark text-content-inverse flex items-center justify-center text-[2rem] font-bold rounded-full">
+                      <div className="w-20 h-20 bg-surface-dark text-content-inverse flex items-center justify-center text-2xl font-bold rounded-full ring-2 ring-accent-gold/40 shadow-md">
                         {(user?.fullname || user?.username || 'U')[0].toUpperCase()}
                       </div>
                     )}
+                    <div className="absolute -bottom-1 -right-1 bg-surface-body border border-accent-gold/40 rounded-full p-1 shadow-xs">
+                      <Camera size={13} className="text-accent-gold" />
+                    </div>
                   </div>
 
-                  <div>
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="text-xs font-bold uppercase tracking-wider text-content-primary mb-1">
+                      Ảnh Đại Diện Cá Nhân
+                    </div>
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -365,7 +375,7 @@ export default function ProfilePage() {
                       accept="image/png, image/jpeg, image/webp"
                       className="hidden"
                     />
-                    <div className="flex gap-2.5 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <Button
                         type="button"
                         variant="secondary"
@@ -373,24 +383,26 @@ export default function ProfilePage() {
                         onClick={() => fileInputRef.current?.click()}
                         loading={avatarUploading}
                         icon={Camera}
+                        className="text-xs font-semibold py-1 px-3"
                       >
                         Tải Ảnh Mới
                       </Button>
                       {user?.avt && (
                         <Button
                           type="button"
-                          variant="danger"
+                          variant="ghost"
                           size="sm"
                           onClick={handleDeleteAvatar}
                           disabled={avatarUploading}
                           icon={Trash2}
+                          className="text-status-error hover:bg-status-error/10 hover:text-status-error text-xs font-semibold py-1 px-2.5"
                         >
-                          Xóa
+                          Xóa Ảnh
                         </Button>
                       )}
                     </div>
-                    <p className="text-[0.75rem] text-content-muted m-0">
-                      Dung lượng tối đa 5MB. Định dạng: JPG, PNG, WEBP.
+                    <p className="text-[11px] text-content-muted m-0">
+                      Hỗ trợ JPG, PNG, WEBP • Dung lượng tối đa 5MB.
                     </p>
                   </div>
                 </div>
