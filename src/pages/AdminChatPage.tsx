@@ -17,6 +17,9 @@ import {
   Loader2,
   ExternalLink,
   Image as ImageIcon,
+  Trash2,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
 import { chatService } from '../services/chatService';
@@ -25,7 +28,7 @@ import { useStompSubscription } from '../ws/useStompSubscription';
 import { useWsStatus } from '../ws/WebSocketProvider';
 import { mergeById } from '../utils/chat';
 import { ChatMessageResponse, WsErrorResponse } from '../types/realtime';
-import { Badge, Button } from '../components/ui';
+import { Badge, Button, Modal } from '../components/ui';
 import { extractErrorMessage } from '../utils/format';
 import { cn } from '../utils/cn';
 
@@ -127,6 +130,14 @@ export default function AdminChatPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
+
+  // State dọn dẹp tin nhắn & xóa cuộc trò chuyện
+  const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
+  const [cleanupDays, setCleanupDays] = useState(30);
+  const [cleaningUp, setCleaningUp] = useState(false);
+  const [deleteConvModalOpen, setDeleteConvModalOpen] = useState(false);
+  const [deletingConv, setDeletingConv] = useState(false);
+  const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const selectedRef = useRef<string | null>(selected);
   const chatMessagesContainerRef = useRef<HTMLDivElement>(null);
@@ -328,6 +339,61 @@ export default function AdminChatPage() {
     }
   };
 
+  const handleCleanupExpired = async () => {
+    setCleaningUp(true);
+    setActionNotice(null);
+    try {
+      const res = await chatService.cleanupExpiredMessages(cleanupDays);
+      const count = res?.data ?? 0;
+      setActionNotice({
+        type: 'success',
+        text: `Đã dọn dẹp thành công ${count} tin nhắn cũ hơn ${cleanupDays} ngày (bao gồm giải phóng ảnh Cloudinary)!`,
+      });
+      setCleanupModalOpen(false);
+      await loadConversations();
+    } catch (err: any) {
+      setActionNotice({
+        type: 'error',
+        text: extractErrorMessage(err, 'Dọn dẹp tin nhắn thất bại'),
+      });
+    } finally {
+      setCleaningUp(false);
+    }
+  };
+
+  const handleDeleteCurrentConversation = async () => {
+    if (!selected) return;
+    setDeletingConv(true);
+    setActionNotice(null);
+    const targetUser = selected;
+    try {
+      const res = await chatService.deleteConversation(targetUser);
+      const count = res?.data ?? 0;
+      setActionNotice({
+        type: 'success',
+        text: `Đã xóa toàn bộ lịch sử cuộc trò chuyện với @${targetUser} (${count} tin nhắn)!`,
+      });
+      setDeleteConvModalOpen(false);
+      setByUser((prev) => {
+        const copy = { ...prev };
+        delete copy[targetUser];
+        return copy;
+      });
+      setConversations((prev) => {
+        const updated = prev.filter((u) => u !== targetUser);
+        setSelected(updated[0] || null);
+        return updated;
+      });
+    } catch (err: any) {
+      setActionNotice({
+        type: 'error',
+        text: extractErrorMessage(err, 'Xóa cuộc trò chuyện thất bại'),
+      });
+    } finally {
+      setDeletingConv(false);
+    }
+  };
+
   const totalUnreadCount = useMemo(
     () => Object.values(unreadByUser).reduce((acc, c) => acc + c, 0),
     [unreadByUser]
@@ -350,7 +416,7 @@ export default function AdminChatPage() {
         title="Trung Tâm Chat Hỗ Trợ Khách Hàng (STOMP Realtime)"
         subtitle="Tiếp nhận và phản hồi tư vấn khách hàng trực tuyến (Văn bản & Hình ảnh) qua kênh WebSocket STOMP realtime"
         actions={
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <Badge
               variant={status === 'CONNECTED' ? 'success' : 'error'}
               className="flex items-center gap-1.5 px-3 py-1"
@@ -358,6 +424,14 @@ export default function AdminChatPage() {
               {status === 'CONNECTED' ? <Wifi size={13} /> : <WifiOff size={13} />}
               <span>{status === 'CONNECTED' ? 'STOMP CONNECTED' : 'DISCONNECTED'}</span>
             </Badge>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Clock}
+              onClick={() => setCleanupModalOpen(true)}
+            >
+              Dọn Tin Nhắn Cũ
+            </Button>
             <Button
               variant="secondary"
               size="sm"
@@ -370,6 +444,25 @@ export default function AdminChatPage() {
           </div>
         }
       />
+
+      {actionNotice && (
+        <div
+          className={cn(
+            'mb-4 flex items-center justify-between gap-2 border p-3 text-xs font-semibold animate-fade-in',
+            actionNotice.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          )}
+        >
+          <div className="flex items-center gap-2">
+            {actionNotice.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            <span>{actionNotice.text}</span>
+          </div>
+          <button type="button" onClick={() => setActionNotice(null)} className="opacity-70 hover:opacity-100">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Khung Chat 2 Cột chuẩn Luxury Editorial */}
       <div className="grid grid-cols-1 lg:grid-cols-[330px_1fr] border border-line bg-surface-elevated shadow-dropdown h-[680px] overflow-hidden">
@@ -648,6 +741,16 @@ export default function AdminChatPage() {
                   <Badge variant="dark">
                     {(byUser[selected] ?? []).length} tin nhắn
                   </Badge>
+
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConvModalOpen(true)}
+                    className="flex h-8 w-8 items-center justify-center rounded-sm border border-line text-content-muted hover:border-status-error hover:bg-status-error/10 hover:text-status-error transition-colors"
+                    title={`Xóa toàn bộ cuộc trò chuyện với @${selected}`}
+                    aria-label="Xóa cuộc trò chuyện"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
 
@@ -956,6 +1059,104 @@ export default function AdminChatPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Xác Nhận Dọn Dẹp Tin Nhắn Định Kỳ (Data Retention Policy) */}
+      <Modal
+        isOpen={cleanupModalOpen}
+        onClose={() => setCleanupModalOpen(false)}
+        title="Dọn Dẹp Tin Nhắn Hết Hạn Lưu Trữ"
+        maxWidth="max-w-[520px]"
+      >
+        <div className="space-y-4 text-xs">
+          <p className="m-0 text-content-secondary leading-relaxed">
+            Hệ thống áp dụng chính sách <strong>Data Retention Policy</strong> để giải phóng cơ sở dữ liệu và tự động xóa ảnh đính kèm khỏi Cloudinary.
+          </p>
+
+          <div>
+            <label className="block font-bold uppercase tracking-wider text-content-primary mb-2">
+              Chọn thời gian lưu trữ tối đa:
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[15, 30, 60, 90].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setCleanupDays(d)}
+                  className={cn(
+                    'p-2.5 text-center font-bold border transition-colors rounded-none',
+                    cleanupDays === d
+                      ? 'border-primary bg-primary text-content-inverse'
+                      : 'border-line bg-surface hover:border-line-focus text-content-primary'
+                  )}
+                >
+                  &gt; {d} ngày
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-sm border border-amber-200 bg-amber-50 p-3 text-[0.74rem] text-amber-900 leading-relaxed">
+            ⚠️ <strong>Lưu ý:</strong> Mọi tin nhắn và hình ảnh được tạo trước <strong>{cleanupDays} ngày</strong> sẽ bị xóa vĩnh viễn khỏi Database và Cloudinary. Hành động này không thể hoàn tác.
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-line-light">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setCleanupModalOpen(false)}
+              disabled={cleaningUp}
+            >
+              Hủy Bỏ
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              icon={Trash2}
+              loading={cleaningUp}
+              onClick={() => void handleCleanupExpired()}
+            >
+              Thực Hiện Dọn Dẹp
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Xác Nhận Xóa Toàn Bộ Cuộc Trò Chuyện */}
+      <Modal
+        isOpen={deleteConvModalOpen}
+        onClose={() => setDeleteConvModalOpen(false)}
+        title={`Xóa Cuộc Trò Chuyện với @${selected}`}
+        maxWidth="max-w-[440px]"
+      >
+        <div className="space-y-4 text-xs text-content-secondary">
+          <p className="m-0 leading-relaxed">
+            Bạn có chắc chắn muốn xóa toàn bộ lịch sử tin nhắn của khách hàng <strong>@{selected}</strong>?
+          </p>
+          <p className="m-0 text-[0.74rem] text-status-error font-medium">
+            Toàn bộ tin nhắn và các hình ảnh đính kèm liên quan trên Cloudinary sẽ bị xóa vĩnh viễn.
+          </p>
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-line-light">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setDeleteConvModalOpen(false)}
+              disabled={deletingConv}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              icon={Trash2}
+              loading={deletingConv}
+              onClick={() => void handleDeleteCurrentConversation()}
+            >
+              Xác Nhận Xóa
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

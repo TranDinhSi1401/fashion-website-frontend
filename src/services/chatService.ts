@@ -30,4 +30,16 @@ export const chatService = {
     );
     return res.data;
   },
+
+  async cleanupExpiredMessages(days = 30): Promise<ApiResponse<number>> {
+    const res = await apiClient.delete<ApiResponse<number>>(`/admin/chat/cleanup?days=${days}`);
+    return res.data;
+  },
+
+  async deleteConversation(username: string): Promise<ApiResponse<number>> {
+    const res = await apiClient.delete<ApiResponse<number>>(
+      `/admin/chat/${encodeURIComponent(username)}`
+    );
+    return res.data;
+  },
 };
