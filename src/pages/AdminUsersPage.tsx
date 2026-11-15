@@ -34,7 +34,7 @@ import { userService } from '../services/userService';
 import { useAuth } from '../context/AuthContext';
 import { UserResponse, UserAddressResponse } from '../types/user';
 import { Badge, Button, Input, Modal, Select } from '../components/ui';
-import { extractErrorMessage } from '../utils/format';
+import { extractErrorMessage, formatDateVN, validateDateOfBirth } from '../utils/format';
 import { cn } from '../utils/cn';
 import styles from './AdminPages.module.css';
 
@@ -80,6 +80,7 @@ export default function AdminUsersPage() {
     password: '',
     fullname: '',
     gender: 'MALE',
+    dateOfBirth: '',
     email: '',
     phone: '',
     role: 'CUSTOMER',
@@ -172,6 +173,7 @@ export default function AdminUsersPage() {
       password: '',
       fullname: '',
       gender: 'MALE',
+      dateOfBirth: '',
       email: '',
       phone: '',
       role: 'CUSTOMER',
@@ -193,6 +195,7 @@ export default function AdminUsersPage() {
       password: '',
       fullname: u.fullname || '',
       gender: u.gender || 'OTHER',
+      dateOfBirth: u.dateOfBirth || '',
       email: u.email || '',
       phone: u.phone || '',
       role: u.role || 'CUSTOMER',
@@ -405,6 +408,12 @@ export default function AdminUsersPage() {
       return;
     }
 
+    const dobErr = validateDateOfBirth(formData.dateOfBirth, false);
+    if (dobErr) {
+      setFormError(dobErr);
+      return;
+    }
+
     if (!cleanEmail) {
       setFormError('Vui lòng nhập email.');
       return;
@@ -442,6 +451,9 @@ export default function AdminUsersPage() {
           role: formData.role,
           status: formData.status,
         };
+        if (formData.dateOfBirth) {
+          payload.dateOfBirth = formData.dateOfBirth;
+        }
         if (cleanPhone) {
           payload.phone = cleanPhone;
         }
@@ -465,6 +477,9 @@ export default function AdminUsersPage() {
           formPayload.append('password', cleanPassword);
           formPayload.append('fullname', cleanFullname);
           formPayload.append('gender', formData.gender);
+          if (formData.dateOfBirth) {
+            formPayload.append('dateOfBirth', formData.dateOfBirth);
+          }
           formPayload.append('email', cleanEmail);
           formPayload.append('role', formData.role);
           if (cleanPhone) {
@@ -481,6 +496,9 @@ export default function AdminUsersPage() {
             email: cleanEmail,
             role: formData.role,
           };
+          if (formData.dateOfBirth) {
+            payload.dateOfBirth = formData.dateOfBirth;
+          }
           if (cleanPhone) {
             payload.phone = cleanPhone;
           }
@@ -738,7 +756,7 @@ export default function AdminUsersPage() {
                         {u.fullname || u.username}
                       </div>
                       <div className="text-xs text-content-muted truncate">
-                        @{u.username} • #{u.id} • {formatGender(u.gender)}
+                        @{u.username} • #{u.id} • {formatGender(u.gender)} {u.dateOfBirth ? `• ${formatDateVN(u.dateOfBirth)}` : ''}
                       </div>
                     </div>
                   </div>
@@ -863,6 +881,12 @@ export default function AdminUsersPage() {
                       <Badge variant="default">
                         {formatGender(u.gender)}
                       </Badge>
+                      {u.dateOfBirth && (
+                        <div className="text-[0.72rem] text-content-muted mt-1 flex items-center gap-1">
+                          <Calendar size={11} className="text-accent-gold shrink-0" />
+                          <span>{formatDateVN(u.dateOfBirth)}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="p-3.5">
                       <div className="text-content-primary">{u.email}</div>
@@ -1059,6 +1083,8 @@ export default function AdminUsersPage() {
                     <span>•</span>
                     <span>Giới tính: <strong className="text-content-primary">{formatGender(detailUser.gender)}</strong></span>
                     <span>•</span>
+                    <span>Ngày sinh: <strong className="text-content-primary">{formatDateVN(detailUser.dateOfBirth)}</strong></span>
+                    <span>•</span>
                     <span>Mã tài khoản: <strong className="text-content-primary">#{detailUser.id}</strong></span>
                   </div>
                 </div>
@@ -1066,7 +1092,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Contact Info Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="p-3.5 border border-line-light bg-surface-body flex items-center gap-3 rounded-sm shadow-xs">
                 <div className="w-9 h-9 rounded-full bg-accent-gold/10 flex items-center justify-center shrink-0 text-accent-gold">
                   <Mail size={18} />
@@ -1094,6 +1120,16 @@ export default function AdminUsersPage() {
                 <div className="min-w-0">
                   <div className="text-[0.7rem] uppercase tracking-wider font-bold text-content-muted">Giới tính</div>
                   <div className="text-sm font-semibold text-content-primary">{formatGender(detailUser.gender)}</div>
+                </div>
+              </div>
+
+              <div className="p-3.5 border border-line-light bg-surface-body flex items-center gap-3 rounded-sm shadow-xs">
+                <div className="w-9 h-9 rounded-full bg-accent-gold/10 flex items-center justify-center shrink-0 text-accent-gold">
+                  <Calendar size={18} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[0.7rem] uppercase tracking-wider font-bold text-content-muted">Ngày sinh</div>
+                  <div className="text-sm font-semibold text-content-primary">{formatDateVN(detailUser.dateOfBirth)}</div>
                 </div>
               </div>
             </div>
@@ -1437,7 +1473,7 @@ export default function AdminUsersPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               <Input
                 label="Họ và tên"
                 value={formData.fullname}
@@ -1456,6 +1492,14 @@ export default function AdminUsersPage() {
                   { value: 'OTHER', label: 'Khác (OTHER)' },
                 ]}
                 required
+              />
+
+              <Input
+                label="Ngày sinh"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
 

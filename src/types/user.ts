@@ -7,6 +7,7 @@ export interface UserResponse {
   username: string;
   fullname?: string | null;
   gender?: UserGender | null;
+  dateOfBirth?: string | null;
   email: string;
   phone?: string | null;
   address?: string | null;
@@ -46,6 +47,7 @@ export interface UserAddressUpdateRequest {
 export interface UpdateUserRequest {
   fullname?: string;
   gender?: UserGender;
+  dateOfBirth?: string | null;
   email?: string;
   phone?: string;
   avt?: string;

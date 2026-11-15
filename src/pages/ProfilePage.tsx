@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { User, KeyRound, MapPin, Camera, Trash2, Plus, AlertCircle, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react';
+import { User, KeyRound, MapPin, Camera, Trash2, Plus, Calendar, AlertCircle, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react';
 import PreferenceMatrixTab from '../components/profile/PreferenceMatrixTab';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
 import { UserAddressResponse } from '../types/user';
 import AddressFormModal from '../components/profile/AddressFormModal';
 import { Badge, Button, Input, Select, Modal } from '../components/ui';
-import { isValidVietnamPhone, extractErrorMessage } from '../utils/format';
+import { isValidVietnamPhone, formatDateVN, validateDateOfBirth, extractErrorMessage } from '../utils/format';
 import { cn } from '../utils/cn';
 import styles from './ProfilePage.module.css';
 
@@ -26,6 +26,7 @@ export default function ProfilePage() {
   const [profileForm, setProfileForm] = useState({
     fullname: '',
     gender: 'MALE',
+    dateOfBirth: '',
     email: '',
     phone: '',
   });
@@ -53,6 +54,7 @@ export default function ProfilePage() {
       setProfileForm({
         fullname: user.fullname || '',
         gender: user.gender || 'OTHER',
+        dateOfBirth: user.dateOfBirth || '',
         email: user.email || '',
         phone: user.phone || '',
       });
@@ -92,6 +94,11 @@ export default function ProfilePage() {
       setErrorMessage('Vui lòng nhập họ và tên');
       return;
     }
+    const dobErr = validateDateOfBirth(profileForm.dateOfBirth, false);
+    if (dobErr) {
+      setErrorMessage(dobErr);
+      return;
+    }
     if (profileForm.phone && !isValidVietnamPhone(profileForm.phone)) {
       setErrorMessage('Số điện thoại không đúng chuẩn 10 số Việt Nam (bắt đầu bằng 0 hoặc +84)');
       return;
@@ -105,6 +112,7 @@ export default function ProfilePage() {
       const res = await userService.updateCurrentUser({
         fullname: profileForm.fullname.trim(),
         gender: profileForm.gender,
+        ...(profileForm.dateOfBirth ? { dateOfBirth: profileForm.dateOfBirth } : {}),
         email: profileForm.email.trim(),
         phone: profileForm.phone.trim(),
       });
@@ -275,6 +283,12 @@ export default function ProfilePage() {
                     </Badge>
                   )}
                 </div>
+                {user?.dateOfBirth && (
+                  <div className="flex items-center gap-1 mt-1.5 text-[0.72rem] text-content-muted">
+                    <Calendar size={12} className="text-accent-gold shrink-0" />
+                    <span>{formatDateVN(user.dateOfBirth)}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -407,15 +421,15 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <form onSubmit={handleUpdateProfile} className="flex flex-col gap-2">
-                  <Input
-                    label="Tên đăng nhập"
-                    value={user?.username || ''}
-                    disabled
-                    helperText="Tên đăng nhập không thể thay đổi"
-                  />
-
+                <form onSubmit={handleUpdateProfile} className="flex flex-col gap-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Tên đăng nhập"
+                      value={user?.username || ''}
+                      disabled
+                      helperText="Tên đăng nhập cố định không thể thay đổi"
+                    />
+
                     <Input
                       label="Họ và tên"
                       name="fullname"
@@ -423,7 +437,9 @@ export default function ProfilePage() {
                       onChange={(e) => setProfileForm({ ...profileForm, fullname: e.target.value })}
                       required
                     />
+                  </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Select
                       label="Giới tính"
                       name="gender"
@@ -435,6 +451,17 @@ export default function ProfilePage() {
                         { value: 'OTHER', label: 'Khác' },
                       ]}
                       required
+                    />
+
+                    <Input
+                      label="Ngày sinh"
+                      type="date"
+                      name="dateOfBirth"
+                      value={profileForm.dateOfBirth}
+                      onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
+                      icon={Calendar}
+                      max={new Date().toISOString().split('T')[0]}
+                      helperText="Cập nhật ngày sinh để nhận ưu đãi dịp sinh nhật"
                     />
                   </div>
 
