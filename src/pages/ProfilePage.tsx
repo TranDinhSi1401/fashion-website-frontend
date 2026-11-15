@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { User, KeyRound, MapPin, Camera, Trash2, Plus, Calendar, AlertCircle, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react';
+import { User, KeyRound, MapPin, Camera, Trash2, Plus, Calendar, AlertCircle, CheckCircle2, Sparkles, AlertTriangle, ShieldCheck, ExternalLink } from 'lucide-react';
 import PreferenceMatrixTab from '../components/profile/PreferenceMatrixTab';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
@@ -12,10 +12,12 @@ import { cn } from '../utils/cn';
 import styles from './ProfilePage.module.css';
 
 export default function ProfilePage() {
-  const { user, updateUserLocal, logout } = useAuth();
+  const { user, updateUserLocal, logout, isGoogleAuth } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const addressSectionRef = useRef<HTMLDivElement>(null);
+
+  const isGoogleUser = isGoogleAuth || Boolean(user?.avt && user.avt.includes('googleusercontent.com'));
 
   const activeTab = location.pathname.includes('/preferences')
     ? 'preferences'
@@ -312,14 +314,21 @@ export default function ProfilePage() {
               type="button"
               onClick={() => navigate('/account/password', { state: { keepScroll: true } })}
               className={cn(
-                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
+                'flex items-center justify-between gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
                 activeTab === 'password'
                   ? 'bg-surface-dark text-content-inverse font-bold'
                   : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
               )}
             >
-              <KeyRound size={16} />
-              Đổi Mật Khẩu
+              <div className="flex items-center gap-2.5">
+                <KeyRound size={16} />
+                <span>Mật Khẩu &amp; Bảo Mật</span>
+              </div>
+              {isGoogleUser && (
+                <span className="text-[0.62rem] px-1.5 py-0.5 rounded-xs font-bold uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
+                  Google
+                </span>
+              )}
             </button>
 
             <button
@@ -599,53 +608,109 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* TAB 3: CHANGE PASSWORD */}
+            {/* TAB 3: CHANGE PASSWORD / GOOGLE SSO SECURITY */}
             {activeTab === 'password' && (
               <div>
                 <h3 className="text-[1.2rem] font-bold uppercase tracking-[0.05em] mb-2 text-content-primary">
-                  Đổi Mật Khẩu
+                  {isGoogleUser ? 'Bảo Mật Tài Khoản Google' : 'Đổi Mật Khẩu'}
                 </h3>
-                <p className="text-[0.82rem] text-content-secondary mb-6">
-                  Sau khi đổi mật khẩu thành công, tất cả các phiên đăng nhập khác sẽ tự động bị đăng xuất.
-                </p>
 
-                <form onSubmit={handleChangePassword} className="flex flex-col gap-2 max-w-[440px]">
-                  <Input
-                    label="Mật khẩu hiện tại"
-                    type="password"
-                    placeholder="Nhập mật khẩu hiện tại"
-                    value={passwordForm.oldPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
-                    required
-                  />
+                {isGoogleUser ? (
+                  <div className="mt-4 border border-line bg-surface p-6 sm:p-7 rounded-sm max-w-[580px] shadow-xs">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent-gold/15 text-accent-gold border border-accent-gold/30">
+                        <ShieldCheck size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <h4 className="text-[0.95rem] font-extrabold uppercase tracking-wider text-content-primary m-0">
+                            Tài Khoản Liên Kết Google (SSO)
+                          </h4>
+                          <Badge variant="warning" className="text-[0.65rem] font-bold px-2 py-0.5">
+                            Bảo Mật Bởi Google
+                          </Badge>
+                        </div>
 
-                  <Input
-                    label="Mật khẩu mới"
-                    type="password"
-                    placeholder="Tối thiểu 6 ký tự"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                    required
-                  />
+                        <p className="text-[0.82rem] text-content-secondary leading-relaxed m-0 mt-2">
+                          Tài khoản của bạn được đăng nhập và bảo vệ trực tiếp thông qua Google ID (<strong>{user?.email || user?.username}</strong>). Bạn không cần mật khẩu cục bộ trên website.
+                        </p>
 
-                  <Input
-                    label="Xác nhận mật khẩu mới"
-                    type="password"
-                    placeholder="Nhập lại mật khẩu mới"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                    required
-                  />
+                        <div className="mt-4 rounded-sm border border-line-light bg-surface-elevated p-3.5 text-xs text-content-secondary space-y-1.5">
+                          <div className="font-bold text-content-primary flex items-center gap-1.5">
+                            <span>Quản lý mật khẩu &amp; xác thực 2 lớp (2FA):</span>
+                          </div>
+                          <p className="m-0 leading-relaxed text-[0.78rem]">
+                            Website không lưu trữ mật khẩu của bạn. Mọi thao tác thay đổi mật khẩu hoặc cập nhật bảo mật vui lòng thực hiện trực tiếp tại trang Quản lý tài khoản Google.
+                          </p>
+                        </div>
 
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    loading={isLoading}
-                    className="self-start mt-4"
-                  >
-                    Xác Nhận Đổi Mật Khẩu
-                  </Button>
-                </form>
+                        <div className="mt-5 flex items-center gap-3 flex-wrap">
+                          <a
+                            href="https://myaccount.google.com/security"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold uppercase tracking-wider bg-primary text-content-inverse hover:bg-primary-hover transition-colors rounded-none"
+                          >
+                            <span>Cài Đặt Bảo Mật Google</span>
+                            <ExternalLink size={13} />
+                          </a>
+
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => navigate('/account/profile')}
+                          >
+                            Xem Hồ Sơ Cá Nhân
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-[0.82rem] text-content-secondary mb-6">
+                      Sau khi đổi mật khẩu thành công, tất cả các phiên đăng nhập khác sẽ tự động bị đăng xuất.
+                    </p>
+
+                    <form onSubmit={handleChangePassword} className="flex flex-col gap-2 max-w-[440px]">
+                      <Input
+                        label="Mật khẩu hiện tại"
+                        type="password"
+                        placeholder="Nhập mật khẩu hiện tại"
+                        value={passwordForm.oldPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                        required
+                      />
+
+                      <Input
+                        label="Mật khẩu mới"
+                        type="password"
+                        placeholder="Tối thiểu 6 ký tự"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        required
+                      />
+
+                      <Input
+                        label="Xác nhận mật khẩu mới"
+                        type="password"
+                        placeholder="Nhập lại mật khẩu mới"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                        required
+                      />
+
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        loading={isLoading}
+                        className="self-start mt-4"
+                      >
+                        Xác Nhận Đổi Mật Khẩu
+                      </Button>
+                    </form>
+                  </>
+                )}
               </div>
             )}
 
