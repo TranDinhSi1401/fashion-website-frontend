@@ -1,38 +1,4 @@
-import { DemoModel, TryOnCategory } from '../types/aiTryOn';
-
-/**
- * Danh sách người mẫu Studio chuẩn form để khách hàng thử ngay trong 1-click
- * Sử dụng hình ảnh chuẩn studio với tư thế đứng thẳng tối ưu cho mô hình Diffusion IDM-VTON
- */
-export const DEMO_MODELS: DemoModel[] = [
-  {
-    id: 'model-male-1',
-    name: 'Quang Huy (Nam)',
-    gender: 'male',
-    imageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=768&q=80',
-    height: '1m78',
-    weight: '68kg',
-    fit: 'Vóc dáng thể thao chuẩn',
-  },
-  {
-    id: 'model-female-1',
-    name: 'Mai Linh (Nữ)',
-    gender: 'female',
-    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=768&q=80',
-    height: '1m66',
-    weight: '49kg',
-    fit: 'Form người thanh mảnh',
-  },
-  {
-    id: 'model-male-2',
-    name: 'Tuấn Kiệt (Nam)',
-    gender: 'male',
-    imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=768&q=80',
-    height: '1m75',
-    weight: '72kg',
-    fit: 'Form người công sở săn chắc',
-  },
-];
+import { TryOnCategory } from '../types/aiTryOn';
 
 /**
  * Mẹo thời trang xuất hiện luân phiên trong lúc chờ AI Diffusion chạy

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import Topbar from './components/layout/Topbar';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -26,7 +25,6 @@ export default function App() {
   return (
     <div className="relative flex min-h-screen flex-col">
       <ScrollManager />
-      <Topbar />
       <Header />
 
       <main className="flex-1">

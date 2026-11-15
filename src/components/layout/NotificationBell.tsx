@@ -92,8 +92,15 @@ export default function NotificationBell() {
         setOpen(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const markRead = async (n: NotificationResponse) => {
@@ -123,6 +130,7 @@ export default function NotificationBell() {
     <div className="relative" ref={containerRef}>
       <IconButton
         aria-label="Thông báo"
+        title="Thông báo"
         aria-expanded={open}
         badgeCount={unread}
         badgeVariant="accent"
@@ -131,7 +139,11 @@ export default function NotificationBell() {
       />
 
       {open && (
-        <div className="animate-slide-up absolute right-0 top-[calc(100%+8px)] z-50 w-[330px] sm:w-[370px] overflow-hidden rounded-sm border border-line-light bg-surface-elevated shadow-dropdown">
+        <div
+          role="region"
+          aria-label="Danh sách thông báo"
+          className="animate-slide-up absolute right-0 top-[calc(100%+8px)] z-50 w-[330px] sm:w-[370px] overflow-hidden rounded-sm border border-line-light bg-surface-elevated shadow-dropdown"
+        >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-line-light bg-surface px-4 py-3">
             <div className="flex items-center gap-2">
@@ -179,11 +191,12 @@ export default function NotificationBell() {
               </div>
             ) : (
               items.map((n) => (
-                <div
+                <button
+                  type="button"
                   key={n.id}
                   onClick={() => void markRead(n)}
                   className={cn(
-                    'flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors hover:bg-surface',
+                    'flex w-full cursor-pointer items-start gap-3 border-0 px-4 py-3 text-left transition-colors hover:bg-surface',
                     !n.seen ? 'bg-accent-gold/5' : 'bg-surface-elevated'
                   )}
                 >
@@ -213,7 +226,7 @@ export default function NotificationBell() {
                       {formatNotificationTime(n.createdAt)}
                     </span>
                   </div>
-                </div>
+                </button>
               ))
             )}
           </div>
