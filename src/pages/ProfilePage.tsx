@@ -1,21 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { User, KeyRound, MapPin, Camera, Trash2, Plus, AlertCircle, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react';
+import { User, KeyRound, MapPin, Camera, Trash2, Plus, Calendar, AlertCircle, CheckCircle2, Sparkles, AlertTriangle, ShieldCheck, ExternalLink } from 'lucide-react';
 import PreferenceMatrixTab from '../components/profile/PreferenceMatrixTab';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
 import { UserAddressResponse } from '../types/user';
 import AddressFormModal from '../components/profile/AddressFormModal';
 import { Badge, Button, Input, Select, Modal } from '../components/ui';
-import { isValidVietnamPhone, extractErrorMessage } from '../utils/format';
+import { isValidVietnamPhone, formatDateVN, validateDateOfBirth, extractErrorMessage } from '../utils/format';
 import { cn } from '../utils/cn';
 import styles from './ProfilePage.module.css';
 
 export default function ProfilePage() {
-  const { user, updateUserLocal, logout } = useAuth();
+  const { user, updateUserLocal, logout, isGoogleAuth } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const addressSectionRef = useRef<HTMLDivElement>(null);
+
+  const isGoogleUser = isGoogleAuth || Boolean(user?.avt && user.avt.includes('googleusercontent.com'));
 
   const activeTab = location.pathname.includes('/preferences')
     ? 'preferences'
@@ -26,6 +28,7 @@ export default function ProfilePage() {
   const [profileForm, setProfileForm] = useState({
     fullname: '',
     gender: 'MALE',
+    dateOfBirth: '',
     email: '',
     phone: '',
   });
@@ -53,6 +56,7 @@ export default function ProfilePage() {
       setProfileForm({
         fullname: user.fullname || '',
         gender: user.gender || 'OTHER',
+        dateOfBirth: user.dateOfBirth || '',
         email: user.email || '',
         phone: user.phone || '',
       });
@@ -92,6 +96,11 @@ export default function ProfilePage() {
       setErrorMessage('Vui lòng nhập họ và tên');
       return;
     }
+    const dobErr = validateDateOfBirth(profileForm.dateOfBirth, false);
+    if (dobErr) {
+      setErrorMessage(dobErr);
+      return;
+    }
     if (profileForm.phone && !isValidVietnamPhone(profileForm.phone)) {
       setErrorMessage('Số điện thoại không đúng chuẩn 10 số Việt Nam (bắt đầu bằng 0 hoặc +84)');
       return;
@@ -105,6 +114,7 @@ export default function ProfilePage() {
       const res = await userService.updateCurrentUser({
         fullname: profileForm.fullname.trim(),
         gender: profileForm.gender,
+        ...(profileForm.dateOfBirth ? { dateOfBirth: profileForm.dateOfBirth } : {}),
         email: profileForm.email.trim(),
         phone: profileForm.phone.trim(),
       });
@@ -253,24 +263,34 @@ export default function ProfilePage() {
                 <img
                   src={user.avt}
                   alt={user.fullname || user.username}
-                  className="w-12 h-12 rounded-full object-cover"
+                  className="w-12 h-12 rounded-full object-cover ring-2 ring-accent-gold/40 shadow-xs"
                 />
               ) : (
-                <div className="w-12 h-12 bg-surface-dark text-content-inverse flex items-center justify-center text-[1.1rem] font-bold">
+                <div className="w-12 h-12 rounded-full bg-surface-dark text-content-inverse flex items-center justify-center text-[1.1rem] font-bold ring-2 ring-accent-gold/30 shadow-xs">
                   {(user?.fullname || user?.username || 'U')[0].toUpperCase()}
                 </div>
               )}
-              <div>
-                <div className="text-[0.9rem] font-bold text-content-primary">{user?.fullname || user?.username}</div>
-                <div className="text-[0.75rem] text-content-muted">@{user?.username}</div>
+              <div className="min-w-0">
+                <div className="text-[0.9rem] font-bold text-content-primary truncate">{user?.fullname || user?.username}</div>
+                <div className="text-[0.75rem] text-content-muted truncate">@{user?.username}</div>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                  {user?.role && <Badge variant="dark">{user.role}</Badge>}
+                  {user?.role && (
+                    <Badge variant={user.role === 'ADMIN' ? 'dark' : user.role === 'STAFF' ? 'warning' : 'vip'}>
+                      {user.role}
+                    </Badge>
+                  )}
                   {user?.gender && (
                     <Badge variant="default">
                       {user.gender === 'MALE' ? 'Nam' : user.gender === 'FEMALE' ? 'Nữ' : 'Khác'}
                     </Badge>
                   )}
                 </div>
+                {user?.dateOfBirth && (
+                  <div className="flex items-center gap-1 mt-1.5 text-[0.72rem] text-content-muted">
+                    <Calendar size={12} className="text-accent-gold shrink-0" />
+                    <span>{formatDateVN(user.dateOfBirth)}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -294,14 +314,21 @@ export default function ProfilePage() {
               type="button"
               onClick={() => navigate('/account/password', { state: { keepScroll: true } })}
               className={cn(
-                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
+                'flex items-center justify-between gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
                 activeTab === 'password'
                   ? 'bg-surface-dark text-content-inverse font-bold'
                   : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
               )}
             >
-              <KeyRound size={16} />
-              Đổi Mật Khẩu
+              <div className="flex items-center gap-2.5">
+                <KeyRound size={16} />
+                <span>Mật Khẩu &amp; Bảo Mật</span>
+              </div>
+              {isGoogleUser && (
+                <span className="text-[0.62rem] px-1.5 py-0.5 rounded-xs font-bold uppercase bg-accent-gold/20 text-accent-gold border border-accent-gold/30">
+                  Google
+                </span>
+              )}
             </button>
 
             <button
@@ -342,22 +369,28 @@ export default function ProfilePage() {
                   Hồ Sơ Của Bạn
                 </h3>
 
-                <div className="flex items-center gap-6 pb-6 mb-6 border-b border-line-light flex-wrap">
+                <div className="flex items-center gap-6 p-4 mb-6 bg-gradient-to-r from-surface to-surface-body border border-accent-gold/30 rounded-sm shadow-xs flex-wrap">
                   <div className="relative">
                     {user?.avt ? (
                       <img
                         src={user.avt}
                         alt="Avatar"
-                        className="w-[84px] h-[84px] rounded-full object-cover border-2 border-line"
+                        className="w-20 h-20 rounded-full object-cover ring-2 ring-accent-gold shadow-md"
                       />
                     ) : (
-                      <div className="w-[84px] h-[84px] bg-surface-dark text-content-inverse flex items-center justify-center text-[2rem] font-bold rounded-full">
+                      <div className="w-20 h-20 bg-surface-dark text-content-inverse flex items-center justify-center text-2xl font-bold rounded-full ring-2 ring-accent-gold/40 shadow-md">
                         {(user?.fullname || user?.username || 'U')[0].toUpperCase()}
                       </div>
                     )}
+                    <div className="absolute -bottom-1 -right-1 bg-surface-body border border-accent-gold/40 rounded-full p-1 shadow-xs">
+                      <Camera size={13} className="text-accent-gold" />
+                    </div>
                   </div>
 
-                  <div>
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="text-xs font-bold uppercase tracking-wider text-content-primary mb-1">
+                      Ảnh Đại Diện Cá Nhân
+                    </div>
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -365,7 +398,7 @@ export default function ProfilePage() {
                       accept="image/png, image/jpeg, image/webp"
                       className="hidden"
                     />
-                    <div className="flex gap-2.5 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <Button
                         type="button"
                         variant="secondary"
@@ -373,37 +406,39 @@ export default function ProfilePage() {
                         onClick={() => fileInputRef.current?.click()}
                         loading={avatarUploading}
                         icon={Camera}
+                        className="text-xs font-semibold py-1 px-3"
                       >
                         Tải Ảnh Mới
                       </Button>
                       {user?.avt && (
                         <Button
                           type="button"
-                          variant="danger"
+                          variant="ghost"
                           size="sm"
                           onClick={handleDeleteAvatar}
                           disabled={avatarUploading}
                           icon={Trash2}
+                          className="text-status-error hover:bg-status-error/10 hover:text-status-error text-xs font-semibold py-1 px-2.5"
                         >
-                          Xóa
+                          Xóa Ảnh
                         </Button>
                       )}
                     </div>
-                    <p className="text-[0.75rem] text-content-muted m-0">
-                      Dung lượng tối đa 5MB. Định dạng: JPG, PNG, WEBP.
+                    <p className="text-[11px] text-content-muted m-0">
+                      Hỗ trợ JPG, PNG, WEBP • Dung lượng tối đa 5MB.
                     </p>
                   </div>
                 </div>
 
-                <form onSubmit={handleUpdateProfile} className="flex flex-col gap-2">
-                  <Input
-                    label="Tên đăng nhập"
-                    value={user?.username || ''}
-                    disabled
-                    helperText="Tên đăng nhập không thể thay đổi"
-                  />
-
+                <form onSubmit={handleUpdateProfile} className="flex flex-col gap-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Tên đăng nhập"
+                      value={user?.username || ''}
+                      disabled
+                      helperText="Tên đăng nhập cố định không thể thay đổi"
+                    />
+
                     <Input
                       label="Họ và tên"
                       name="fullname"
@@ -411,7 +446,9 @@ export default function ProfilePage() {
                       onChange={(e) => setProfileForm({ ...profileForm, fullname: e.target.value })}
                       required
                     />
+                  </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Select
                       label="Giới tính"
                       name="gender"
@@ -423,6 +460,17 @@ export default function ProfilePage() {
                         { value: 'OTHER', label: 'Khác' },
                       ]}
                       required
+                    />
+
+                    <Input
+                      label="Ngày sinh"
+                      type="date"
+                      name="dateOfBirth"
+                      value={profileForm.dateOfBirth}
+                      onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
+                      icon={Calendar}
+                      max={new Date().toISOString().split('T')[0]}
+                      helperText="Cập nhật ngày sinh để nhận ưu đãi dịp sinh nhật"
                     />
                   </div>
 
@@ -560,53 +608,109 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* TAB 3: CHANGE PASSWORD */}
+            {/* TAB 3: CHANGE PASSWORD / GOOGLE SSO SECURITY */}
             {activeTab === 'password' && (
               <div>
                 <h3 className="text-[1.2rem] font-bold uppercase tracking-[0.05em] mb-2 text-content-primary">
-                  Đổi Mật Khẩu
+                  {isGoogleUser ? 'Bảo Mật Tài Khoản Google' : 'Đổi Mật Khẩu'}
                 </h3>
-                <p className="text-[0.82rem] text-content-secondary mb-6">
-                  Sau khi đổi mật khẩu thành công, tất cả các phiên đăng nhập khác sẽ tự động bị đăng xuất.
-                </p>
 
-                <form onSubmit={handleChangePassword} className="flex flex-col gap-2 max-w-[440px]">
-                  <Input
-                    label="Mật khẩu hiện tại"
-                    type="password"
-                    placeholder="Nhập mật khẩu hiện tại"
-                    value={passwordForm.oldPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
-                    required
-                  />
+                {isGoogleUser ? (
+                  <div className="mt-4 border border-line bg-surface p-6 sm:p-7 rounded-sm max-w-[580px] shadow-xs">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent-gold/15 text-accent-gold border border-accent-gold/30">
+                        <ShieldCheck size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <h4 className="text-[0.95rem] font-extrabold uppercase tracking-wider text-content-primary m-0">
+                            Tài Khoản Liên Kết Google (SSO)
+                          </h4>
+                          <Badge variant="warning" className="text-[0.65rem] font-bold px-2 py-0.5">
+                            Bảo Mật Bởi Google
+                          </Badge>
+                        </div>
 
-                  <Input
-                    label="Mật khẩu mới"
-                    type="password"
-                    placeholder="Tối thiểu 6 ký tự"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                    required
-                  />
+                        <p className="text-[0.82rem] text-content-secondary leading-relaxed m-0 mt-2">
+                          Tài khoản của bạn được đăng nhập và bảo vệ trực tiếp thông qua Google ID (<strong>{user?.email || user?.username}</strong>). Bạn không cần mật khẩu cục bộ trên website.
+                        </p>
 
-                  <Input
-                    label="Xác nhận mật khẩu mới"
-                    type="password"
-                    placeholder="Nhập lại mật khẩu mới"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                    required
-                  />
+                        <div className="mt-4 rounded-sm border border-line-light bg-surface-elevated p-3.5 text-xs text-content-secondary space-y-1.5">
+                          <div className="font-bold text-content-primary flex items-center gap-1.5">
+                            <span>Quản lý mật khẩu &amp; xác thực 2 lớp (2FA):</span>
+                          </div>
+                          <p className="m-0 leading-relaxed text-[0.78rem]">
+                            Website không lưu trữ mật khẩu của bạn. Mọi thao tác thay đổi mật khẩu hoặc cập nhật bảo mật vui lòng thực hiện trực tiếp tại trang Quản lý tài khoản Google.
+                          </p>
+                        </div>
 
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    loading={isLoading}
-                    className="self-start mt-4"
-                  >
-                    Xác Nhận Đổi Mật Khẩu
-                  </Button>
-                </form>
+                        <div className="mt-5 flex items-center gap-3 flex-wrap">
+                          <a
+                            href="https://myaccount.google.com/security"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold uppercase tracking-wider bg-primary text-content-inverse hover:bg-primary-hover transition-colors rounded-none"
+                          >
+                            <span>Cài Đặt Bảo Mật Google</span>
+                            <ExternalLink size={13} />
+                          </a>
+
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => navigate('/account/profile')}
+                          >
+                            Xem Hồ Sơ Cá Nhân
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-[0.82rem] text-content-secondary mb-6">
+                      Sau khi đổi mật khẩu thành công, tất cả các phiên đăng nhập khác sẽ tự động bị đăng xuất.
+                    </p>
+
+                    <form onSubmit={handleChangePassword} className="flex flex-col gap-2 max-w-[440px]">
+                      <Input
+                        label="Mật khẩu hiện tại"
+                        type="password"
+                        placeholder="Nhập mật khẩu hiện tại"
+                        value={passwordForm.oldPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                        required
+                      />
+
+                      <Input
+                        label="Mật khẩu mới"
+                        type="password"
+                        placeholder="Tối thiểu 6 ký tự"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        required
+                      />
+
+                      <Input
+                        label="Xác nhận mật khẩu mới"
+                        type="password"
+                        placeholder="Nhập lại mật khẩu mới"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                        required
+                      />
+
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        loading={isLoading}
+                        className="self-start mt-4"
+                      >
+                        Xác Nhận Đổi Mật Khẩu
+                      </Button>
+                    </form>
+                  </>
+                )}
               </div>
             )}
 

@@ -21,6 +21,12 @@ import {
   Filter,
   SlidersHorizontal,
   RotateCcw,
+  Lock,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
 import AddressFormModal from '../components/profile/AddressFormModal';
@@ -28,7 +34,7 @@ import { userService } from '../services/userService';
 import { useAuth } from '../context/AuthContext';
 import { UserResponse, UserAddressResponse } from '../types/user';
 import { Badge, Button, Input, Modal, Select } from '../components/ui';
-import { extractErrorMessage } from '../utils/format';
+import { extractErrorMessage, formatDateVN, validateDateOfBirth } from '../utils/format';
 import { cn } from '../utils/cn';
 import styles from './AdminPages.module.css';
 
@@ -74,6 +80,7 @@ export default function AdminUsersPage() {
     password: '',
     fullname: '',
     gender: 'MALE',
+    dateOfBirth: '',
     email: '',
     phone: '',
     role: 'CUSTOMER',
@@ -102,12 +109,29 @@ export default function AdminUsersPage() {
   const [editingAddress, setEditingAddress] = useState<UserAddressResponse | null>(null);
   const [isEditAddressModalOpen, setIsEditAddressModalOpen] = useState<boolean>(false);
 
-  const fetchUsers = async () => {
+  // Server-Side Pagination States
+  const [currentPage, setCurrentPage] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalElements, setTotalElements] = useState<number>(0);
+
+  const fetchUsers = async (pageToFetch = currentPage, sizeToFetch = pageSize) => {
     setIsLoading(true);
     try {
-      const res = await userService.getAllUsers();
+      const res = await userService.getAllUsers({
+        page: pageToFetch,
+        size: sizeToFetch,
+        search: searchTerm,
+        role: roleFilter,
+        gender: genderFilter,
+        status: statusFilter,
+        sortBy: sortBy,
+      });
       if (res && res.data) {
-        setUsers(res.data);
+        setUsers(res.data.content || []);
+        setTotalPages(res.data.totalPages || 1);
+        setTotalElements(res.data.totalElements || 0);
+        setCurrentPage(res.data.number || 0);
       }
     } catch (err) {
       console.warn('Could not fetch users for admin table:', err);
@@ -116,9 +140,25 @@ export default function AdminUsersPage() {
     }
   };
 
+  // Debounced search and filter changes -> reload from page 0
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchUsers(0, pageSize);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm, roleFilter, genderFilter, statusFilter, sortBy]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 0 || newPage >= totalPages || newPage === currentPage) return;
+    setCurrentPage(newPage);
+    fetchUsers(newPage, pageSize);
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(0);
+    fetchUsers(0, newSize);
+  };
 
   // Open Create Modal
   const handleOpenCreateModal = () => {
@@ -133,6 +173,7 @@ export default function AdminUsersPage() {
       password: '',
       fullname: '',
       gender: 'MALE',
+      dateOfBirth: '',
       email: '',
       phone: '',
       role: 'CUSTOMER',
@@ -154,6 +195,7 @@ export default function AdminUsersPage() {
       password: '',
       fullname: u.fullname || '',
       gender: u.gender || 'OTHER',
+      dateOfBirth: u.dateOfBirth || '',
       email: u.email || '',
       phone: u.phone || '',
       role: u.role || 'CUSTOMER',
@@ -366,6 +408,12 @@ export default function AdminUsersPage() {
       return;
     }
 
+    const dobErr = validateDateOfBirth(formData.dateOfBirth, false);
+    if (dobErr) {
+      setFormError(dobErr);
+      return;
+    }
+
     if (!cleanEmail) {
       setFormError('Vui lòng nhập email.');
       return;
@@ -403,6 +451,9 @@ export default function AdminUsersPage() {
           role: formData.role,
           status: formData.status,
         };
+        if (formData.dateOfBirth) {
+          payload.dateOfBirth = formData.dateOfBirth;
+        }
         if (cleanPhone) {
           payload.phone = cleanPhone;
         }
@@ -426,6 +477,9 @@ export default function AdminUsersPage() {
           formPayload.append('password', cleanPassword);
           formPayload.append('fullname', cleanFullname);
           formPayload.append('gender', formData.gender);
+          if (formData.dateOfBirth) {
+            formPayload.append('dateOfBirth', formData.dateOfBirth);
+          }
           formPayload.append('email', cleanEmail);
           formPayload.append('role', formData.role);
           if (cleanPhone) {
@@ -442,6 +496,9 @@ export default function AdminUsersPage() {
             email: cleanEmail,
             role: formData.role,
           };
+          if (formData.dateOfBirth) {
+            payload.dateOfBirth = formData.dateOfBirth;
+          }
           if (cleanPhone) {
             payload.phone = cleanPhone;
           }
@@ -474,44 +531,7 @@ export default function AdminUsersPage() {
     setSortBy('id_desc');
   };
 
-  const filtered = users
-    .filter((u) => {
-      // Tìm kiếm theo username, họ tên, email, số điện thoại
-      const term = searchTerm.toLowerCase().trim();
-      const matchSearch =
-        !term ||
-        (u.username || '').toLowerCase().includes(term) ||
-        (u.fullname || '').toLowerCase().includes(term) ||
-        (u.email || '').toLowerCase().includes(term) ||
-        (u.phone || '').toLowerCase().includes(term);
-
-      // Lọc theo vai trò
-      const matchRole = roleFilter === 'ALL' || u.role === roleFilter;
-
-      // Lọc theo giới tính
-      const matchGender = genderFilter === 'ALL' || u.gender === genderFilter;
-
-      // Lọc theo trạng thái
-      const currentStatus = u.status || 'ACTIVE';
-      const matchStatus = statusFilter === 'ALL' || currentStatus === statusFilter;
-
-      return matchSearch && matchRole && matchGender && matchStatus;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'id_desc') return b.id - a.id;
-      if (sortBy === 'id_asc') return a.id - b.id;
-      if (sortBy === 'name_asc') {
-        const nameA = (a.fullname || a.username || '').toLowerCase();
-        const nameB = (b.fullname || b.username || '').toLowerCase();
-        return nameA.localeCompare(nameB);
-      }
-      if (sortBy === 'name_desc') {
-        const nameA = (a.fullname || a.username || '').toLowerCase();
-        const nameB = (b.fullname || b.username || '').toLowerCase();
-        return nameB.localeCompare(nameA);
-      }
-      return 0;
-    });
+  const displayedUsers = users;
 
   return (
     <div className="py-8">
@@ -519,10 +539,10 @@ export default function AdminUsersPage() {
         {/* Admin Navigation & Header */}
         <AdminNav
           title="Quản Lý Người Dùng & Sổ Địa Chỉ"
-          subtitle={`Quản lý tài khoản, phân quyền vai trò (Admin, Staff, Customer) và kiểm tra sổ địa chỉ của ${users.length} người dùng.`}
+          subtitle={`Quản lý tài khoản, phân quyền vai trò (Admin, Staff, Customer) và kiểm tra sổ địa chỉ của ${totalElements} người dùng hệ thống.`}
           actions={
             <>
-              <Button variant="secondary" size="sm" onClick={fetchUsers} icon={RefreshCw}>
+              <Button variant="secondary" size="sm" onClick={() => fetchUsers(currentPage, pageSize)} icon={RefreshCw}>
                 Làm Mới
               </Button>
               {isAdmin && (
@@ -634,7 +654,7 @@ export default function AdminUsersPage() {
           <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-line-light/60 text-xs">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-content-muted font-medium">
-                Hiển thị <strong className="text-content-primary">{filtered.length}</strong> / {users.length} người dùng
+                Trang hiện tại: <strong className="text-content-primary">{displayedUsers.length}</strong> / {totalElements} người dùng
               </span>
 
               {/* Active Filter Chips */}
@@ -705,12 +725,12 @@ export default function AdminUsersPage() {
               <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-accent-gold" />
               Đang tải danh sách người dùng...
             </div>
-          ) : filtered.length === 0 ? (
+          ) : displayedUsers.length === 0 ? (
             <div className="p-8 text-center text-content-muted bg-surface-body border border-line-light rounded-sm">
               Không tìm thấy người dùng phù hợp.
             </div>
           ) : (
-            filtered.map((u) => (
+            displayedUsers.map((u) => (
               <div
                 key={u.id}
                 className="p-4 bg-surface-body border border-line-light rounded-sm shadow-xs flex flex-col gap-3 transition-colors hover:border-accent-gold/40"
@@ -736,7 +756,7 @@ export default function AdminUsersPage() {
                         {u.fullname || u.username}
                       </div>
                       <div className="text-xs text-content-muted truncate">
-                        @{u.username} • #{u.id} • {formatGender(u.gender)}
+                        @{u.username} • #{u.id} • {formatGender(u.gender)} {u.dateOfBirth ? `• ${formatDateVN(u.dateOfBirth)}` : ''}
                       </div>
                     </div>
                   </div>
@@ -822,14 +842,14 @@ export default function AdminUsersPage() {
                     Đang tải danh sách người dùng...
                   </td>
                 </tr>
-              ) : filtered.length === 0 ? (
+              ) : displayedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-10 text-center text-content-muted">
                     Không tìm thấy người dùng phù hợp.
                   </td>
                 </tr>
               ) : (
-                filtered.map((u) => (
+                displayedUsers.map((u) => (
                   <tr key={u.id} className={styles.tableRow}>
                     <td className="p-3.5 pl-4 font-bold text-content-muted">#{u.id}</td>
                     <td className="p-3.5">
@@ -861,6 +881,12 @@ export default function AdminUsersPage() {
                       <Badge variant="default">
                         {formatGender(u.gender)}
                       </Badge>
+                      {u.dateOfBirth && (
+                        <div className="text-[0.72rem] text-content-muted mt-1 flex items-center gap-1">
+                          <Calendar size={11} className="text-accent-gold shrink-0" />
+                          <span>{formatDateVN(u.dateOfBirth)}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="p-3.5">
                       <div className="text-content-primary">{u.email}</div>
@@ -915,6 +941,99 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-5 p-4 bg-surface-body border border-line-light rounded-sm shadow-xs">
+          <div className="text-xs text-content-secondary">
+            Hiển thị <span className="font-bold text-content-primary">{totalElements === 0 ? 0 : currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)}</span> trên tổng số <span className="font-bold text-content-primary">{totalElements}</span> người dùng
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-content-muted">Số dòng:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="bg-surface border border-line-light rounded-sm text-xs font-semibold px-2 py-1 outline-none focus:border-primary text-content-primary cursor-pointer"
+              >
+                <option value={10}>10 / trang</option>
+                <option value={20}>20 / trang</option>
+                <option value={50}>50 / trang</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handlePageChange(0)}
+                disabled={currentPage === 0 || isLoading}
+                className="p-1.5 text-xs font-bold border border-line-light rounded-sm transition-colors hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed text-content-primary"
+                title="Trang đầu"
+              >
+                <ChevronsLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 0 || isLoading}
+                className="p-1.5 text-xs font-bold border border-line-light rounded-sm transition-colors hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed text-content-primary"
+                title="Trang trước"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {/* Render dynamic page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i)
+                .filter((p) => p === 0 || p === totalPages - 1 || Math.abs(p - currentPage) <= 1)
+                .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                    acc.push('...');
+                  }
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((item, idx) =>
+                  item === '...' ? (
+                    <span key={`dots-${idx}`} className="px-1.5 text-xs text-content-muted">...</span>
+                  ) : (
+                    <button
+                      key={`page-${item}`}
+                      type="button"
+                      onClick={() => handlePageChange(Number(item))}
+                      disabled={isLoading}
+                      className={cn(
+                        'min-w-[30px] h-7 px-2 text-xs font-bold border transition-colors rounded-sm',
+                        currentPage === item
+                          ? 'bg-primary text-content-inverse border-primary shadow-xs'
+                          : 'border-line-light text-content-primary hover:bg-surface'
+                      )}
+                    >
+                      {(item as number) + 1}
+                    </button>
+                  )
+                )}
+
+              <button
+                type="button"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages - 1 || isLoading}
+                className="p-1.5 text-xs font-bold border border-line-light rounded-sm transition-colors hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed text-content-primary"
+                title="Trang sau"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageChange(totalPages - 1)}
+                disabled={currentPage >= totalPages - 1 || isLoading}
+                className="p-1.5 text-xs font-bold border border-line-light rounded-sm transition-colors hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed text-content-primary"
+                title="Trang cuối"
+              >
+                <ChevronsRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* USER DETAIL MODAL - LUXURY EDITION */}
@@ -964,6 +1083,8 @@ export default function AdminUsersPage() {
                     <span>•</span>
                     <span>Giới tính: <strong className="text-content-primary">{formatGender(detailUser.gender)}</strong></span>
                     <span>•</span>
+                    <span>Ngày sinh: <strong className="text-content-primary">{formatDateVN(detailUser.dateOfBirth)}</strong></span>
+                    <span>•</span>
                     <span>Mã tài khoản: <strong className="text-content-primary">#{detailUser.id}</strong></span>
                   </div>
                 </div>
@@ -971,7 +1092,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Contact Info Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="p-3.5 border border-line-light bg-surface-body flex items-center gap-3 rounded-sm shadow-xs">
                 <div className="w-9 h-9 rounded-full bg-accent-gold/10 flex items-center justify-center shrink-0 text-accent-gold">
                   <Mail size={18} />
@@ -999,6 +1120,16 @@ export default function AdminUsersPage() {
                 <div className="min-w-0">
                   <div className="text-[0.7rem] uppercase tracking-wider font-bold text-content-muted">Giới tính</div>
                   <div className="text-sm font-semibold text-content-primary">{formatGender(detailUser.gender)}</div>
+                </div>
+              </div>
+
+              <div className="p-3.5 border border-line-light bg-surface-body flex items-center gap-3 rounded-sm shadow-xs">
+                <div className="w-9 h-9 rounded-full bg-accent-gold/10 flex items-center justify-center shrink-0 text-accent-gold">
+                  <Calendar size={18} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[0.7rem] uppercase tracking-wider font-bold text-content-muted">Ngày sinh</div>
+                  <div className="text-sm font-semibold text-content-primary">{formatDateVN(detailUser.dateOfBirth)}</div>
                 </div>
               </div>
             </div>
@@ -1218,32 +1349,42 @@ export default function AdminUsersPage() {
         )}
       </Modal>
 
-      {/* USER CREATE / EDIT MODAL */}
+      {/* USER CREATE / EDIT MODAL - LUXURY EDITORIAL */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingUser ? `Cập Nhật Tài Khoản #${editingUser.id}` : 'Tạo Tài Khoản Mới'}
-        maxWidth="540px"
+        title={editingUser ? `Cập Nhật Tài Khoản #${editingUser.id}` : 'Khởi Tạo Tài Khoản Mới'}
+        maxWidth="620px"
       >
-        <form onSubmit={handleFormSubmit} className="flex flex-col gap-3.5">
-          {/* Avatar Section */}
-          <div className="flex items-center gap-4 p-3.5 bg-surface border border-line-light rounded-sm">
+        <form onSubmit={handleFormSubmit} className="flex flex-col gap-4 text-xs">
+          {/* Subtitle */}
+          <div className="text-[0.75rem] text-content-muted -mt-2 pb-1 border-b border-line-light">
+            {editingUser
+              ? 'Chỉnh sửa thông tin định danh, quyền hạn hoặc cập nhật mật khẩu cho tài khoản người dùng.'
+              : 'Điền đầy đủ thông tin bên dưới để cấp quyền và khởi tạo tài khoản mới trên hệ thống.'}
+          </div>
+
+          {/* Luxury Avatar Upload Section */}
+          <div className="p-4 bg-gradient-to-r from-surface to-surface-body border border-accent-gold/30 rounded-sm shadow-xs flex items-center gap-4">
             <div className="relative shrink-0">
               {avatarPreview ? (
                 <img
                   src={avatarPreview}
                   alt="Ảnh đại diện"
-                  className="w-16 h-16 rounded-full object-cover border-2 border-accent-gold shadow-sm"
+                  className="w-16 h-16 rounded-full object-cover border-2 border-accent-gold shadow-md"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-surface-dark text-content-inverse flex items-center justify-center font-bold text-xl border-2 border-line-light">
+                <div className="w-16 h-16 rounded-full bg-surface-dark text-content-inverse flex items-center justify-center font-bold text-xl border-2 border-accent-gold/40 shadow-sm">
                   {(formData.fullname || formData.username || 'U')[0]?.toUpperCase() || 'U'}
                 </div>
               )}
+              <div className="absolute -bottom-1 -right-1 bg-surface-body border border-accent-gold/30 rounded-full p-1 shadow-xs">
+                <Camera size={13} className="text-accent-gold" />
+              </div>
             </div>
 
             <div className="flex-1 min-w-0">
-              <label className="block text-xs font-bold uppercase tracking-wider text-content-primary mb-1.5">
+              <label className="block text-[0.72rem] font-bold uppercase tracking-wider text-content-primary mb-1">
                 Ảnh Đại Diện (Avatar)
               </label>
               <input
@@ -1260,6 +1401,7 @@ export default function AdminUsersPage() {
                   size="sm"
                   icon={Camera}
                   onClick={() => avatarInputRef.current?.click()}
+                  className="text-xs font-semibold py-1 px-3"
                 >
                   {avatarPreview ? 'Đổi Ảnh Khác' : 'Tải Ảnh Lên'}
                 </Button>
@@ -1270,7 +1412,7 @@ export default function AdminUsersPage() {
                     variant="ghost"
                     size="sm"
                     icon={Trash2}
-                    className="text-status-error hover:bg-status-error/10 hover:text-status-error"
+                    className="text-status-error hover:bg-status-error/10 hover:text-status-error text-xs font-semibold py-1 px-2.5"
                     onClick={handleRemoveAvatar}
                   >
                     Xóa Ảnh
@@ -1278,104 +1420,167 @@ export default function AdminUsersPage() {
                 )}
               </div>
               <p className="text-[11px] text-content-muted mt-1.5 mb-0">
-                Hỗ trợ JPG, PNG, WEBP (tối đa 5MB)
+                Định dạng JPG, PNG, WEBP • Dung lượng tối đa 5MB
               </p>
             </div>
           </div>
 
-          <Input
-            label="Tên đăng nhập"
-            value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-            disabled={!!editingUser}
-            required={!editingUser}
-          />
+          {/* Section 1: Thông tin xác thực & Bảo mật */}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center gap-2 pb-1 border-b border-line-light">
+              <Lock size={14} className="text-accent-gold" />
+              <span className="text-[0.72rem] uppercase font-bold tracking-wider text-content-secondary">
+                Thông Tin Đăng Nhập & Bảo Mật
+              </span>
+            </div>
 
-          <Input
-            label={editingUser ? 'Mật khẩu mới (bỏ trống nếu giữ nguyên mật khẩu cũ)' : 'Mật khẩu'}
-            type="password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            placeholder={editingUser ? 'Nhập mật khẩu mới nếu muốn đổi (tối thiểu 6 ký tự)' : 'Nhập mật khẩu (tối thiểu 6 ký tự)'}
-            required={!editingUser}
-          />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <Input
+                  label="Tên đăng nhập"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  disabled={!!editingUser}
+                  placeholder="Ví dụ: nguyenvana"
+                  required={!editingUser}
+                />
+                {editingUser && (
+                  <span className="text-[10px] text-content-muted mt-1 block">
+                    * Tên đăng nhập là định danh cố định không thể chỉnh sửa.
+                  </span>
+                )}
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <Input
-              label="Họ và tên"
-              value={formData.fullname}
-              onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
-              placeholder="Ví dụ: Nguyễn Văn A"
-              required
-            />
-
-            <Select
-              label="Giới tính"
-              value={formData.gender}
-              onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-              options={[
-                { value: 'MALE', label: 'Nam (MALE)' },
-                { value: 'FEMALE', label: 'Nữ (FEMALE)' },
-                { value: 'OTHER', label: 'Khác (OTHER)' },
-              ]}
-              required
-            />
+              <div>
+                <Input
+                  label={editingUser ? 'Mật khẩu mới (Tùy chọn)' : 'Mật khẩu khởi tạo'}
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder={editingUser ? 'Để trống nếu giữ nguyên mật khẩu cũ' : 'Nhập mật khẩu (tối thiểu 6 ký tự)'}
+                  required={!editingUser}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <Input
-              label="Email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="example@gmail.com"
-              required
-            />
+          {/* Section 2: Thông tin cá nhân */}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center gap-2 pb-1 border-b border-line-light">
+              <UserIcon size={14} className="text-accent-gold" />
+              <span className="text-[0.72rem] uppercase font-bold tracking-wider text-content-secondary">
+                Hồ Sơ & Thông Tin Cá Nhân
+              </span>
+            </div>
 
-            <Input
-              label="Số điện thoại"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="Ví dụ: 0901000001"
-              required={!editingUser}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <Input
+                label="Họ và tên"
+                value={formData.fullname}
+                onChange={(e) => setFormData({ ...formData, fullname: e.target.value })}
+                placeholder="Ví dụ: Nguyễn Văn A"
+                required
+              />
+
+              <Select
+                label="Giới tính"
+                value={formData.gender}
+                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                options={[
+                  { value: 'MALE', label: 'Nam (MALE)' },
+                  { value: 'FEMALE', label: 'Nữ (FEMALE)' },
+                  { value: 'OTHER', label: 'Khác (OTHER)' },
+                ]}
+                required
+              />
+
+              <Input
+                label="Ngày sinh"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <Input
+                label="Email liên hệ"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="nguyenvana@gmail.com"
+                required
+              />
+
+              <Input
+                label="Số điện thoại"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="0901234567"
+                required={!editingUser}
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <Select
-              label="Vai trò (Role)"
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              options={[
-                { value: 'CUSTOMER', label: 'CUSTOMER (Khách hàng)' },
-                { value: 'STAFF', label: 'STAFF (Nhân viên)' },
-                { value: 'ADMIN', label: 'ADMIN (Quản trị viên)' },
-              ]}
-            />
+          {/* Section 3: Phân quyền & Trạng thái */}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center gap-2 pb-1 border-b border-line-light">
+              <ShieldCheck size={14} className="text-accent-gold" />
+              <span className="text-[0.72rem] uppercase font-bold tracking-wider text-content-secondary">
+                Phân Quyền & Trạng Thái Hệ Thống
+              </span>
+            </div>
 
-            <Select
-              label="Trạng thái (Status)"
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              options={[
-                { value: 'ACTIVE', label: 'ACTIVE (Kích hoạt)' },
-                { value: 'INACTIVE', label: 'INACTIVE (Khóa tài khoản)' },
-              ]}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <Select
+                label="Vai trò hệ thống (Role)"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                options={[
+                  { value: 'CUSTOMER', label: 'CUSTOMER — Khách hàng mua sắm' },
+                  { value: 'STAFF', label: 'STAFF — Nhân viên xử lý vận hành' },
+                  { value: 'ADMIN', label: 'ADMIN — Quản trị viên toàn quyền' },
+                ]}
+              />
+
+              <Select
+                label="Trạng thái tài khoản"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                options={[
+                  { value: 'ACTIVE', label: 'ACTIVE — Kích hoạt & Cho phép truy cập' },
+                  { value: 'INACTIVE', label: 'INACTIVE — Vô hiệu hóa (Khóa tài khoản)' },
+                ]}
+              />
+            </div>
           </div>
 
           {formError && (
-            <div role="alert" className="p-2.5 bg-status-error/10 border-l-4 border-status-error text-status-error text-xs font-semibold">
-              {formError}
+            <div role="alert" className="p-3 bg-status-error/10 border-l-4 border-status-error text-status-error text-xs font-semibold flex items-center gap-2 rounded-sm">
+              <AlertTriangle size={15} className="shrink-0 text-status-error" />
+              <span>{formError}</span>
             </div>
           )}
 
-          <div className="flex justify-end gap-2.5 mt-3 pt-3 border-t border-line-light">
-            <Button variant="secondary" type="button" onClick={() => setIsModalOpen(false)}>
-              Hủy
+          {/* Modal Action Buttons */}
+          <div className="flex items-center justify-end gap-3 mt-2 pt-3 border-t border-line-light">
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="text-xs uppercase font-bold tracking-wider px-4"
+            >
+              Hủy Bỏ
             </Button>
-            <Button type="submit" variant="primary" loading={isSubmitting}>
-              {editingUser ? 'Cập Nhật' : 'Tạo Mới'}
+            <Button
+              type="submit"
+              variant="primary"
+              loading={isSubmitting}
+              icon={editingUser ? Edit2 : Plus}
+              className="text-xs uppercase font-bold tracking-wider px-5"
+            >
+              {editingUser ? 'Lưu Thay Đổi' : 'Khởi Tạo Tài Khoản'}
             </Button>
           </div>
         </form>

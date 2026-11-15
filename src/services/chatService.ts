@@ -8,6 +8,17 @@ export const chatService = {
     return res.data;
   },
 
+  async uploadChatImage(file: File): Promise<ApiResponse<string>> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await apiClient.post<ApiResponse<string>>('/chat/upload-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  },
+
   async getConversations(): Promise<ApiResponse<string[]>> {
     const res = await apiClient.get<ApiResponse<string[]>>('/admin/chat/conversations');
     return res.data;
@@ -15,6 +26,18 @@ export const chatService = {
 
   async getCustomerHistory(username: string): Promise<ApiResponse<ChatMessageResponse[]>> {
     const res = await apiClient.get<ApiResponse<ChatMessageResponse[]>>(
+      `/admin/chat/${encodeURIComponent(username)}`
+    );
+    return res.data;
+  },
+
+  async cleanupExpiredMessages(days = 30): Promise<ApiResponse<number>> {
+    const res = await apiClient.delete<ApiResponse<number>>(`/admin/chat/cleanup?days=${days}`);
+    return res.data;
+  },
+
+  async deleteConversation(username: string): Promise<ApiResponse<number>> {
+    const res = await apiClient.delete<ApiResponse<number>>(
       `/admin/chat/${encodeURIComponent(username)}`
     );
     return res.data;

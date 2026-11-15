@@ -1,6 +1,5 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import Topbar from './components/layout/Topbar';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -20,12 +19,12 @@ import ProfilePage from './pages/ProfilePage';
 import AdminProductsPage from './pages/AdminProductsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminChatPage from './pages/AdminChatPage';
+import AdminNotificationsPage from './pages/AdminNotificationsPage';
 
 export default function App() {
   return (
     <div className="relative flex min-h-screen flex-col">
       <ScrollManager />
-      <Topbar />
       <Header />
 
       <main className="flex-1">
@@ -96,6 +95,14 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
                 <AdminChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/notifications"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                <AdminNotificationsPage />
               </ProtectedRoute>
             }
           />

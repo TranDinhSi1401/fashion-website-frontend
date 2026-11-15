@@ -1,0 +1,227 @@
+.root {
+  position: relative;
+  width: 220px;
+  min-width: 0;
+  z-index: 20;
+  transition: width 220ms ease;
+}
+
+.form {
+  display: flex;
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.root:focus-within {
+  width: min(300px, calc(100vw - 32px));
+}
+
+.root:focus-within .form {
+  border-color: var(--color-header-accent);
+  box-shadow: 0 0 0 3px rgba(138, 100, 45, 0.14);
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0 0.65rem 0 1rem;
+  border: 0;
+  outline: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.input::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+.input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.actionButton {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.actionButton:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--color-header-accent);
+}
+
+.actionButton:focus-visible,
+.productOption:focus-visible,
+.recentOption:focus-visible,
+.searchAll:focus-visible {
+  outline: 2px solid var(--color-header-accent);
+  outline-offset: -2px;
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 80;
+  width: min(380px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-modal);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-dropdown);
+}
+
+.sectionTitle {
+  padding: 0.75rem 1rem 0.45rem;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.productOption {
+  display: flex;
+  min-height: 66px;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  color: var(--text-primary);
+  transition: background-color 160ms ease;
+}
+
+.productOption:hover,
+.recentOption:hover {
+  background: var(--bg-surface);
+}
+
+.thumbnail,
+.thumbnailPlaceholder {
+  width: 42px;
+  height: 52px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  background: var(--bg-surface);
+}
+
+.thumbnailPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.productDetails {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.productName {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: var(--fw-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.productPrice {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+}
+
+.recentOption {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 1rem;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+.searchAll {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  text-align: left;
+}
+
+.searchAll:hover {
+  color: var(--color-header-accent);
+}
+
+.emptyState {
+  margin: 0;
+  padding: 0.75rem 1rem 1rem;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 1279px) {
+  .root:focus-within {
+    width: 100%;
+  }
+}
+
+@media (max-width: 639px) {
+  .root {
+    width: 100%;
+  }
+
+  .form {
+    height: 44px;
+  }
+
+  .root:focus-within {
+    width: 100%;
+  }
+
+  .suggestions {
+    right: -0.5rem;
+    left: -0.5rem;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .form,
+  .actionButton {
+    transition-duration: 0.01ms;
+  }
+}

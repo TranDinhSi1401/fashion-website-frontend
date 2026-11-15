@@ -2,13 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
+  ChevronRight,
   KeyRound,
   LogOut,
   MapPin,
   Menu,
   MessageSquare,
   Package,
+  Search,
   Shield,
+  ShieldCheck,
   ShoppingBag,
   User,
   Users,
@@ -17,11 +20,13 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
-import { Badge, IconButton, SearchInput } from '../ui';
+import { Badge, IconButton } from '../ui';
 import MegaMenu, { MegaMenuColumn } from './MegaMenu';
+import HeaderSearch from './HeaderSearch';
 import MiniCartDrawer from './MiniCartDrawer';
 import NotificationBell from './NotificationBell';
 import styles from './Header.module.css';
+import { formatCurrencyVND } from '../../utils/format';
 
 const MEGA_MENU_DATA: Record<'ao' | 'quan', MegaMenuColumn[]> = {
   ao: [
@@ -86,6 +91,46 @@ const MEGA_MENU_DATA: Record<'ao' | 'quan', MegaMenuColumn[]> = {
   ],
 };
 
+const MEGA_MENU_BANNERS = {
+  ao: {
+    image: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=700&q=80',
+    title: 'Áo sơ mi & essentials',
+    to: '/products?category=ao',
+  },
+  quan: {
+    image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=700&q=80',
+    title: 'Quần tây & khaki',
+    to: '/products?category=quan',
+  },
+};
+
+function BrandLogo({
+  compact = false,
+  onClick,
+}: {
+  compact?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Link
+      to="/"
+      className={cn(
+        'flex shrink-0 items-center gap-2 text-content-primary',
+        compact ? 'gap-2' : 'gap-2 sm:gap-2.5'
+      )}
+      aria-label="FashionWeb - Trang chủ"
+      onClick={onClick}
+    >
+      <span className="flex h-8 w-8 items-center justify-center border-2 border-primary bg-primary text-xs font-bold tracking-wide text-content-inverse">
+        FW
+      </span>
+      <span className={styles.logoText}>
+        FASHION<span className={styles.logoWeb}>WEB</span>
+      </span>
+    </Link>
+  );
+}
+
 export default function Header() {
   const { user, isAuthenticated, isAdmin, isStaff, logout } = useAuth();
   const { cart } = useCart();
@@ -93,10 +138,15 @@ export default function Header() {
   const [adminDropdownOpen, setAdminDropdownOpen] = useState<boolean>(false);
   const [activeMenu, setActiveMenu] = useState<'ao' | 'quan' | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState<boolean>(false);
+  const [cartPreviewOpen, setCartPreviewOpen] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState<boolean>(false);
+  const [mobileCategoryOpen, setMobileCategoryOpen] = useState<'ao' | 'quan' | null>(null);
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const routeKey = `${location.pathname}${location.search}`;
@@ -108,7 +158,10 @@ export default function Header() {
     setAdminDropdownOpen(false);
     setActiveMenu(null);
     setCartDrawerOpen(false);
+    setCartPreviewOpen(false);
     setMobileMenuOpen(false);
+    setMobileSearchOpen(false);
+    setMobileCategoryOpen(null);
   }
 
   useEffect(() => {
@@ -118,19 +171,68 @@ export default function Header() {
       }
     };
 
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setDropdownOpen(false);
+      setAdminDropdownOpen(false);
+      setActiveMenu(null);
+      setCartPreviewOpen(false);
+      setMobileSearchOpen(false);
+    };
+
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
 
     handleScroll();
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
     window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const drawer = mobileDrawerRef.current;
+    const trigger = mobileMenuTriggerRef.current;
+    const getFocusableElements = () =>
+      drawer?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+    getFocusableElements()?.[0]?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+      const focusable = getFocusableElements();
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      trigger?.focus();
+    };
+  }, [mobileMenuOpen]);
 
   const handleLogout = async () => {
     setDropdownOpen(false);
@@ -153,41 +255,43 @@ export default function Header() {
       <header
         onMouseLeave={() => setActiveMenu(null)}
         className={cn(
-          'sticky top-0 z-50 w-full rounded-none border-b border-line-light bg-surface-body text-content-primary',
+          'w-full rounded-none text-content-primary',
           styles.header,
-          isScrolled && 'shadow-header'
+          isScrolled && styles.headerScrolled
         )}
       >
-        <div className="mx-auto flex h-14 sm:h-header max-w-container items-center justify-between gap-2.5 sm:gap-6 px-3.5 sm:px-6">
+        <div
+          className={cn(
+            'mx-auto flex max-w-container items-center justify-between gap-2.5 px-3.5 sm:gap-5 sm:px-6',
+            styles.headerRow,
+            isScrolled && styles.compactRow
+          )}
+        >
           <div className="flex items-center gap-2 sm:gap-2.5">
-            {/* Mobile Hamburger Menu Button */}
             <button
+              ref={mobileMenuTriggerRef}
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded text-content-primary hover:bg-surface lg:hidden"
-              onClick={() => setMobileMenuOpen(true)}
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-full text-content-primary hover:bg-surface lg:hidden',
+                styles.hamburger
+              )}
+              onClick={() => {
+                setMobileSearchOpen(false);
+                setMobileMenuOpen(true);
+              }}
               aria-label="Mở menu điều hướng"
+              aria-expanded={mobileMenuOpen}
+              title="Mở menu"
             >
               <Menu size={22} />
             </button>
 
-            {/* Logo */}
-            <Link
-              to="/"
-              className="flex w-[140px] sm:w-[160px] shrink-0 items-center gap-2 sm:gap-2.5 text-content-primary"
-            >
-              <div className="flex h-8 w-8 items-center justify-center border-2 border-primary bg-primary text-xs font-bold tracking-wide text-content-inverse">
-                FW
-              </div>
-              <span className="text-sm sm:text-md font-bold uppercase tracking-wider">
-                FASHION<span className="font-medium text-accent-gold">WEB</span>
-              </span>
-            </Link>
+            <BrandLogo />
           </div>
 
-          {/* Main Navigation */}
           <nav
             aria-label="Điều hướng chính"
-            className="hidden items-center gap-3.5 xl:gap-5 text-sm font-semibold uppercase tracking-wider lg:flex"
+            className="hidden items-center gap-2.5 text-sm font-semibold uppercase tracking-wider lg:flex xl:gap-3"
           >
             <Link
               to="/"
@@ -221,10 +325,13 @@ export default function Header() {
 
             <div
               onMouseEnter={() => setActiveMenu('ao')}
-              className="flex h-header items-center"
+              className="flex h-full items-center"
             >
               <Link
                 to="/products?category=ao"
+                onFocus={() => setActiveMenu('ao')}
+                aria-haspopup="true"
+                aria-expanded={activeMenu === 'ao'}
                 className={cn(
                   styles.navLink,
                   location.search.includes('category=ao') && styles.navLinkActive
@@ -237,10 +344,13 @@ export default function Header() {
 
             <div
               onMouseEnter={() => setActiveMenu('quan')}
-              className="flex h-header items-center"
+              className="flex h-full items-center"
             >
               <Link
                 to="/products?category=quan"
+                onFocus={() => setActiveMenu('quan')}
+                aria-haspopup="true"
+                aria-expanded={activeMenu === 'quan'}
                 className={cn(
                   styles.navLink,
                   location.search.includes('category=quan') && styles.navLinkActive
@@ -264,12 +374,13 @@ export default function Header() {
             <Link
               to="/products?tag=sale"
               className={cn(
-                'text-accent-red',
+                styles.saleLink,
                 styles.navLink,
                 location.search.includes('tag=sale') && styles.navLinkActive
               )}
             >
-              Ưu đãi
+              <span>Ưu đãi</span>
+              <span className={styles.saleBadge}>HOT</span>
             </Link>
 
             <Link to="/#stores" className={styles.navLink}>
@@ -278,14 +389,17 @@ export default function Header() {
 
             {(isAdmin || isStaff) && (
               <div
-                className="relative flex h-header items-center"
+                className="relative flex h-full items-center"
                 onMouseEnter={() => setAdminDropdownOpen(true)}
                 onMouseLeave={() => setAdminDropdownOpen(false)}
               >
                 <Link
                   to="/admin/products"
+                  onFocus={() => setAdminDropdownOpen(true)}
+                  aria-haspopup="true"
+                  aria-expanded={adminDropdownOpen}
                   className={cn(
-                    'text-accent-gold flex items-center gap-1.5',
+                    'flex items-center gap-1.5',
                     styles.navLink,
                     location.pathname.startsWith('/admin') && styles.navLinkActive
                   )}
@@ -298,7 +412,7 @@ export default function Header() {
                 {adminDropdownOpen && (
                   <div className="absolute top-[calc(100%-10px)] left-0 z-50 w-56 rounded-sm border border-line-light bg-surface-elevated shadow-dropdown py-1.5 animate-slide-up">
                     <div className="px-3 py-1.5 border-b border-line-light mb-1">
-                      <span className="text-[0.68rem] font-bold uppercase tracking-wider text-accent-gold">
+                      <span className={cn('text-[0.68rem] font-bold uppercase tracking-wider', styles.accentText)}>
                         Phân Hệ Quản Trị
                       </span>
                     </div>
@@ -309,7 +423,7 @@ export default function Header() {
                       className={cn(
                         'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
                         location.pathname === '/admin/products'
-                          ? 'bg-accent-gold/10 text-accent-gold'
+                          ? cn('bg-accent-gold/10', styles.accentText)
                           : 'text-content-primary hover:bg-surface'
                       )}
                     >
@@ -323,7 +437,7 @@ export default function Header() {
                       className={cn(
                         'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
                         location.pathname === '/admin/users'
-                          ? 'bg-accent-gold/10 text-accent-gold'
+                          ? cn('bg-accent-gold/10', styles.accentText)
                           : 'text-content-primary hover:bg-surface'
                       )}
                     >
@@ -337,7 +451,7 @@ export default function Header() {
                       className={cn(
                         'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
                         location.pathname === '/admin/chat'
-                          ? 'bg-accent-gold/10 text-accent-gold'
+                          ? cn('bg-accent-gold/10', styles.accentText)
                           : 'text-content-primary hover:bg-surface'
                       )}
                     >
@@ -351,21 +465,28 @@ export default function Header() {
           </nav>
 
           {/* Search & Action Icons */}
-          <div className="flex shrink-0 items-center gap-2">
-            <SearchInput
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <HeaderSearch
               value={currentSearch}
-              placeholder="Tìm kiếm..."
+              placeholder="Tìm kiếm sản phẩm..."
               onSearch={handleSearch}
-              className="hidden sm:flex"
+              className={styles.desktopSearch}
+            />
+            <IconButton
+              aria-label="Mở tìm kiếm"
+              aria-expanded={mobileSearchOpen}
+              title="Tìm kiếm"
+              className={styles.searchToggle}
+              onClick={() => setMobileSearchOpen((open) => !open)}
+              icon={<Search size={19} />}
             />
 
-            {/* Realtime Notification Bell */}
             {isAuthenticated && <NotificationBell />}
 
-            {/* User Account */}
             <div className="relative" ref={dropdownRef}>
               <IconButton
                 aria-label="Tài khoản"
+                title="Tài khoản"
                 aria-expanded={dropdownOpen}
                 onClick={() => {
                   if (!isAuthenticated) {
@@ -388,107 +509,269 @@ export default function Header() {
               />
 
               {dropdownOpen && isAuthenticated && (
-                <div className="animate-slide-up absolute right-0 top-[calc(100%+8px)] z-50 w-60 overflow-hidden rounded-sm border border-line-light bg-surface-elevated shadow-dropdown">
-                  <div className="border-b border-line-light bg-surface px-4 py-3.5">
-                    <div className="text-base font-bold text-content-primary">
-                      {user?.fullname || user?.username}
-                    </div>
-                    <div className="mt-0.5 text-xs text-content-muted">
-                      {user?.email || `@${user?.username}`}
-                    </div>
-                    {user?.role && (
-                      <div className="mt-2">
-                        <Badge variant={isAdmin ? 'new' : 'vip'}>{user.role}</Badge>
+                <div
+                  role="region"
+                  aria-label="Menu tài khoản"
+                  className="animate-slide-up absolute right-0 top-[calc(100%+10px)] z-50 w-72 overflow-hidden rounded-sm border border-line-light bg-surface-elevated shadow-dropdown"
+                >
+                  {/* Luxury User Header Banner */}
+                  <div className="relative overflow-hidden border-b border-line-light bg-gradient-to-br from-surface via-surface-elevated to-surface p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="relative shrink-0">
+                        {user?.avt ? (
+                          <img
+                            src={user.avt}
+                            alt={user.fullname || user.username}
+                            className="h-11 w-11 rounded-full object-cover ring-2 ring-accent-gold/40 shadow-xs"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-dark font-bold text-sm text-content-inverse ring-2 ring-accent-gold/30 shadow-xs">
+                            {(user?.fullname || user?.username || 'U')[0]?.toUpperCase() || 'U'}
+                          </div>
+                        )}
+                        <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-surface-elevated border border-accent-gold/40 shadow-xs">
+                          <span className="h-2 w-2 rounded-full bg-status-success animate-pulse" />
+                        </div>
                       </div>
-                    )}
+
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-bold text-content-primary">
+                          {user?.fullname || user?.username}
+                        </div>
+                        <div className="truncate text-[0.72rem] text-content-muted">
+                          {user?.email || `@${user?.username}`}
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <Badge variant={isAdmin ? 'dark' : isStaff ? 'warning' : 'vip'}>
+                            {isAdmin ? 'ADMINISTRATOR' : isStaff ? 'STAFF OPERATOR' : 'CUSTOMER VIP'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="py-1.5">
+                  {/* Menu Links */}
+                  <div className="p-1.5 text-xs">
+                    {/* Section 1: Tài khoản cá nhân */}
+                    <div className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-content-muted">
+                      Tài Khoản
+                    </div>
+
                     <Link
                       to="/account/profile"
                       onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                      className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface', styles.accentHover)}
                     >
-                      <User size={15} />
-                      <span>Thông tin tài khoản</span>
+                      <div className="flex items-center gap-2.5">
+                        <User size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Thông tin tài khoản</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
                     </Link>
 
                     <Link
                       to="/account/addresses"
                       onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                      className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface', styles.accentHover)}
                     >
-                      <MapPin size={15} />
-                      <span>Sổ địa chỉ nhận hàng</span>
+                      <div className="flex items-center gap-2.5">
+                        <MapPin size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Sổ địa chỉ nhận hàng</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
                     </Link>
 
                     <Link
                       to="/account/password"
                       onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                      className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface', styles.accentHover)}
                     >
-                      <KeyRound size={15} />
-                      <span>Đổi mật khẩu</span>
+                      <div className="flex items-center gap-2.5">
+                        <KeyRound size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Đổi mật khẩu</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
                     </Link>
 
+                    {/* Section 2: Quản trị hệ thống (Admin & Staff) */}
                     {(isAdmin || isStaff) && (
                       <>
-                        <div className="my-1 h-px bg-line-light" />
+                        <div className="my-1.5 h-px bg-line-light" />
+                        <div className={cn('flex items-center gap-1.5 px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider', styles.accentText)}>
+                          <ShieldCheck size={12} />
+                          <span>Quản Trị Hệ Thống</span>
+                        </div>
+
                         <Link
                           to="/admin/products"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                          className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10', styles.accentHover)}
                         >
-                          <Package size={15} />
-                          <span>Quản lý sản phẩm</span>
+                          <div className="flex items-center gap-2.5">
+                            <Package size={15} className="text-accent-gold" />
+                            <span className="font-medium">Quản lý sản phẩm</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
+
                         <Link
                           to="/admin/users"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                          className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10', styles.accentHover)}
                         >
-                          <Users size={15} />
-                          <span>Quản lý người dùng</span>
+                          <div className="flex items-center gap-2.5">
+                            <Users size={15} className="text-accent-gold" />
+                            <span className="font-medium">Quản lý người dùng</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
+
                         <Link
                           to="/admin/chat"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                          className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10', styles.accentHover)}
                         >
-                          <MessageSquare size={15} />
-                          <span>Chat hỗ trợ trực tuyến</span>
+                          <div className="flex items-center gap-2.5">
+                            <MessageSquare size={15} className="text-accent-gold" />
+                            <span className="font-medium">Chat hỗ trợ trực tuyến</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
                       </>
                     )}
 
-                    <div className="my-1 h-px bg-line-light" />
+                    {/* Section 3: Đăng xuất */}
+                    <div className="my-1.5 h-px bg-line-light" />
                     <button
                       type="button"
                       onClick={handleLogout}
-                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-semibold text-accent-red hover:bg-surface"
+                      className="group flex w-full items-center justify-between rounded-sm px-3 py-2 text-left text-content-primary transition-colors hover:bg-surface font-medium"
                     >
-                      <LogOut size={15} />
-                      <span>Đăng xuất</span>
+                      <div className="flex items-center gap-2.5">
+                        <LogOut size={15} />
+                        <span>Đăng xuất</span>
+                      </div>
+                      <span className="text-[10px] text-content-secondary uppercase tracking-wider font-semibold">
+                        Thoát
+                      </span>
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Cart Trigger -> MiniCartDrawer */}
-            <IconButton
-              aria-label="Giỏ hàng"
-              badgeCount={cart?.totalQuantity || 0}
-              badgeVariant="accent"
-              onClick={() => setCartDrawerOpen(true)}
-              icon={<ShoppingBag size={20} />}
-            />
+            <div
+              className="relative"
+              onMouseEnter={() => setCartPreviewOpen(true)}
+              onMouseLeave={() => setCartPreviewOpen(false)}
+              onFocusCapture={() => setCartPreviewOpen(true)}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  setCartPreviewOpen(false);
+                }
+              }}
+            >
+              <IconButton
+                aria-label={`Giỏ hàng, ${cart?.totalQuantity || 0} sản phẩm`}
+                title="Giỏ hàng"
+                aria-expanded={cartPreviewOpen}
+                badgeCount={cart?.totalQuantity || 0}
+                badgeVariant="accent"
+                onClick={() => setCartDrawerOpen(true)}
+                icon={<ShoppingBag size={20} />}
+              />
+              <div
+                className={cn(
+                  styles.cartPreview,
+                  cartPreviewOpen && styles.cartPreviewOpen
+                )}
+                aria-hidden={!cartPreviewOpen}
+              >
+                <div className="flex items-center justify-between border-b border-line-light px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-content-primary">
+                    Giỏ hàng của bạn
+                  </span>
+                  <span className="text-xs text-content-secondary">
+                    {cart?.totalQuantity || 0} sản phẩm
+                  </span>
+                </div>
+                {(cart?.items || []).length === 0 ? (
+                  <p className="m-0 px-4 py-5 text-xs text-content-secondary">
+                    Giỏ hàng của bạn đang trống.
+                  </p>
+                ) : (
+                  <ul className="max-h-60 divide-y divide-line-light overflow-y-auto px-4">
+                    {(cart?.items || []).slice(0, 3).map((item) => (
+                      <li key={item.id} className="flex items-center gap-3 py-3">
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt=""
+                            className="h-12 w-10 shrink-0 object-cover"
+                          />
+                        ) : (
+                          <span className="h-12 w-10 shrink-0 bg-surface" aria-hidden="true" />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-medium text-content-primary">
+                            {item.productName}
+                          </span>
+                          <span className="mt-1 block text-[11px] text-content-secondary">
+                            {item.quantity} × {formatCurrencyVND(item.unitPrice)}
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex items-center justify-between border-t border-line-light px-4 py-3">
+                  <span className="text-xs font-semibold text-content-secondary">Tạm tính</span>
+                  <span className="text-sm font-bold text-content-primary">
+                    {formatCurrencyVND(cart?.totalPrice || 0)}
+                  </span>
+                </div>
+                <Link
+                  to="/cart"
+                  onClick={() => setCartPreviewOpen(false)}
+                  className={cn(
+                    'block bg-primary px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-content-inverse',
+                    styles.cartPreviewLink
+                  )}
+                  tabIndex={cartPreviewOpen ? 0 : -1}
+                >
+                  Xem giỏ hàng
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
+
+        {mobileSearchOpen && (
+          <div className={styles.mobileSearchPanel}>
+            <div className="mx-auto flex max-w-container items-center gap-2">
+              <HeaderSearch
+                value={currentSearch}
+                placeholder="Tìm kiếm sản phẩm..."
+                onSearch={handleSearch}
+                className="flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => setMobileSearchOpen(false)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-content-secondary hover:bg-surface hover:text-content-primary"
+                aria-label="Đóng tìm kiếm"
+                title="Đóng tìm kiếm"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+        )}
 
         <MegaMenu
           isOpen={activeMenu !== null}
           columns={activeMenu ? MEGA_MENU_DATA[activeMenu] : []}
+          banner={activeMenu ? MEGA_MENU_BANNERS[activeMenu] : undefined}
           onNavigate={() => setActiveMenu(null)}
           onMouseLeave={() => setActiveMenu(null)}
         />
@@ -509,26 +792,25 @@ export default function Header() {
           />
 
           {/* Drawer Panel */}
-          <div className="fixed inset-y-0 left-0 w-[84vw] max-w-xs bg-surface-body border-r border-line shadow-2xl flex flex-col z-10 animate-slide-right pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
+          <div
+            ref={mobileDrawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu điều hướng"
+            className={cn(
+              'fixed inset-y-0 left-0 w-[84vw] max-w-xs bg-surface-body border-r border-line shadow-2xl flex flex-col z-10 animate-slide-right pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]',
+              styles.mobileDrawer
+            )}
+          >
             {/* Drawer Header */}
             <div className="flex items-center justify-between p-4 border-b border-line">
-              <Link
-                to="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2"
-              >
-                <div className="flex h-7 w-7 items-center justify-center border-2 border-primary bg-primary text-xs font-bold tracking-wide text-content-inverse">
-                  FW
-                </div>
-                <span className="text-sm font-bold uppercase tracking-wider">
-                  FASHION<span className="font-medium text-accent-gold">WEB</span>
-                </span>
-              </Link>
+              <BrandLogo compact onClick={() => setMobileMenuOpen(false)} />
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
                 className="p-1.5 text-content-muted hover:text-content-primary rounded-full hover:bg-surface"
                 aria-label="Đóng menu"
+                title="Đóng menu"
               >
                 <X size={20} />
               </button>
@@ -536,13 +818,14 @@ export default function Header() {
 
             {/* Mobile Search Input */}
             <div className="p-3.5 border-b border-line bg-surface">
-              <SearchInput
+              <HeaderSearch
                 value={currentSearch}
                 placeholder="Tìm kiếm sản phẩm..."
                 onSearch={(q) => {
                   handleSearch(q);
                   setMobileMenuOpen(false);
                 }}
+                onProductSelect={() => setMobileMenuOpen(false)}
                 className="w-full"
               />
             </div>
@@ -554,7 +837,9 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
                   'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
-                  location.pathname === '/' ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                  location.pathname === '/'
+                    ? cn('bg-accent-gold/10', styles.accentText)
+                    : 'text-content-primary'
                 )}
               >
                 <span>Trang chủ</span>
@@ -564,7 +849,9 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
                   'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
-                  location.pathname === '/products' && !location.search ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                  location.pathname === '/products' && !location.search
+                    ? cn('bg-accent-gold/10', styles.accentText)
+                    : 'text-content-primary'
                 )}
               >
                 <span>Sản phẩm</span>
@@ -574,37 +861,87 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
                   'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
-                  location.search.includes('tag=new') ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                  location.search.includes('tag=new')
+                    ? cn('bg-accent-gold/10', styles.accentText)
+                    : 'text-content-primary'
                 )}
               >
                 <span>Hàng mới</span>
               </Link>
-              <Link
-                to="/products?category=ao"
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                  'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
-                  location.search.includes('category=ao') ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
-                )}
-              >
-                <span>Áo nam</span>
-              </Link>
-              <Link
-                to="/products?category=quan"
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                  'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
-                  location.search.includes('category=quan') ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
-                )}
-              >
-                <span>Quần nam</span>
-              </Link>
+              {(['ao', 'quan'] as const).map((category) => {
+                const isOpen = mobileCategoryOpen === category;
+                const title = category === 'ao' ? 'Áo nam' : 'Quần nam';
+                const categoryPath = `/products?category=${category}`;
+                const links = MEGA_MENU_DATA[category].flatMap((column) => column.links);
+                return (
+                  <div key={category}>
+                    <div className="flex items-center rounded hover:bg-surface">
+                      <Link
+                        to={categoryPath}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          'flex min-h-10 flex-1 items-center rounded p-2.5 transition-colors',
+                          location.search.includes(`category=${category}`)
+                            ? cn('bg-accent-gold/10', styles.accentText)
+                            : 'text-content-primary'
+                        )}
+                      >
+                        {title}
+                      </Link>
+                      <button
+                        type="button"
+                        aria-label={`${isOpen ? 'Thu gọn' : 'Mở'} danh mục ${title}`}
+                        aria-expanded={isOpen}
+                        aria-controls={`mobile-category-${category}`}
+                        onClick={() => setMobileCategoryOpen(isOpen ? null : category)}
+                        className={cn(
+                          'mr-2 flex h-8 w-8 items-center justify-center rounded-full text-content-secondary hover:bg-white',
+                          styles.mobileAccordionButton
+                        )}
+                      >
+                        <ChevronDown
+                          size={16}
+                          className={cn('transition-transform', isOpen && 'rotate-180')}
+                        />
+                      </button>
+                    </div>
+                    <div
+                      id={`mobile-category-${category}`}
+                      aria-hidden={!isOpen}
+                      inert={!isOpen}
+                      className={cn(
+                        styles.mobileSubLinks,
+                        isOpen && styles.mobileSubLinksOpen
+                      )}
+                    >
+                      <ul className="m-0 list-none py-1 pl-4">
+                        {links.map((link) => (
+                          <li key={`${category}-${link.to}-${link.label}`}>
+                            <Link
+                              to={link.to}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={cn(
+                                'block rounded px-2.5 py-2 text-[11px] font-medium normal-case text-content-secondary hover:bg-surface hover:text-content-primary',
+                                styles.drawerLink
+                              )}
+                            >
+                              {link.label}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })}
               <Link
                 to="/products?category=phukien"
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
                   'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
-                  location.search.includes('category=phukien') ? 'text-accent-gold bg-accent-gold/10' : 'text-content-primary'
+                  location.search.includes('category=phukien')
+                    ? cn('bg-accent-gold/10', styles.accentText)
+                    : 'text-content-primary'
                 )}
               >
                 <span>Phụ kiện</span>
@@ -629,7 +966,7 @@ export default function Header() {
 
               {(isAdmin || isStaff) && (
                 <div className="pt-3 mt-3 border-t border-line space-y-1">
-                  <div className="px-2.5 text-[0.68rem] font-bold uppercase tracking-wider text-accent-gold">
+                  <div className={cn('px-2.5 text-[0.68rem] font-bold uppercase tracking-wider', styles.accentText)}>
                     Phân Hệ Quản Trị
                   </div>
                   <Link
@@ -672,7 +1009,7 @@ export default function Header() {
                     {user?.avt ? (
                       <img src={user.avt} alt="" className="w-8 h-8 rounded-full object-cover border border-line" />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-accent-gold/15 text-accent-gold flex items-center justify-center font-bold text-xs">
+                      <div className={cn('w-8 h-8 rounded-full bg-accent-gold/15 flex items-center justify-center font-bold text-xs', styles.accentText)}>
                         <User size={16} />
                       </div>
                     )}
@@ -682,12 +1019,14 @@ export default function Header() {
                     </div>
                   </Link>
                   <button
+                    type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
                       handleLogout();
                     }}
-                    className="p-2 text-status-error hover:bg-status-error/10 rounded transition-colors"
+                    className="p-2 text-content-primary hover:bg-surface rounded transition-colors"
                     title="Đăng xuất"
+                    aria-label="Đăng xuất"
                   >
                     <LogOut size={16} />
                   </button>
