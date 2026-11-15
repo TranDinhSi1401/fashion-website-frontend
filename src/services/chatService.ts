@@ -8,6 +8,17 @@ export const chatService = {
     return res.data;
   },
 
+  async uploadChatImage(file: File): Promise<ApiResponse<string>> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await apiClient.post<ApiResponse<string>>('/chat/upload-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data;
+  },
+
   async getConversations(): Promise<ApiResponse<string[]>> {
     const res = await apiClient.get<ApiResponse<string[]>>('/admin/chat/conversations');
     return res.data;
