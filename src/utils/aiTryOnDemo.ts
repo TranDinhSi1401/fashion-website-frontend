@@ -12,6 +12,64 @@ export const FASHION_TIPS: string[] = [
 ];
 
 /**
+ * Danh sách Người mẫu Studio chuẩn đứng thẳng (có sẵn Quần dài & Áo phông basic)
+ * Giúp người dùng thử Quần dài, Váy đầm ngay cả khi đang mặc đồ ở nhà / quần short
+ */
+export interface StudioModelPreset {
+  id: string;
+  name: string;
+  gender: 'nam' | 'nu';
+  height: string;
+  weight: string;
+  outfit: string;
+  badge: string;
+  imageUrl: string;
+}
+
+export const STUDIO_MODEL_PRESETS: StudioModelPreset[] = [
+  {
+    id: 'male-trousers',
+    name: 'Mẫu Nam - Minh Trí',
+    gender: 'nam',
+    height: '1m78',
+    weight: '68kg',
+    outfit: 'Quần tây dài & Áo phông trắng',
+    badge: 'Chuẩn Quần Tây Dài',
+    imageUrl: 'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?auto=format&fit=crop&w=768&h=1024&q=85',
+  },
+  {
+    id: 'male-jeans',
+    name: 'Mẫu Nam - Tuấn Anh',
+    gender: 'nam',
+    height: '1m75',
+    weight: '65kg',
+    outfit: 'Quần Jean ống suông & Sơ mi',
+    badge: 'Chuẩn Quần Jean Dài',
+    imageUrl: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=768&h=1024&q=85',
+  },
+  {
+    id: 'female-trousers',
+    name: 'Mẫu Nữ - Mai Anh',
+    gender: 'nu',
+    height: '1m66',
+    weight: '50kg',
+    outfit: 'Quần âu dài & Áo basic',
+    badge: 'Chuẩn Quần Dài Nữ',
+    imageUrl: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=768&h=1024&q=85',
+  },
+  {
+    id: 'female-chic',
+    name: 'Mẫu Nữ - Khánh Linh',
+    gender: 'nu',
+    height: '1m68',
+    weight: '52kg',
+    outfit: 'Quần ống rộng & Áo croptop',
+    badge: 'Chuẩn Quần Ống Rộng',
+    imageUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=768&h=1024&q=85',
+  },
+];
+
+/**
  * Tự động phân loại danh mục trang phục dựa vào tên sản phẩm
  */
 export function detectCategory(productName: string): TryOnCategory {
@@ -193,7 +251,7 @@ export async function resizeAndOptimizeImage(
             }
           },
           'image/jpeg',
-          0.88
+          0.96
         );
       };
 
