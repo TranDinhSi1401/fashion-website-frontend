@@ -16,8 +16,14 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProfilePage from './pages/ProfilePage';
+import ReturnCreatePage from './pages/ReturnCreatePage';
+import ReturnDetailPage from './pages/ReturnDetailPage';
 import AdminProductsPage from './pages/AdminProductsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
+import AdminReturnsPage from './pages/AdminReturnsPage';
+import AdminReturnDetailPage from './pages/AdminReturnDetailPage';
+import AdminDormantReviewsPage from './pages/AdminDormantReviewsPage';
+import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
 
 export default function App() {
   return (
@@ -71,6 +77,38 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/account/orders"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account/returns"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account/returns/new"
+            element={
+              <ProtectedRoute>
+                <ReturnCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account/returns/:id"
+            element={
+              <ProtectedRoute>
+                <ReturnDetailPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Admin & Staff Protected Routes */}
           <Route
@@ -86,6 +124,38 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
                 <AdminUsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/returns"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                <AdminReturnsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/returns/dormant"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN']}>
+                <AdminDormantReviewsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/returns/holidays"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                <AdminReturnHolidaysPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/returns/:id"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                <AdminReturnDetailPage />
               </ProtectedRoute>
             }
           />

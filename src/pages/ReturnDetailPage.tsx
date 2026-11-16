@@ -1,0 +1,496 @@
+/**
+ * Trang chi tiết phiếu trả hàng dành cho Khách hàng (Customer Return Detail Page - C4).
+ * Địa chỉ route: /account/returns/:id.
+ * Hiển thị tiến trình 6 bước (ReturnTimeline), danh sách sản phẩm đối soát kèm kết quả kiểm định QC,
+ * bảng tính toán đối soát tài chính hoàn tiền, thư viện ảnh minh chứng (ReturnImageGallery)
+ * và thanh tác vụ với các Modal C5a (Sửa), C5b (STK), C5c (Xác nhận phương án), Hủy phiếu.
+ */
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  RotateCcw,
+  ArrowLeft,
+  ChevronRight,
+  Package,
+  Calendar,
+  AlertCircle,
+  Edit3,
+  CreditCard,
+  CheckCircle2,
+  XCircle,
+  DollarSign,
+  Building2,
+  FileText,
+  Clock,
+  ShieldCheck,
+} from 'lucide-react';
+import { returnService } from '../services/returnService';
+import { orderService } from '../services/orderService';
+import type { ReturnRequestResponse, ReturnRequestItemResponse } from '../types/return';
+import {
+  formatVND,
+  formatDateTime,
+  getReturnReasonLabel,
+  canCustomerEditReturn,
+  canCustomerUpdateBank,
+  canCustomerConfirmPlan,
+  canCustomerCancelReturn,
+} from '../utils/returnHelpers';
+import ReturnStatusBadge from '../components/returns/ReturnStatusBadge';
+import ReturnTimeline from '../components/returns/ReturnTimeline';
+import ReturnImageGallery from '../components/returns/ReturnImageGallery';
+import {
+  ReturnEditModal,
+  ReturnBankModal,
+  ReturnConfirmPlanModal,
+  ReturnCancelModal,
+} from '../components/returns/ReturnActionModals';
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import { cn } from '../utils/cn';
+import pageStyles from './ReturnPages.module.css';
+
+/**
+ * Chức năng: Màn hình chi tiết toàn diện của một phiếu yêu cầu trả hàng (C4).
+ *
+ * @returns Đầu ra: Thẻ JSX trang chi tiết phiếu trả hàng.
+ */
+export default function ReturnDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const [returnRequest, setReturnRequest] = useState<ReturnRequestResponse | null>(null);
+  const [orderDeliveredAt, setOrderDeliveredAt] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+
+  // Trạng thái bật/tắt các modal hành động C5
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [isBankModalOpen, setIsBankModalOpen] = useState<boolean>(false);
+  const [isConfirmPlanModalOpen, setIsConfirmPlanModalOpen] = useState<boolean>(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState<boolean>(false);
+
+  // Tải thông tin chi tiết phiếu trả hàng từ Backend API
+  const fetchReturnDetail = async (requestId: number) => {
+    setIsLoading(true);
+    setErrorMessage('');
+    try {
+      const res = await returnService.getMyRequestById(requestId);
+      if (res.data) {
+        setReturnRequest(res.data);
+        // Nếu phiếu đang chờ duyệt thì tra cứu thêm ngày giao hàng của đơn gốc để kiểm tra hạn sửa 7 ngày trên UI
+        if (res.data.status === 'PENDING_APPROVAL' && res.data.orderId) {
+          try {
+            const ord = await orderService.getOrderById(res.data.orderId);
+            setOrderDeliveredAt(ord?.deliveredAt || null);
+          } catch {
+            setOrderDeliveredAt(null);
+          }
+        }
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Không thể tải thông tin phiếu trả hàng.';
+      setErrorMessage(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!id || isNaN(Number(id))) {
+      setErrorMessage('Mã phiếu trả hàng trên đường dẫn không hợp lệ.');
+      setIsLoading(false);
+      return;
+    }
+    fetchReturnDetail(Number(id));
+  }, [id]);
+
+  // Cập nhật state sau khi thực hiện xong một thao tác modal thành công
+  const handleActionSuccess = (updated: ReturnRequestResponse) => {
+    setReturnRequest(updated);
+  };
+
+  // Trạng thái đang tải
+  if (isLoading) {
+    return (
+      <div className="container py-20 text-center text-content-muted">
+        <div className="w-8 h-8 border-2 border-line border-t-primary rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-sm">Đang tải thông tin phiếu trả hàng...</p>
+      </div>
+    );
+  }
+
+  // Trạng thái lỗi không tìm thấy phiếu
+  if (errorMessage || !returnRequest) {
+    return (
+      <div className="container py-16 max-w-2xl">
+        <div className="p-8 bg-surface border border-line-light rounded-sm text-center">
+          <AlertCircle size={40} className="text-status-error mx-auto mb-3" />
+          <h3 className="text-lg font-bold text-content-primary mb-2">
+            Không Tìm Thấy Phiếu Trả Hàng
+          </h3>
+          <p className="text-sm text-content-secondary mb-6">{errorMessage}</p>
+          <Button variant="primary" onClick={() => navigate('/account/returns')}>
+            Quay Lại Danh Sách Phiếu Trả Hàng
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Quyền tác vụ hành động của khách
+  const canEdit = canCustomerEditReturn({
+    ...returnRequest,
+    deliveredAt: orderDeliveredAt,
+  });
+  const canUpdateBank = canCustomerUpdateBank(returnRequest);
+  const canConfirmPlan = canCustomerConfirmPlan(returnRequest);
+  const canCancel = canCustomerCancelReturn(returnRequest);
+
+  return (
+    <div className="pt-8 pb-20">
+      <div className="container max-w-5xl">
+        {/* Breadcrumb điều hướng */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-content-muted mb-6">
+          <Link to="/" className="hover:text-content-primary">
+            Trang chủ
+          </Link>
+          <ChevronRight size={12} />
+          <Link to="/account/profile" className="hover:text-content-primary">
+            Tài khoản
+          </Link>
+          <ChevronRight size={12} />
+          <Link to="/account/returns" className="hover:text-content-primary">
+            Phiếu trả hàng
+          </Link>
+          <ChevronRight size={12} />
+          <span className="text-content-primary font-semibold">{returnRequest.returnCode}</span>
+        </nav>
+
+        {/* Header thông tin phiếu & Thanh hành động nhanh */}
+        <div className="bg-surface-body border border-line-light p-6 rounded-card mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-line-light">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold uppercase tracking-wide text-content-primary">
+                  {returnRequest.returnCode}
+                </h1>
+                <ReturnStatusBadge status={returnRequest.status} />
+                {returnRequest.isOverdue && (
+                  <Badge variant="warning">Quá hạn SLA</Badge>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-content-muted mt-2">
+                <span className="flex items-center gap-1.5">
+                  <Package size={14} />
+                  <span>Đơn hàng: <strong>#{returnRequest.orderCode || returnRequest.orderId}</strong></span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Calendar size={14} />
+                  <span>Ngày gửi yêu cầu: {formatDateTime(returnRequest.createdAt)}</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Thanh nút bấm hành động (Action Bar) */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {canEdit && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="flex items-center gap-1.5"
+                >
+                  <Edit3 size={14} />
+                  <span>Chỉnh Sửa</span>
+                </Button>
+              )}
+
+              {canUpdateBank && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsBankModalOpen(true)}
+                  className="flex items-center gap-1.5"
+                >
+                  <CreditCard size={14} />
+                  <span>
+                    {returnRequest.accountNumber || returnRequest.bankAccountNumber
+                      ? 'Đổi STK Hoàn'
+                      : 'Bổ Sung STK'}
+                  </span>
+                </Button>
+              )}
+
+              {canCancel && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsCancelModalOpen(true)}
+                  className="flex items-center gap-1.5 text-status-error hover:bg-surface"
+                >
+                  <XCircle size={14} />
+                  <span>Hủy Yêu Cầu</span>
+                </Button>
+              )}
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate('/account/returns')}
+                className="flex items-center gap-1.5"
+              >
+                <ArrowLeft size={14} />
+                <span>Danh Sách</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Banner nổi bật khi đang chờ khách xác nhận phương án sau kiểm định QC */}
+          {canConfirmPlan && (
+            <div className={cn('mt-6 animate-fade-in', pageStyles.alertGold)}>
+              <Clock size={22} className="text-accent-gold shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-content-primary mb-1">
+                  Đề Xuất Phương Án Xử Lý Mới Từ Kho
+                </h4>
+                <p className="text-xs text-content-secondary mb-3">
+                  Kiểm định kho đã có cập nhật đối với số lượng hoặc phân loại phí vận chuyển của yêu cầu trả hàng.
+                  Vui lòng xem thông tin đối soát và bấm xác nhận để tiếp tục quy trình hoàn tiền.
+                </p>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsConfirmPlanModalOpen(true)}
+                  className="flex items-center gap-1.5"
+                >
+                  <CheckCircle2 size={14} />
+                  <span>Xem &amp; Xác Nhận Phương Án</span>
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 1. TIẾN TRÌNH VÒNG ĐỜI 6 BƯỚC */}
+        <div className="mb-8">
+          <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-3">
+            Tiến Trình Xử Lý
+          </h2>
+          <ReturnTimeline returnRequest={returnRequest} />
+        </div>
+
+        {/* 2. BẢNG CHI TIẾT SẢN PHẨM TRẢ & KẾT QUẢ KIỂM ĐỊNH QC */}
+        <div className="bg-surface-body border border-line-light rounded-card p-6 mb-8">
+          <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-1">
+            Danh Sách Sản Phẩm Yêu Cầu Trả
+          </h2>
+          <p className="text-xs text-content-muted mb-4 break-words [overflow-wrap:anywhere]">
+            Lý do:{' '}
+            <strong className="text-content-primary">
+              {returnRequest.reasonDetail || getReturnReasonLabel(returnRequest.reason)}
+            </strong>
+          </p>
+          {returnRequest.rejectionReason && returnRequest.status !== 'REJECTED' && (
+            <p className="text-xs text-content-secondary mb-4 break-words [overflow-wrap:anywhere]">
+              Ghi chú kiểm định chung: <strong className="text-content-primary">{returnRequest.rejectionReason}</strong>
+            </p>
+          )}
+          {returnRequest.extensionReason && (
+            <p className="text-xs text-content-secondary mb-4 break-words [overflow-wrap:anywhere]">
+              Lý do gia hạn bàn giao: <strong className="text-content-primary">{returnRequest.extensionReason}</strong>
+            </p>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className={pageStyles.tableHeader}>
+                  <th className="py-3 px-4">Sản Phẩm</th>
+                  <th className="py-3 px-4 text-center">SL Gửi</th>
+                  <th className="py-3 px-4 text-center">SL Duyệt QC</th>
+                  <th className="py-3 px-4">Ghi Chú Kiểm Định</th>
+                  <th className="py-3 px-4 text-right">Tiền Hoàn</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm divide-y divide-line-light">
+                {(returnRequest.items || []).map((item: ReturnRequestItemResponse) => (
+                  <tr key={item.id} className={pageStyles.tableRow}>
+                    <td className="py-3.5 px-4">
+                      <div className="font-semibold text-content-primary">{item.productName}</div>
+                      <div className="text-xs text-content-muted">{item.variantInfo || 'Tiêu chuẩn'}</div>
+                    </td>
+                    <td className="py-3.5 px-4 text-center font-medium">{item.quantity}</td>
+                    <td className="py-3.5 px-4 text-center">
+                      {item.acceptedQuantity !== null && item.acceptedQuantity !== undefined ? (
+                        <span
+                          className={cn(
+                            'font-bold px-2 py-0.5 rounded-sm text-xs',
+                            item.acceptedQuantity < item.quantity
+                              ? 'bg-surface text-status-warning'
+                              : 'bg-surface text-status-success'
+                          )}
+                        >
+                          {item.acceptedQuantity}
+                        </span>
+                      ) : (
+                        <span className="text-content-muted italic text-xs">Chờ kiểm tra</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-xs text-content-secondary">
+                      {item.inspectionNote || '-'}
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-bold text-content-primary">
+                      {formatVND(item.itemRefundAmount || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 3. ĐỐI SOÁT TÀI CHÍNH & THÔNG TIN NGÂN HÀNG HOÀN TIỀN */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Cột 1: Bảng đối soát tài chính */}
+          <div className={pageStyles.reconciliationCard}>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-content-primary mb-4 flex items-center gap-2">
+              <DollarSign size={16} />
+              <span>Đối Soát Tài Chính Hoàn Tiền</span>
+            </h3>
+
+            <div className="flex flex-col gap-3 text-sm">
+              <div className="flex justify-between items-center text-content-secondary">
+                <span>Tổng tiền sản phẩm duyệt hoàn:</span>
+                <span className="font-semibold text-content-primary">
+                  {formatVND(returnRequest.itemsRefundAmount || 0)}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center text-content-secondary">
+                <span>Phí vận chuyển trả hàng (nếu có):</span>
+                <span className="font-semibold text-content-primary">
+                  {returnRequest.returnShippingFee && returnRequest.returnShippingFee > 0
+                    ? `- ${formatVND(returnRequest.returnShippingFee)}`
+                    : 'Miễn phí'}
+                </span>
+              </div>
+
+              <div className="border-t border-line-light pt-3 flex justify-between items-center">
+                <span className="font-bold text-content-primary">Tổng tiền thực tế hoàn lại:</span>
+                <span className={pageStyles.refundAmountHighlight}>
+                  {formatVND(returnRequest.refundAmount)}
+                </span>
+              </div>
+
+              {returnRequest.refundTransactionCode && (
+                <div className="mt-2 p-2.5 bg-surface-body border border-line-light rounded-sm text-xs">
+                  <span className="text-content-muted">Mã giao dịch ngân hàng:</span>{' '}
+                  <strong className="text-content-primary font-mono">
+                    {returnRequest.refundTransactionCode}
+                  </strong>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Cột 2: Thông tin tài khoản ngân hàng nhận tiền */}
+          <div className={pageStyles.reconciliationCard}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-content-primary flex items-center gap-2">
+                <Building2 size={16} />
+                <span>Tài Khoản Nhận Tiền</span>
+              </h3>
+              {canUpdateBank && (
+                <button
+                  type="button"
+                  onClick={() => setIsBankModalOpen(true)}
+                  className="text-xs text-primary hover:underline font-semibold cursor-pointer"
+                >
+                  Thay đổi
+                </button>
+              )}
+            </div>
+
+            {returnRequest.accountNumber || returnRequest.bankAccountNumber ? (
+              <div className="flex flex-col gap-2.5 text-sm">
+                <div>
+                  <span className="text-xs text-content-muted block">Ngân hàng:</span>
+                  <strong className="text-content-primary">
+                    {returnRequest.bankName || 'Chưa cập nhật tên NH'}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-xs text-content-muted block">Số tài khoản:</span>
+                  <strong className="text-content-primary font-mono">
+                    {returnRequest.accountNumber || returnRequest.bankAccountNumber}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-xs text-content-muted block">Chủ tài khoản:</span>
+                  <strong className="text-content-primary">
+                    {returnRequest.accountHolderName || returnRequest.bankAccountHolder}
+                  </strong>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-surface-body border border-dashed border-line rounded-sm text-center">
+                <p className="text-xs text-content-muted mb-3">
+                  Bạn chưa cung cấp thông tin tài khoản ngân hàng nhận tiền hoàn.
+                </p>
+                {canUpdateBank && (
+                  <Button variant="secondary" size="sm" onClick={() => setIsBankModalOpen(true)}>
+                    Bổ Sung Tài Khoản Ngay
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 4. THƯ VIỆN ẢNH MINH CHỨNG */}
+        <div className="bg-surface-body border border-line-light rounded-card p-6">
+          <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-1">
+            Ảnh Minh Chứng
+          </h2>
+          <p className="text-xs text-content-muted mb-4">
+            Bấm vào từng ảnh để phóng to và xem chi tiết
+          </p>
+
+          <ReturnImageGallery images={returnRequest.images} />
+        </div>
+
+        {/* CÁC MODAL HÀNH ĐỘNG C5 */}
+        <ReturnEditModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          returnRequest={returnRequest}
+          onSuccess={handleActionSuccess}
+        />
+
+        <ReturnBankModal
+          isOpen={isBankModalOpen}
+          onClose={() => setIsBankModalOpen(false)}
+          returnRequest={returnRequest}
+          onSuccess={handleActionSuccess}
+        />
+
+        <ReturnConfirmPlanModal
+          isOpen={isConfirmPlanModalOpen}
+          onClose={() => setIsConfirmPlanModalOpen(false)}
+          returnRequest={returnRequest}
+          onSuccess={handleActionSuccess}
+        />
+
+        <ReturnCancelModal
+          isOpen={isCancelModalOpen}
+          onClose={() => setIsCancelModalOpen(false)}
+          returnRequest={returnRequest}
+          onSuccess={handleActionSuccess}
+        />
+      </div>
+    </div>
+  );
+}

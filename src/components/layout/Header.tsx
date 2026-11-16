@@ -6,6 +6,7 @@ import {
   LogOut,
   MapPin,
   Package,
+  RotateCcw,
   Shield,
   ShoppingBag,
   User,
@@ -349,6 +350,24 @@ export default function Header() {
                       <span>Đổi mật khẩu</span>
                     </Link>
 
+                    <Link
+                      to="/account/orders"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                    >
+                      <Package size={15} />
+                      <span>Đơn hàng của tôi</span>
+                    </Link>
+
+                    <Link
+                      to="/account/returns"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-content-primary hover:bg-surface"
+                    >
+                      <RotateCcw size={15} />
+                      <span>Trả hàng &amp; hoàn tiền</span>
+                    </Link>
+
                     {(isAdmin || isStaff) && (
                       <>
                         <div className="my-1 h-px bg-line-light" />
@@ -367,6 +386,14 @@ export default function Header() {
                         >
                           <Users size={15} />
                           <span>Quản lý người dùng</span>
+                        </Link>
+                        <Link
+                          to="/admin/returns"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                        >
+                          <RotateCcw size={15} />
+                          <span>Quản lý trả hàng</span>
                         </Link>
                       </>
                     )}
