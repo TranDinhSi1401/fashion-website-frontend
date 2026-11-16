@@ -12,6 +12,64 @@ export const FASHION_TIPS: string[] = [
 ];
 
 /**
+ * Danh sách Người mẫu Studio chuẩn đứng thẳng (có sẵn Quần dài & Áo phông basic)
+ * Giúp người dùng thử Quần dài, Váy đầm ngay cả khi đang mặc đồ ở nhà / quần short
+ */
+export interface StudioModelPreset {
+  id: string;
+  name: string;
+  gender: 'nam' | 'nu';
+  height: string;
+  weight: string;
+  outfit: string;
+  badge: string;
+  imageUrl: string;
+}
+
+export const STUDIO_MODEL_PRESETS: StudioModelPreset[] = [
+  {
+    id: 'male-fullbody-1',
+    name: 'Mẫu Nam – Minh Trí',
+    gender: 'nam',
+    height: '1m80',
+    weight: '70kg',
+    outfit: 'Toàn thân • Quần tây dài & Sơ mi trắng',
+    badge: 'Chuẩn Thử Quần & Áo',
+    imageUrl: '/models/model_male_1.jpg',
+  },
+  {
+    id: 'male-fullbody-2',
+    name: 'Mẫu Nam – Tuấn Anh',
+    gender: 'nam',
+    height: '1m76',
+    weight: '66kg',
+    outfit: 'Toàn thân • Quần Jean dài & Áo thun',
+    badge: 'Chuẩn Thử Quần & Áo',
+    imageUrl: '/models/model_male_2.jpg',
+  },
+  {
+    id: 'female-fullbody-1',
+    name: 'Mẫu Nữ – Mai Anh',
+    gender: 'nu',
+    height: '1m68',
+    weight: '50kg',
+    outfit: 'Toàn thân • Quần âu dài & Áo basic',
+    badge: 'Chuẩn Thử Quần & Áo Nữ',
+    imageUrl: '/models/model_female_1.jpg',
+  },
+  {
+    id: 'female-fullbody-2',
+    name: 'Mẫu Nữ – Khánh Linh',
+    gender: 'nu',
+    height: '1m66',
+    weight: '49kg',
+    outfit: 'Toàn thân • Váy đầm dài liền thân',
+    badge: 'Chuẩn Thử Váy & Đầm',
+    imageUrl: '/models/model_female_2.jpg',
+  },
+];
+
+/**
  * Tự động phân loại danh mục trang phục dựa vào tên sản phẩm
  */
 export function detectCategory(productName: string): TryOnCategory {
@@ -193,7 +251,7 @@ export async function resizeAndOptimizeImage(
             }
           },
           'image/jpeg',
-          0.88
+          0.96
         );
       };
 
