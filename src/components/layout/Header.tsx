@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Package,
   Search,
+  RotateCcw,
   Shield,
   ShieldCheck,
   ShoppingBag,
@@ -593,6 +594,30 @@ export default function Header() {
                       <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
                     </Link>
 
+                    <Link
+                      to="/account/orders"
+                      onClick={() => setDropdownOpen(false)}
+                      className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface', styles.accentHover)}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Package size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Đơn hàng của tôi</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
+                    </Link>
+
+                    <Link
+                      to="/account/returns"
+                      onClick={() => setDropdownOpen(false)}
+                      className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface', styles.accentHover)}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <RotateCcw size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Trả hàng &amp; hoàn tiền</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
+                    </Link>
+
                     {/* Section 2: Quản trị hệ thống (Admin & Staff) */}
                     {(isAdmin || isStaff) && (
                       <>
@@ -634,6 +659,17 @@ export default function Header() {
                           <div className="flex items-center gap-2.5">
                             <MessageSquare size={15} className="text-accent-gold" />
                             <span className="font-medium">Chat hỗ trợ trực tuyến</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
+                        </Link>
+                        <Link
+                          to="/admin/returns"
+                          onClick={() => setDropdownOpen(false)}
+                          className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10', styles.accentHover)}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <RotateCcw size={15} className="text-accent-gold" />
+                            <span className="font-medium">Quản lý trả hàng</span>
                           </div>
                           <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>

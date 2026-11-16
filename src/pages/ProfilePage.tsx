@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { User, KeyRound, MapPin, Camera, Trash2, Plus, Calendar, AlertCircle, CheckCircle2, Sparkles, AlertTriangle, ShieldCheck, ExternalLink } from 'lucide-react';
+import { User, KeyRound, MapPin, Camera, Trash2, Plus, Calendar, AlertCircle, CheckCircle2, Sparkles, AlertTriangle, ShieldCheck, ExternalLink, Package, RotateCcw } from 'lucide-react';
 import PreferenceMatrixTab from '../components/profile/PreferenceMatrixTab';
+import CustomerOrdersTab from './CustomerOrdersTab';
+import CustomerReturnsTab from './CustomerReturnsTab';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/userService';
 import { UserAddressResponse } from '../types/user';
@@ -23,6 +25,10 @@ export default function ProfilePage() {
     ? 'preferences'
     : location.pathname.includes('/password')
     ? 'password'
+    : location.pathname.includes('/orders')
+    ? 'orders'
+    : location.pathname.includes('/returns')
+    ? 'returns'
     : 'profile';
 
   const [profileForm, setProfileForm] = useState({
@@ -308,6 +314,34 @@ export default function ProfilePage() {
             >
               <User size={16} />
               Thông Tin &amp; Địa Chỉ
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/account/orders', { state: { keepScroll: true } })}
+              className={cn(
+                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
+                activeTab === 'orders'
+                  ? 'bg-surface-dark text-content-inverse font-bold'
+                  : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
+              )}
+            >
+              <Package size={16} />
+              Đơn Hàng Của Tôi
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/account/returns', { state: { keepScroll: true } })}
+              className={cn(
+                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
+                activeTab === 'returns'
+                  ? 'bg-surface-dark text-content-inverse font-bold'
+                  : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
+              )}
+            >
+              <RotateCcw size={16} />
+              Trả Hàng &amp; Hoàn Tiền
             </button>
 
             <button
@@ -718,6 +752,20 @@ export default function ProfilePage() {
             {activeTab === 'preferences' && (
               <div>
                 <PreferenceMatrixTab />
+              </div>
+            )}
+
+            {/* TAB 5: MY ORDERS (C1) */}
+            {activeTab === 'orders' && (
+              <div>
+                <CustomerOrdersTab />
+              </div>
+            )}
+
+            {/* TAB 6: MY RETURNS (C3) */}
+            {activeTab === 'returns' && (
+              <div>
+                <CustomerReturnsTab />
               </div>
             )}
           </div>

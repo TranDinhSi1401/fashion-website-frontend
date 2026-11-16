@@ -1,0 +1,98 @@
+/* ReturnPages.module.css - Styles dùng chung cho các màn hình Trả hàng & Hoàn tiền */
+
+.alertWarning {
+  padding: 12px 16px;
+  background-color: rgba(230, 126, 34, 0.08);
+  border-left: 3px solid var(--status-warning);
+  color: var(--text-primary);
+  font-size: var(--fs-base);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-sm);
+}
+
+.alertError {
+  padding: 12px 16px;
+  background-color: rgba(208, 2, 27, 0.08);
+  border-left: 3px solid var(--status-error);
+  color: var(--status-error);
+  font-size: var(--fs-base);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-sm);
+}
+
+.alertSuccess {
+  padding: 12px 16px;
+  background-color: rgba(31, 139, 76, 0.08);
+  border-left: 3px solid var(--status-success);
+  color: var(--status-success);
+  font-size: var(--fs-base);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-sm);
+}
+
+.alertGold {
+  padding: 14px 18px;
+  background-color: rgba(197, 160, 89, 0.12);
+  border-left: 4px solid var(--color-accent-gold);
+  color: var(--text-primary);
+  font-size: var(--fs-base);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-sm);
+}
+
+.alertInfo {
+  padding: 12px 16px;
+  background-color: rgba(17, 17, 17, 0.04);
+  border-left: 3px solid var(--color-primary);
+  color: var(--text-primary);
+  font-size: var(--fs-base);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-sm);
+}
+
+.reconciliationCard {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  padding: 20px;
+  border-radius: var(--radius-card);
+}
+
+.refundAmountHighlight {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-accent-red);
+}
+
+.tableHeader {
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color 0.2s ease;
+}
+
+.tableRow:hover {
+  background-color: rgba(17, 17, 17, 0.02);
+}
