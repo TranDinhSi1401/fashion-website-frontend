@@ -5,13 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { userService } from '../services/userService';
 import { shippingService, ShippingOrderPreview } from '../services/shippingService';
+import { paymentMethodService, PaymentMethodResponse } from '../services/paymentMethodService';
+import { specialOfferService, SpecialOfferResponse } from '../services/specialOfferService';
 import { UserAddressResponse } from '../types/user';
 import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import AddressFormModal from '../components/profile/AddressFormModal';
 import { Button, Input, Radio, Select } from '../components/ui';
-
-type PaymentMethod = 'VNPay' | 'COD';
 
 function CheckoutProductImage({ url, name }: { url?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
@@ -36,8 +36,12 @@ function CheckoutProductImage({ url, name }: { url?: string | null; name: string
 export default function CheckoutPage() {
   const { user } = useAuth();
   const { cart, loading, error, refresh } = useCart();
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
-  const paymentMethodRef = useRef(paymentMethod);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodResponse[]>([]);
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<number | ''>('');
+  const selectedPaymentMethodIdRef = useRef(selectedPaymentMethodId);
+  const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(true);
+  const [paymentMethodsError, setPaymentMethodsError] = useState('');
+  const [paymentMethodsRetry, setPaymentMethodsRetry] = useState(0);
   const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | ''>('');
   const [addressesLoading, setAddressesLoading] = useState(true);
@@ -47,10 +51,76 @@ export default function CheckoutPage() {
   const [shippingPreview, setShippingPreview] = useState<ShippingOrderPreview | null>(null);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingError, setShippingError] = useState('');
+  const [specialOffers, setSpecialOffers] = useState<SpecialOfferResponse[]>([]);
+  const [selectedOfferId, setSelectedOfferId] = useState<number | ''>('');
+  const [specialOfferLoading, setSpecialOfferLoading] = useState(true);
+  const [specialOfferError, setSpecialOfferError] = useState('');
+  const [specialOfferRetry, setSpecialOfferRetry] = useState(0);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    let active = true;
+
+    specialOfferService
+      .getActiveOffers()
+      .then((offers) => {
+        if (!active) return;
+        setSpecialOffers(offers.filter((offer) => offer.isActive));
+        setSelectedOfferId('');
+      })
+      .catch((failure) => {
+        if (active) {
+          setSpecialOfferError(
+            extractErrorMessage(failure, 'Không thể tải ưu đãi.')
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setSpecialOfferLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [specialOfferRetry]);
+
+  useEffect(() => {
+    let active = true;
+
+    paymentMethodService
+      .getPaymentMethods()
+      .then((response) => {
+        if (!active) return;
+        const activePaymentMethods = (response.data || []).filter(
+          (paymentMethod) => paymentMethod.isActive === true
+        );
+        setPaymentMethods(activePaymentMethods);
+        const selectedId = activePaymentMethods.some(
+          (paymentMethod) => paymentMethod.id === selectedPaymentMethodIdRef.current
+        )
+          ? selectedPaymentMethodIdRef.current
+          : activePaymentMethods[0]?.id ?? '';
+        selectedPaymentMethodIdRef.current = selectedId;
+        setSelectedPaymentMethodId(selectedId);
+      })
+      .catch((failure) => {
+        if (active) {
+          setPaymentMethodsError(
+            extractErrorMessage(failure, 'Không thể tải phương thức thanh toán.')
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setPaymentMethodsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [paymentMethodsRetry]);
 
   useEffect(() => {
     let active = true;
@@ -82,14 +152,14 @@ export default function CheckoutPage() {
   }, [addressesRetry]);
 
   useEffect(() => {
-    paymentMethodRef.current = paymentMethod;
-  }, [paymentMethod]);
+    const paymentMethodId = selectedPaymentMethodIdRef.current;
 
-  useEffect(() => {
     if (
       typeof selectedAddressId !== 'number' ||
       !Number.isFinite(selectedAddressId) ||
-      selectedAddressId <= 0
+      selectedAddressId <= 0 ||
+      typeof paymentMethodId !== 'number' ||
+      !Number.isFinite(paymentMethodId)
     ) {
       setShippingPreview(null);
       setShippingError('');
@@ -107,7 +177,7 @@ export default function CheckoutPage() {
       .getOrderPreview(
         {
           userAddressId: selectedAddressId,
-          paymentMethodId: paymentMethodRef.current === 'COD' ? 1 : 2,
+          paymentMethodId,
         },
         controller.signal
       )
@@ -145,6 +215,26 @@ export default function CheckoutPage() {
         timeStyle: 'short',
       }).format(new Date(shippingPreview.expected_delivery_time))
     : '';
+  const selectedOffer =
+    specialOffers.find((offer) => offer.id === selectedOfferId) ?? null;
+  const offerEligible =
+    selectedOffer !== null &&
+    cart !== null &&
+    cart.totalPrice >= (selectedOffer.minOrderAmount ?? 0);
+  const discountAmount =
+    selectedOffer && offerEligible && cart
+      ? Math.min(
+          cart.totalPrice,
+          Math.round(
+            selectedOffer.offerType === 'PERCENT'
+              ? Math.min(
+                  (cart.totalPrice * (selectedOffer.discountPercent ?? 0)) / 100,
+                  selectedOffer.maxDiscountAmount ?? Number.POSITIVE_INFINITY
+                )
+              : selectedOffer.discountAmount ?? 0
+          )
+        )
+      : 0;
 
   return (
     <div className="container pb-16">
@@ -312,21 +402,48 @@ export default function CheckoutPage() {
                 Hình thức thanh toán
               </h2>
 
-              <Radio
-                name="paymentMethod"
-                value="COD"
-                label="Thanh toán khi nhận hàng"
-                checked={paymentMethod === 'COD'}
-                onChange={() => setPaymentMethod('COD')}
-              />
-
-              <Radio
-                name="paymentMethod"
-                value="VNPay"
-                label="Thanh toán qua VNPay"
-                checked={paymentMethod === 'VNPay'}
-                onChange={() => setPaymentMethod('VNPay')}
-              />
+              {paymentMethodsLoading && (
+                <p className="text-sm text-content-muted" role="status">
+                  Đang tải phương thức thanh toán…
+                </p>
+              )}
+              {paymentMethodsError && (
+                <p className="text-xs italic text-status-error" role="alert">
+                  {paymentMethodsError}{' '}
+                  <button
+                    type="button"
+                    className="underline underline-offset-2"
+                    onClick={() => {
+                      setPaymentMethodsLoading(true);
+                      setPaymentMethodsError('');
+                      setPaymentMethodsRetry((value) => value + 1);
+                    }}
+                  >
+                    Thử lại
+                  </button>
+                </p>
+              )}
+              {!paymentMethodsLoading &&
+                !paymentMethodsError &&
+                paymentMethods.length === 0 && (
+                  <p className="text-sm text-content-muted">
+                    Hiện không có phương thức thanh toán khả dụng.
+                  </p>
+                )}
+              {paymentMethods.map((paymentMethod) => (
+                <Radio
+                  key={paymentMethod.id}
+                  id={`payment-method-${paymentMethod.id}`}
+                  name="paymentMethod"
+                  value={paymentMethod.id}
+                  label={paymentMethod.name}
+                  checked={selectedPaymentMethodId === paymentMethod.id}
+                  onChange={() => {
+                    selectedPaymentMethodIdRef.current = paymentMethod.id;
+                    setSelectedPaymentMethodId(paymentMethod.id);
+                  }}
+                />
+              ))}
             </section>
 
             <Button type="button" size="lg" className="mt-5 w-full">
@@ -380,24 +497,64 @@ export default function CheckoutPage() {
             </ul>
 
             <div className="border-t border-line-light py-4">
-              <label
-                htmlFor="checkout-coupon-code"
-                className="mb-2 block text-sm font-semibold text-content-primary"
+              <Select
+                id="checkout-special-offer"
+                name="specialOffer"
+                label="Ưu đãi"
+                value={selectedOfferId}
+                onChange={(event) =>
+                  setSelectedOfferId(
+                    event.target.value ? Number(event.target.value) : ''
+                  )
+                }
+                disabled={specialOfferLoading || specialOffers.length === 0}
               >
-                Mã khuyến mãi
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="checkout-coupon-code"
-                  name="coupon"
-                  type="text"
-                  placeholder="Nhập mã"
-                  className="flex-1"
-                />
-                <Button type="button" variant="secondary" className="shrink-0">
-                  Xác nhận
-                </Button>
-              </div>
+                <option value="">
+                  {specialOfferLoading
+                    ? 'Đang tải ưu đãi…'
+                    : specialOffers.length > 0
+                      ? 'Chọn ưu đãi'
+                      : 'Không có ưu đãi khả dụng'}
+                </option>
+                {specialOffers.map((offer) => {
+                  const eligible =
+                    cart.totalPrice >= (offer.minOrderAmount ?? 0);
+                  return (
+                    <option key={offer.id} value={offer.id} disabled={!eligible}>
+                      {offer.title}
+                      {offer.offerType === 'PERCENT'
+                        ? ` — Giảm ${offer.discountPercent ?? 0}%`
+                        : ` — Giảm ${formatCurrencyVND(offer.discountAmount)}`}
+                      {!eligible
+                        ? ` (Đơn tối thiểu ${formatCurrencyVND(offer.minOrderAmount)})`
+                        : ''}
+                    </option>
+                  );
+                })}
+              </Select>
+
+              {specialOfferError && (
+                <p className="mt-2 text-xs italic text-status-error" role="alert">
+                  {specialOfferError}{' '}
+                  <button
+                    type="button"
+                    className="underline underline-offset-2"
+                    onClick={() => {
+                      setSpecialOfferLoading(true);
+                      setSpecialOfferError('');
+                      setSpecialOfferRetry((value) => value + 1);
+                    }}
+                  >
+                    Thử lại
+                  </button>
+                </p>
+              )}
+              {selectedOffer && !offerEligible && (
+                <p className="mt-2 text-xs text-content-muted">
+                  Đơn hàng tối thiểu {formatCurrencyVND(selectedOffer.minOrderAmount)} để
+                  áp dụng ưu đãi này.
+                </p>
+              )}
             </div>
 
             <section
@@ -429,6 +586,15 @@ export default function CheckoutPage() {
                 </strong>
               </div>
 
+              {selectedOffer && (
+                <div className="flex justify-between gap-3 py-2 text-sm text-content-secondary">
+                  <span>Ưu đãi</span>
+                  <strong className="whitespace-nowrap font-semibold text-status-success">
+                    −{formatCurrencyVND(discountAmount)}
+                  </strong>
+                </div>
+              )}
+
               {shippingError && (
                 <p className="my-1.5 text-xs italic text-status-error" role="alert">
                   {shippingError}
@@ -445,7 +611,9 @@ export default function CheckoutPage() {
                 <span>Tổng thanh toán</span>
                 <strong className="whitespace-nowrap text-lg text-accent-red">
                   {shippingPreview
-                    ? formatCurrencyVND(cart.totalPrice + shippingPreview.total_fee)
+                    ? formatCurrencyVND(
+                        cart.totalPrice - discountAmount + shippingPreview.total_fee
+                      )
                     : '—'}
                 </strong>
               </div>
