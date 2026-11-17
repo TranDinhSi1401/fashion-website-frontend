@@ -40,3 +40,8 @@ npm run lint
 
 Các unit test Node sử dụng Node 22.18+. Backend phải có các trường CartItemResponse mới để hiển thị tồn kho.
 Giữ `.env` cục bộ theo `.env.example`; không commit hoặc push thông tin kết nối thật.
+
+
+## Bổ sung giao diện giỏ hàng
+
+Giỏ nhanh dùng native dialog để đứng trên các widget AI/chat, khóa focus và cuộn nền khi mở. Trên điện thoại giỏ chiếm đủ chiều ngang, vùng danh sách cuộn riêng và footer giữ nút Xem giỏ hàng/Thanh toán trong khung. Trang `/cart` được căn giữa theo container có khoảng đệm responsive; AI/chat được ẩn trên `/cart` và `/checkout` để không che thao tác mua hàng.

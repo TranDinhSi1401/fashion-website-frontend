@@ -3,6 +3,9 @@ import { ApiResponse } from '../types/api';
 import { ProductResponse, ProductRequest, ProductFilters, ProductPage } from '../types/product';
 
 export const productService = {
+  async getOptions(): Promise<ApiResponse<{ colors: string[]; sizes: string[] }>> {
+    return (await apiClient.get('/products/options')).data;
+  },
   async getProductsPage(params: ProductFilters & { page: number; pageSize: number }, signal?: AbortSignal): Promise<ApiResponse<ProductPage>> {
     return (await apiClient.get<ApiResponse<ProductPage>>('/products/paged', { params, signal })).data;
   },

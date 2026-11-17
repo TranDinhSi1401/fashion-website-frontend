@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { CartResponse } from '../types/cart';
 import { formatCurrencyVND } from '../utils/format';
 import Breadcrumb from '../components/layout/Breadcrumb';
+import styles from './CartPage.module.css';
 import BackButton from '../components/common/BackButton';
 import { Button, Modal, QuantityStepper } from '../components/ui';
 
@@ -52,7 +53,7 @@ export default function CartPage() {
   };
 
   return (
-    <div className="container pb-16">
+    <div className={`${styles.page} pb-16`}>
       <Breadcrumb items={[{ label: 'Sản phẩm', to: '/products' }, { label: 'Giỏ hàng' }]} />
       <BackButton />
 
@@ -113,7 +114,7 @@ export default function CartPage() {
           className="grid grid-cols-1 items-start gap-9 lg:grid-cols-[minmax(0,1fr)_340px]"
           aria-busy={busy || loading}
         >
-          <section aria-label="Sản phẩm trong giỏ hàng">
+          <section className="min-w-0" aria-label="Sản phẩm trong giỏ hàng">
             {cart.items.map((item) => (
               <article
                 key={item.id}
@@ -127,7 +128,7 @@ export default function CartPage() {
                 <div className="flex min-w-0 flex-col items-start gap-2.5">
                   <Link
                     to={`/products/${item.productId}`}
-                    className="text-base font-medium leading-normal text-content-primary transition-colors hover:text-accent-gold"
+                    className="break-words text-base font-medium leading-normal text-content-primary transition-colors hover:text-accent-gold"
                   >
                     {item.productName}
                   </Link>

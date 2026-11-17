@@ -1,22 +1,40 @@
-.backdrop {
-  background-color: var(--bg-overlay);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: var(--transition-smooth);
+.shell {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  overflow: hidden;
 }
-
-.backdropOpen {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-
+.shell::backdrop { background: transparent; }
+.backdrop { position: absolute; inset: 0; background: var(--bg-overlay); }
 .drawer {
-  transform: translateX(100%);
-  transition: var(--transition-smooth);
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(420px, 100%);
+  height: 100%;
+  min-width: 0;
 }
-
-.drawerOpen {
-  transform: translateX(0);
+.drawerOpen { animation: enterCart 180ms ease-out; }
+.footer {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 20px;
+  border-top: 1px solid var(--border-light);
+  padding: 20px 20px max(20px, env(safe-area-inset-bottom));
+  background: var(--bg-body);
 }
+.actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.actionButton { width: 100%; min-width: 0; padding-inline: 8px; font-size: var(--fs-xs); white-space: normal; }
+@media (max-width: 480px) { .drawer { width: 100%; } }
+@media (max-width: 340px) { .actions { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .drawerOpen { animation: none; } }
+@keyframes enterCart { from { transform: translateX(100%); } to { transform: translateX(0); } }

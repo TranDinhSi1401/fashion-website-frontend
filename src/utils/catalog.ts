@@ -1,3 +1,4 @@
+import { hasSaleOffer, saleOfferForSelection } from './productOffers.ts';
 import type { CategoryResponse } from '../types/category';
 import type { ProductFilters, ProductResponse } from '../types/product';
 
@@ -44,9 +45,14 @@ export function filterCatalog(products: ProductResponse[], categories: CategoryR
         : Number.isFinite(created) && created <= now && created >= now - filters.newWithinDays * 86400000;
       if (!isNew) return false;
     }
+    if (filters.saleOnly && !hasSaleOffer(product, sizes, colors, now)) return false;
     return matchesVariantFilters(product, sizes, colors);
   });
-  return result.sort((a, b) => {
+  const displayed = filters.saleOnly ? result.map(product => {
+    const bestOffer = saleOfferForSelection(product, sizes, colors, now);
+    return { ...product, bestOffer, discountedPrice: bestOffer?.discountedPrice ?? product.basePrice };
+  }) : result;
+  return displayed.sort((a, b) => {
     const tie = b.id - a.id;
     switch (filters.sort) {
       case 'price-asc': return a.basePrice - b.basePrice || tie;

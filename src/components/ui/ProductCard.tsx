@@ -6,6 +6,7 @@ import { BadgeVariant, ColorSwatchOption } from '../../types/ui';
 import { cn } from '../../utils/cn';
 import { extractAllProductImages, formatCurrencyVND } from '../../utils/format';
 import Badge from './Badge';
+import { isCurrentOffer } from '../../utils/productOffers';
 import ProductPrice from '../product/ProductPrice';
 import ColorSwatches from './ColorSwatches';
 import styles from './ProductCard.module.css';
@@ -52,7 +53,7 @@ export default function ProductCard({
   const dataImages = extractAllProductImages(product);
   const primaryImage = dataImages[activeImageIdx] || dataImages[0] || null;
   const hoverImage = dataImages.length > 1 && activeImageIdx === 0 ? dataImages[1] : null;
-  const hasDiscount = Boolean(product.bestOffer) || (typeof originalPrice === 'number' && originalPrice > basePrice);
+  const hasDiscount = isCurrentOffer(product.bestOffer) || (typeof originalPrice === 'number' && originalPrice > basePrice);
 
   const resolvedBadges: BadgeVariant[] = badges?.length
     ? badges

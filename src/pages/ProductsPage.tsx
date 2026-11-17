@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { Search } from 'lucide-react';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { ProductFilters, ProductResponse } from '../types/product';
@@ -15,6 +16,9 @@ import {
   resolveCategories,
   searchColors,
 } from '../utils/catalog';
+import { GROUP_LABELS, groupCategoryIds, isCatalogGroup } from '../utils/categoryNavigation';
+import MoneyInput from '../components/ui/MoneyInput';
+import { formatMoneyInput } from '../utils/moneyInput';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import {
   Button,
@@ -98,6 +102,11 @@ export default function ProductsPage() {
   const [colorSearch, setColorSearch] = useState('');
   const [metadataError, setMetadataError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [offerTime, setOfferTime] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setOfferTime(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const priceForm = useRef<HTMLFormElement>(null);
   const searchForm = useRef<HTMLFormElement>(null);
   const resultsRef = useRef<HTMLElement>(null);
@@ -174,12 +183,14 @@ export default function ProductsPage() {
     const maxPrice = parsePrice(params.get('maxPrice'));
     const rawId = params.get('categoryId');
     const alias = params.get('category') || '';
+    const group = params.get('group');
+    const groupIds = isCatalogGroup(group) ? new Set(groupCategoryIds(group, categories)) : null;
     const audiences = (params.get('audience') || '').split('|').filter(Boolean);
     const types = (params.get('type') || '').split('|').filter(Boolean);
     const sizes = (params.get('size') || '').split('|').filter(Boolean);
     const colors = (params.get('color') || '').split('|').filter(Boolean);
     const hasFacets = audiences.length > 0 || types.length > 0;
-    const ids = hasFacets
+    let ids = hasFacets
       ? facets
           .filter(
             (category) =>
@@ -192,6 +203,7 @@ export default function ProductsPage() {
         : alias
           ? resolveCategories(alias, categories)
           : [];
+    if (groupIds) ids = (hasFacets || rawId || alias ? ids : [...groupIds]).filter(id => groupIds.has(id));
     const sort = params.get('sort') || 'newest';
     const invalidPrice =
       Number.isNaN(minPrice) ||
@@ -200,21 +212,18 @@ export default function ProductsPage() {
     let validation = invalidPrice
       ? 'Khoảng giá không hợp lệ. Giá từ phải nhỏ hơn hoặc bằng giá đến.'
       : '';
+    if (group && !isCatalogGroup(group)) validation = 'Nhóm sản phẩm không hợp lệ.';
     if (rawId && (!Number.isSafeInteger(Number(rawId)) || Number(rawId) < 1)) {
       validation = 'Danh mục không hợp lệ.';
     }
     if (!['newest', 'price-asc', 'price-desc', 'name'].includes(sort)) {
       validation = 'Cách sắp xếp không hợp lệ.';
     }
-    if (params.get('tag') === 'sale') {
-      validation =
-        'Bộ lọc ưu đãi chưa có dữ liệu áp dụng. Vui lòng chọn danh mục hoặc xóa bộ lọc.';
-    }
     if (params.get('tag') && !['sale', 'new'].includes(params.get('tag')!)) {
       validation = 'Bộ lọc không hợp lệ.';
     }
     const filters: ProductFilters = {
-      ...(!hasFacets && rawId
+      ...(!hasFacets && !group && rawId
         ? { categoryId: rawId }
         : ids.length
           ? { categoryIds: ids.join(',') }
@@ -224,20 +233,21 @@ export default function ProductsPage() {
       maxPrice,
       sort,
       newWithinDays: params.get('tag') === 'new' ? 30 : undefined,
+      saleOnly: params.get('tag') === 'sale',
     };
     const missingCategory = Boolean(
-      (hasFacets || alias || rawId) &&
+      (hasFacets || alias || rawId || group) &&
         !categories.some((category) => ids.includes(category.id))
     );
-    return { filters, ids, validation, missingCategory, audiences, types, sizes, colors, hasFacets };
+    return { filters, ids, validation, missingCategory, audiences, types, sizes, colors, hasFacets, group };
   }, [paramsKey, categories, facets]);
 
   const products = useMemo(
     () =>
       selection.validation || selection.missingCategory
         ? []
-        : filterCatalog(catalog, categories, selection.filters, selection.sizes, selection.colors),
-    [catalog, categories, selection]
+        : filterCatalog(catalog, categories, selection.filters, selection.sizes, selection.colors, offerTime),
+    [catalog, categories, selection, offerTime]
   );
 
   const pagination = paginateCatalog(products, searchParams.get('page'), searchParams.get('pageSize'));
@@ -259,7 +269,7 @@ export default function ProductsPage() {
   ].sort((a, b) => a.localeCompare(b, 'vi'));
   const visibleColors = searchColors([...new Set([...colors, ...selection.colors])], colorSearch);
   const availableFacets = facets.filter((category) =>
-    catalog.some((product) => product.categoryId === category.id)
+    (!isCatalogGroup(selection.group) || groupCategoryIds(selection.group, categories).includes(category.id)) && catalog.some((product) => product.categoryId === category.id)
   );
   const audiences = [
     ...new Set(availableFacets.map((category) => category.audience).filter(Boolean)),
@@ -273,18 +283,22 @@ export default function ProductsPage() {
   ].sort((a, b) => a[1].localeCompare(b[1], 'vi'));
 
   const categoryName =
+    isCatalogGroup(selection.group) ? GROUP_LABELS[selection.group] :
     !selection.hasFacets && selection.ids.length === 1
       ? categories.find((category) => category.id === selection.ids[0])?.name
       : '';
   const title =
-    searchParams.get('tag') === 'new'
+    searchParams.get('tag') === 'sale'
+      ? `Ưu đãi sản phẩm${categoryName ? ` · ${categoryName}` : ''}`
+      : searchParams.get('tag') === 'new'
       ? `Hàng mới về trong 30 ngày${categoryName ? ` · ${categoryName}` : ''}`
       : categoryName || 'Danh mục sản phẩm';
   const shownError = metadataError || selection.validation;
   const categoryTag = searchParams.get('tag') === 'new' ? 'new' : '';
 
   const activeFilters: { label: string; changes: Record<string, string> }[] = [];
-  if (selection.ids.length && !selection.hasFacets) {
+  if (isCatalogGroup(selection.group)) activeFilters.push({ label: `Nhóm: ${GROUP_LABELS[selection.group]}`, changes: { group: '' } });
+  if (selection.ids.length && !selection.hasFacets && !selection.group) {
     activeFilters.push({
       label: `Danh mục: ${categories
         .filter((category) => selection.ids.includes(category.id))
@@ -314,15 +328,21 @@ export default function ProductsPage() {
   }
   if (searchParams.has('minPrice') || searchParams.has('maxPrice')) {
     activeFilters.push({
-      label: `Giá: ${searchParams.get('minPrice') || '0'} – ${searchParams.get('maxPrice') || 'không giới hạn'} ₫`,
+      label: `Giá: ${formatMoneyInput(searchParams.get('minPrice') || '0')} – ${searchParams.has('maxPrice') ? formatMoneyInput(searchParams.get('maxPrice') || '0') : 'không giới hạn'} đ`,
       changes: { minPrice: '', maxPrice: '' },
     });
   }
+  if (searchParams.get('tag') === 'sale') activeFilters.push({ label: 'Đang có ưu đãi', changes: { tag: '' } });
   if (categoryTag) {
     activeFilters.push({ label: 'Mới trong 30 ngày', changes: { tag: '' } });
   }
 
   const filterGroups: FilterGroup[] = [
+    {
+      id: 'offers', title: 'Ưu đãi', defaultOpen: true,
+      content: <Checkbox label="Đang có ưu đãi" checked={searchParams.get('tag') === 'sale'}
+        onChange={event => updateFilters({ tag: event.target.checked ? 'sale' : '' })} />,
+    },
     {
       id: 'audience',
       title: 'Đối tượng',
@@ -387,22 +407,16 @@ export default function ProductsPage() {
           }}
           className="flex flex-col gap-3"
         >
-          <Input
+          <MoneyInput
             id="catalog-min-price"
-            label="Giá từ (₫)"
+            label="Giá từ"
             name="minPrice"
-            type="number"
-            min="0"
-            step="any"
             defaultValue={searchParams.get('minPrice') || ''}
           />
-          <Input
+          <MoneyInput
             id="catalog-max-price"
-            label="Giá đến (₫)"
+            label="Giá đến"
             name="maxPrice"
-            type="number"
-            min="0"
-            step="any"
             defaultValue={searchParams.get('maxPrice') || ''}
           />
           <Button type="submit" variant="secondary" size="sm">
@@ -535,19 +549,35 @@ export default function ProductsPage() {
                   search: String(new FormData(event.currentTarget).get('search') || '').trim(),
                 });
               }}
-              className="flex flex-col gap-3 border-b border-line-light pb-5"
+              role="search"
+              aria-label="Tìm trong kết quả sản phẩm"
+              className={styles.refineSearch}
             >
-              <Input
-                id="catalog-search"
-                label="Tìm sản phẩm"
-                name="search"
-                type="search"
-                defaultValue={searchParams.get('search') || ''}
-                placeholder="Tên hoặc mã sản phẩm"
-              />
-              <Button type="submit" variant="secondary" size="sm">
-                Tìm kiếm
-              </Button>
+              <label htmlFor="catalog-search" className={styles.refineLabel}>
+                Tìm trong kết quả
+              </label>
+              <div className={styles.refineField}>
+                <input
+                  id="catalog-search"
+                  name="search"
+                  type="search"
+                  defaultValue={searchParams.get('search') || ''}
+                  placeholder="Nhập tên sản phẩm…"
+                  aria-describedby="catalog-search-hint"
+                  className={styles.refineInput}
+                />
+                <button
+                  type="submit"
+                  aria-label="Tìm trong kết quả"
+                  title="Tìm trong kết quả"
+                  className={styles.refineSubmit}
+                >
+                  <Search size={16} aria-hidden="true" />
+                </button>
+              </div>
+              <p id="catalog-search-hint" className={styles.refineHint}>
+                Thu hẹp danh sách theo các bộ lọc đã chọn.
+              </p>
             </form>
 
             <div className="pt-4">

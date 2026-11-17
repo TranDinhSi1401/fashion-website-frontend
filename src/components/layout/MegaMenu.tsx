@@ -20,6 +20,7 @@ export interface MegaMenuProps {
     title: string;
     to: string;
   };
+  statusMessage?: string;
   onNavigate?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -29,6 +30,7 @@ export default function MegaMenu({
   isOpen,
   columns,
   banner,
+  statusMessage,
   onNavigate,
   onMouseEnter,
   onMouseLeave,
@@ -38,6 +40,7 @@ export default function MegaMenu({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       aria-hidden={!isOpen}
+      inert={!isOpen}
       className={cn(
         'absolute left-0 right-0 top-full z-40 mx-auto w-full max-w-[1180px] rounded-b-sm border border-t-0 border-line-light bg-surface-elevated p-7 shadow-dropdown',
         styles.panel,
@@ -46,6 +49,7 @@ export default function MegaMenu({
     >
       <div className={styles.content}>
         <div className={styles.columns}>
+          {!columns.length && <p role="status" className="text-sm text-content-secondary">{statusMessage || 'Chưa có danh mục phù hợp.'}</p>}
           {columns.map((column) => (
             <div key={column.title}>
               <h4 className="mb-3 text-sm font-bold uppercase tracking-wide text-content-primary">

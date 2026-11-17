@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
@@ -24,88 +24,15 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
 import { Badge, IconButton } from '../ui';
-import MegaMenu, { MegaMenuColumn } from './MegaMenu';
+import MegaMenu from './MegaMenu';
+import { categoryService } from '../../services/categoryService';
+import { CategoryResponse } from '../../types/category';
+import { buildCategoryMenu, groupCategoryIds, groupHref, isNavigationGroupActive } from '../../utils/categoryNavigation';
 import HeaderSearch from './HeaderSearch';
 import MiniCartDrawer from './MiniCartDrawer';
 import NotificationBell from './NotificationBell';
 import styles from './Header.module.css';
 import { formatCurrencyVND } from '../../utils/format';
-
-const MEGA_MENU_DATA: Record<'ao' | 'quan', MegaMenuColumn[]> = {
-  ao: [
-    {
-      title: 'Áo Nam Nổi Bật',
-      links: [
-        { label: 'Tất cả Áo Nam', to: '/products?category=ao' },
-        { label: 'Hàng mới về', to: '/products?category=ao&tag=new' },
-        { label: 'Bán chạy nhất', to: '/products?category=ao&sort=popular' },
-      ],
-    },
-    {
-      title: 'Áo Thường Ngày',
-      links: [
-        { label: 'Áo T-Shirt', to: '/products?category=t-shirt' },
-        { label: 'Áo Polo', to: '/products?category=polo' },
-      ],
-    },
-    {
-      title: 'Công Sở & May Đo',
-      links: [
-        { label: 'Áo Sơ Mi May Đo', to: '/products?category=so-mi' },
-        { label: 'Áo Khoác & Blazer', to: '/products?category=khoac' },
-      ],
-    },
-    {
-      title: 'Bộ Sưu Tập',
-      links: [
-        { label: 'Minimalist Essential', to: '/products?tag=new' },
-        { label: 'Ưu đãi đặc biệt', to: '/products?tag=sale' },
-      ],
-    },
-  ],
-  quan: [
-    {
-      title: 'Quần Nam Nổi Bật',
-      links: [
-        { label: 'Tất cả Quần Nam', to: '/products?category=quan' },
-        { label: 'Hàng mới về', to: '/products?category=quan&tag=new' },
-      ],
-    },
-    {
-      title: 'Lịch Lãm & Công Sở',
-      links: [
-        { label: 'Quần Tây May Đo', to: '/products?category=quan-tay' },
-        { label: 'Quần Khaki', to: '/products?category=khaki' },
-      ],
-    },
-    {
-      title: 'Năng Động',
-      links: [
-        { label: 'Quần Jeans', to: '/products?category=jeans' },
-      ],
-    },
-    {
-      title: 'Phối Đồ Gợi Ý',
-      links: [
-        { label: 'Smart Casual', to: '/products?category=ao' },
-        { label: 'Ưu đãi theo mùa', to: '/products?tag=sale' },
-      ],
-    },
-  ],
-};
-
-const MEGA_MENU_BANNERS = {
-  ao: {
-    image: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=700&q=80',
-    title: 'Áo sơ mi & essentials',
-    to: '/products?category=ao',
-  },
-  quan: {
-    image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=700&q=80',
-    title: 'Quần tây & khaki',
-    to: '/products?category=quan',
-  },
-};
 
 function BrandLogo({
   compact = false,
@@ -137,6 +64,10 @@ function BrandLogo({
 export default function Header() {
   const { user, isAuthenticated, isAdmin, isStaff, logout } = useAuth();
   const { cart } = useCart();
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [categoryStatus, setCategoryStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const menus = useMemo(() => ({ ao: buildCategoryMenu('ao', categories), quan: buildCategoryMenu('quan', categories) }), [categories]);
+  const hasAccessories = groupCategoryIds('phukien', categories).length > 0;
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   const [adminDropdownOpen, setAdminDropdownOpen] = useState<boolean>(false);
   const [activeMenu, setActiveMenu] = useState<'ao' | 'quan' | null>(null);
@@ -152,6 +83,17 @@ export default function Header() {
   const mobileMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
+  useEffect(() => {
+    let active = true;
+    const load = () => categoryService.getCategories().then(response => {
+      if (!Array.isArray(response.data)) throw new Error('Invalid category response');
+      if (active) { setCategories(response.data); setCategoryStatus('ready'); }
+    }).catch(() => { if (active) setCategoryStatus('error'); });
+    void load();
+    window.addEventListener('focus', load);
+    return () => { active = false; window.removeEventListener('focus', load); };
+  }, [location.pathname]);
+
   const routeKey = `${location.pathname}${location.search}`;
   const [prevRouteKey, setPrevRouteKey] = useState<string>(routeKey);
 
@@ -326,53 +268,57 @@ export default function Header() {
               Hàng mới
             </Link>
 
+            {(categoryStatus !== 'ready' || menus.ao.length > 0) && (
             <div
               onMouseEnter={() => setActiveMenu('ao')}
               className="flex h-full items-center"
             >
               <Link
-                to="/products?category=ao"
+                to={groupHref('ao')}
                 onFocus={() => setActiveMenu('ao')}
                 aria-haspopup="true"
                 aria-expanded={activeMenu === 'ao'}
                 className={cn(
                   styles.navLink,
-                  location.search.includes('category=ao') && styles.navLinkActive
+                  isNavigationGroupActive('ao', location.search, categories) && styles.navLinkActive
                 )}
               >
                 <span>Áo</span>
                 <ChevronDown size={14} />
               </Link>
             </div>
+            )}
 
+            {(categoryStatus !== 'ready' || menus.quan.length > 0) && (
             <div
               onMouseEnter={() => setActiveMenu('quan')}
               className="flex h-full items-center"
             >
               <Link
-                to="/products?category=quan"
+                to={groupHref('quan')}
                 onFocus={() => setActiveMenu('quan')}
                 aria-haspopup="true"
                 aria-expanded={activeMenu === 'quan'}
                 className={cn(
                   styles.navLink,
-                  location.search.includes('category=quan') && styles.navLinkActive
+                  isNavigationGroupActive('quan', location.search, categories) && styles.navLinkActive
                 )}
               >
                 <span>Quần</span>
                 <ChevronDown size={14} />
               </Link>
             </div>
+            )}
 
-            <Link
-              to="/products?category=phukien"
+            {hasAccessories && (<Link
+              to={groupHref('phukien')}
               className={cn(
                 styles.navLink,
-                location.search.includes('category=phukien') && styles.navLinkActive
+                isNavigationGroupActive('phukien', location.search, categories) && styles.navLinkActive
               )}
             >
               Phụ kiện
-            </Link>
+            </Link>)}
 
             <Link
               to="/products?tag=sale"
@@ -860,8 +806,8 @@ export default function Header() {
 
         <MegaMenu
           isOpen={activeMenu !== null}
-          columns={activeMenu ? MEGA_MENU_DATA[activeMenu] : []}
-          banner={activeMenu ? MEGA_MENU_BANNERS[activeMenu] : undefined}
+          columns={activeMenu ? menus[activeMenu] : []}
+          statusMessage={categoryStatus === 'loading' ? 'Đang tải danh mục…' : categoryStatus === 'error' ? 'Chưa tải được danh mục. Tải lại trang để thử.' : 'Chưa có danh mục phù hợp.'}
           onNavigate={() => setActiveMenu(null)}
           onMouseLeave={() => setActiveMenu(null)}
         />
@@ -874,7 +820,7 @@ export default function Header() {
 
       {/* Mobile Navigation Drawer */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] lg:hidden">
+        <div className="fixed inset-0 z-[1100] lg:hidden">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
@@ -958,11 +904,11 @@ export default function Header() {
               >
                 <span>Hàng mới</span>
               </Link>
-              {(['ao', 'quan'] as const).map((category) => {
+              {(['ao', 'quan'] as const).filter(category => categoryStatus !== 'ready' || menus[category].length > 0).map((category) => {
                 const isOpen = mobileCategoryOpen === category;
-                const title = category === 'ao' ? 'Áo nam' : 'Quần nam';
-                const categoryPath = `/products?category=${category}`;
-                const links = MEGA_MENU_DATA[category].flatMap((column) => column.links);
+                const title = category === 'ao' ? 'Áo' : 'Quần';
+                const categoryPath = groupHref(category);
+                const links = menus[category].flatMap((column) => column.links);
                 return (
                   <div key={category}>
                     <div className="flex items-center rounded hover:bg-surface">
@@ -971,7 +917,7 @@ export default function Header() {
                         onClick={() => setMobileMenuOpen(false)}
                         className={cn(
                           'flex min-h-10 flex-1 items-center rounded p-2.5 transition-colors',
-                          location.search.includes(`category=${category}`)
+                          isNavigationGroupActive(category, location.search, categories)
                             ? cn('bg-accent-gold/10', styles.accentText)
                             : 'text-content-primary'
                         )}
@@ -1024,18 +970,18 @@ export default function Header() {
                   </div>
                 );
               })}
-              <Link
-                to="/products?category=phukien"
+              {hasAccessories && (<Link
+                to={groupHref('phukien')}
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
                   'flex items-center justify-between p-2.5 rounded hover:bg-surface transition-colors',
-                  location.search.includes('category=phukien')
+                  isNavigationGroupActive('phukien', location.search, categories)
                     ? cn('bg-accent-gold/10', styles.accentText)
                     : 'text-content-primary'
                 )}
               >
                 <span>Phụ kiện</span>
-              </Link>
+              </Link>)}
               <Link
                 to="/products?tag=sale"
                 onClick={() => setMobileMenuOpen(false)}
