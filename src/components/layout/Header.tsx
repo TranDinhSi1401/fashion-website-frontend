@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   ShoppingCart,
+  Tag,
   User,
   Users,
   X,
@@ -448,6 +449,20 @@ export default function Header() {
                     </Link>
 
                     <Link
+                      to="/admin/promotions"
+                      onClick={() => setAdminDropdownOpen(false)}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
+                        location.pathname === '/admin/promotions'
+                          ? cn('bg-accent-gold/10', styles.accentText)
+                          : 'text-content-primary hover:bg-surface'
+                      )}
+                    >
+                      <Tag size={15} className="text-accent-gold" />
+                      <span>Quản lý khuyến mãi</span>
+                    </Link>
+
+                    <Link
                       to="/admin/users"
                       onClick={() => setAdminDropdownOpen(false)}
                       className={cn(
@@ -558,8 +573,8 @@ export default function Header() {
                           {user?.email || `@${user?.username}`}
                         </div>
                         <div className="mt-1 flex items-center gap-1.5">
-                          <Badge variant={isAdmin ? 'dark' : isStaff ? 'warning' : 'vip'}>
-                            {isAdmin ? 'ADMINISTRATOR' : isStaff ? 'STAFF OPERATOR' : 'CUSTOMER VIP'}
+                          <Badge variant={isAdmin ? 'dark' : isStaff ? 'warning' : 'default'}>
+                            {isAdmin ? 'ADMINISTRATOR' : isStaff ? 'STAFF OPERATOR' : 'CUSTOMER'}
                           </Badge>
                         </div>
                       </div>
@@ -666,6 +681,18 @@ export default function Header() {
                           <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
 
+                        <Link
+                          to="/admin/promotions"
+                          onClick={() => setDropdownOpen(false)}
+                          className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10', styles.accentHover)}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Tag size={15} className="text-accent-gold" />
+                            <span className="font-medium">Quản lý khuyến mãi</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
+                        </Link>
+                        
                         <Link
                           to="/admin/users"
                           onClick={() => setDropdownOpen(false)}
@@ -1040,6 +1067,7 @@ export default function Header() {
                     <Package size={16} className="text-accent-gold" />
                     <span>Quản lý sản phẩm</span>
                   </Link>
+                  
                   <Link
                     to="/admin/orders"
                     onClick={() => setMobileMenuOpen(false)}
@@ -1048,6 +1076,16 @@ export default function Header() {
                     <ShoppingCart size={16} className="text-accent-gold" />
                     <span>Quản lý đơn hàng</span>
                   </Link>
+
+                  <Link
+                    to="/admin/promotions"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 p-2.5 rounded text-xs font-semibold text-content-primary hover:bg-surface"
+                  >
+                    <Tag size={16} className="text-accent-gold" />
+                    <span>Quản lý khuyến mãi</span>
+                  </Link>
+
                   <Link
                     to="/admin/users"
                     onClick={() => setMobileMenuOpen(false)}

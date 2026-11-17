@@ -9,6 +9,7 @@ import {
   MessageSquare,
   BellRing,
   ShoppingCart,
+  Tag,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Badge } from '../ui';
@@ -26,6 +27,7 @@ export default function AdminNav({ title, subtitle, actions }: AdminNavProps) {
 
   const isProductsActive = location.pathname.startsWith('/admin/products');
   const isOrdersActive = location.pathname.startsWith('/admin/orders');
+  const isPromotionsActive = location.pathname.startsWith('/admin/promotions');
   const isUsersActive = location.pathname.startsWith('/admin/users');
   const isChatActive = location.pathname.startsWith('/admin/chat');
   const isNotificationsActive = location.pathname.startsWith('/admin/notifications');
@@ -89,6 +91,19 @@ export default function AdminNav({ title, subtitle, actions }: AdminNavProps) {
           >
             <ShoppingCart size={16} />
             <span>Quản Lý Đơn Hàng</span>
+          </Link>
+
+          <Link
+            to="/admin/promotions"
+            className={cn(
+              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
+              isPromotionsActive
+                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
+                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
+            )}
+          >
+            <Tag size={16} />
+            <span>Quản Lý Khuyến Mãi</span>
           </Link>
 
           <Link

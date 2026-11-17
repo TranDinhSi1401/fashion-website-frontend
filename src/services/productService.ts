@@ -1,8 +1,18 @@
 import apiClient from './apiClient';
 import { ApiResponse } from '../types/api';
-import { ProductResponse, ProductRequest, ProductFilters } from '../types/product';
+import { ProductResponse, ProductRequest, ProductFilters, ProductPage } from '../types/product';
 
 export const productService = {
+  async getProductsPage(params: ProductFilters & { page: number; pageSize: number }, signal?: AbortSignal): Promise<ApiResponse<ProductPage>> {
+    return (await apiClient.get<ApiResponse<ProductPage>>('/products/paged', { params, signal })).data;
+  },
+  async uploadImage(file: File): Promise<string> {
+    const data = new FormData();
+    data.append('file', file);
+    const response = await apiClient.post<ApiResponse<{ imageUrl: string }>>('/products/images/upload', data,
+      { headers: { 'Content-Type': 'multipart/form-data' } });
+    return response.data.data.imageUrl;
+  },
   /**
    * Get list of products (Public)
    */

@@ -12,7 +12,37 @@ export interface ProductColor {
   imageUrl?: string;
 }
 
+export interface ProductOffer {
+  variantId?: number | null;
+  id: number;
+  title: string;
+  originalPrice: number;
+  discountAmount: number;
+  discountedPrice: number;
+  endDate: string;
+}
+export interface ProductPage {
+  content: ProductResponse[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+export interface ProductVariantInput {
+  color: string;
+  size: string;
+  price: number;
+  stockQuantity: number;
+  packageWeight?: number;
+  packageLength?: number;
+  packageWidth?: number;
+  packageHeight?: number;
+}
+export interface ProductImageInput { imageUrl: string; variantIndex?: number; }
+
 export interface ProductResponse {
+  bestOffer?: ProductOffer | null;
+  discountedPrice?: number;
   id: number;
   name: string;
   slug?: string;
@@ -34,6 +64,9 @@ export interface ProductResponse {
 }
 
 export interface ProductVariant {
+  sku?: string;
+  bestOffer?: ProductOffer | null;
+  discountedPrice?: number;
   id: number;
   size: string;
   color: string;
@@ -43,6 +76,8 @@ export interface ProductVariant {
 }
 
 export interface ProductFilters {
+  isActive?: boolean;
+  inStock?: boolean;
   newWithinDays?: number;
   categoryId?: number | string;
   categoryIds?: string;
@@ -55,6 +90,8 @@ export interface ProductFilters {
 }
 
 export interface ProductRequest {
+  variants?: ProductVariantInput[];
+  images?: ProductImageInput[];
   name: string;
   slug?: string;
   description?: string;

@@ -20,6 +20,7 @@ import ReturnCreatePage from './pages/ReturnCreatePage';
 import ReturnDetailPage from './pages/ReturnDetailPage';
 import AdminProductsPage from './pages/AdminProductsPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
+import AdminPromotionsPage from './pages/AdminPromotionsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminChatPage from './pages/AdminChatPage';
 import AdminNotificationsPage from './pages/AdminNotificationsPage';
@@ -121,14 +122,23 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/admin/orders"
-            element={
-              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
-                <AdminOrdersPage />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+                path="/admin/orders"
+                element={
+                <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                    <AdminOrdersPage />
+                </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/admin/promotions"
+                element={
+                <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                    <AdminPromotionsPage />
+                </ProtectedRoute>
+                }
+            />
           <Route
             path="/admin/users"
             element={
