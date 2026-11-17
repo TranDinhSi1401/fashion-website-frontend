@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { CreditCard, ShoppingBag } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { CreditCard, ShoppingBag, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { userService } from '../services/userService';
+import { orderService } from '../services/orderService';
 import { shippingService, ShippingOrderPreview } from '../services/shippingService';
 import { paymentMethodService, PaymentMethodResponse } from '../services/paymentMethodService';
 import { specialOfferService, SpecialOfferResponse } from '../services/specialOfferService';
@@ -56,6 +57,11 @@ export default function CheckoutPage() {
   const [specialOfferLoading, setSpecialOfferLoading] = useState(true);
   const [specialOfferError, setSpecialOfferError] = useState('');
   const [specialOfferRetry, setSpecialOfferRetry] = useState(0);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [orderError, setOrderError] = useState('');
+  const [orderSuccess, setOrderSuccess] = useState<string>('');
+  const navigate = useNavigate();
+
 
   useEffect(() => {
     void refresh();
@@ -152,7 +158,7 @@ export default function CheckoutPage() {
   }, [addressesRetry]);
 
   useEffect(() => {
-    const paymentMethodId = selectedPaymentMethodIdRef.current;
+    const paymentMethodId = selectedPaymentMethodId;
 
     if (
       typeof selectedAddressId !== 'number' ||
@@ -199,7 +205,7 @@ export default function CheckoutPage() {
       active = false;
       controller.abort();
     };
-  }, [selectedAddressId]);
+  }, [selectedAddressId, selectedPaymentMethodId]);
 
   const handleAddressSaved = (address: UserAddressResponse) => {
     setAddresses((current) => [
@@ -235,6 +241,34 @@ export default function CheckoutPage() {
           )
         )
       : 0;
+
+  const handlePlaceOrder = async () => {
+    if (typeof selectedAddressId !== 'number' || selectedAddressId <= 0) {
+      setOrderError('Vui lòng chọn địa chỉ nhận hàng trước khi đặt mua.');
+      return;
+    }
+    if (typeof selectedPaymentMethodId !== 'number' || selectedPaymentMethodId <= 0) {
+      setOrderError('Vui lòng chọn phương thức thanh toán trước khi đặt mua.');
+      return;
+    }
+    setPlacingOrder(true);
+    setOrderError('');
+    setOrderSuccess('');
+    try {
+      const res = await orderService.createOrder({
+        userAddressId: selectedAddressId,
+        paymentMethodId: selectedPaymentMethodId,
+      });
+      await refresh();
+      setOrderSuccess(
+        `Đặt hàng thành công! Mã đơn hàng: ${res.data?.orderCode || '#' + res.data?.id}. Tồn kho sản phẩm và thông báo đơn hàng đã được đồng bộ realtime.`
+      );
+    } catch (err) {
+      setOrderError(extractErrorMessage(err, 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại tồn kho.'));
+    } finally {
+      setPlacingOrder(false);
+    }
+  };
 
   return (
     <div className="container pb-16">
@@ -277,7 +311,19 @@ export default function CheckoutPage() {
           {error}
         </p>
       )}
-      {!loading && !error && cart && cart.items.length === 0 && (
+      {orderSuccess && (
+        <div className="mx-auto mb-6 max-w-[1060px] border border-emerald-200 bg-emerald-50 p-6 text-center text-emerald-900">
+          <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-600" />
+          <p className="mb-4 text-sm font-semibold">{orderSuccess}</p>
+          <div className="flex justify-center gap-3">
+            <Button variant="primary" onClick={() => navigate('/products')}>
+              Tiếp tục mua sắm
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && !orderSuccess && cart && cart.items.length === 0 && (
         <div className="mx-auto mb-6 max-w-[1060px] bg-surface p-6 text-center">
           <p className="mb-4 text-base text-content-secondary">Giỏ hàng đang trống.</p>
           <Link to="/products">
@@ -446,7 +492,24 @@ export default function CheckoutPage() {
               ))}
             </section>
 
-            <Button type="button" size="lg" className="mt-5 w-full">
+            {orderError && (
+              <p className="mt-4 text-xs font-medium text-status-error" role="alert">
+                {orderError}
+              </p>
+            )}
+
+            <Button
+              type="button"
+              size="lg"
+              className="mt-5 w-full"
+              loading={placingOrder}
+              disabled={
+                !selectedAddressId ||
+                typeof selectedPaymentMethodId !== 'number' ||
+                placingOrder
+              }
+              onClick={() => void handlePlaceOrder()}
+            >
               Đặt hàng
             </Button>
           </form>

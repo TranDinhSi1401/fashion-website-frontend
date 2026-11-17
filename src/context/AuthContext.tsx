@@ -14,6 +14,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isStaff: boolean;
   isCustomer: boolean;
+  isGoogleAuth: boolean;
   login: (username: string, password?: string) => Promise<{ success: boolean; user?: UserResponse }>;
   loginWithGoogle: (idToken: string) => Promise<{ success: boolean; user?: UserResponse }>;
   logout: () => Promise<void>;
@@ -23,9 +24,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+export const AUTH_PROVIDER_KEY = 'auth_provider';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserResponse | null>(null);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  const [authProvider, setAuthProvider] = useState<'LOCAL' | 'GOOGLE'>(() => {
+    return (localStorage.getItem(AUTH_PROVIDER_KEY) as 'LOCAL' | 'GOOGLE') || 'LOCAL';
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Extract roles and user info from parsed JWT claims
@@ -35,12 +41,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isStaff = role === 'STAFF' || role === 'ROLE_STAFF';
   const isCustomer = role === 'CUSTOMER' || role === 'ROLE_CUSTOMER';
   const isAuthenticated = !!token;
+  const isGoogleAuth = authProvider === 'GOOGLE' || Boolean(user?.avt && user.avt.includes('googleusercontent.com'));
 
   const handleLogoutLocal = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_PROVIDER_KEY);
     setToken(null);
     setUser(null);
+    setAuthProvider('LOCAL');
   }, []);
 
   // Fetch complete user profile from backend
@@ -88,6 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (res?.data?.token) {
       const { token: accToken, refreshToken } = res.data;
       localStorage.setItem(TOKEN_KEY, accToken);
+      localStorage.setItem(AUTH_PROVIDER_KEY, 'LOCAL');
+      setAuthProvider('LOCAL');
       if (refreshToken) {
         localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
       }
@@ -125,6 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (res?.data?.token) {
       const { token: accToken, refreshToken } = res.data;
       localStorage.setItem(TOKEN_KEY, accToken);
+      localStorage.setItem(AUTH_PROVIDER_KEY, 'GOOGLE');
+      setAuthProvider('GOOGLE');
       if (refreshToken) {
         localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
       }
@@ -195,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         isStaff,
         isCustomer,
+        isGoogleAuth,
         login,
         loginWithGoogle,
         logout,

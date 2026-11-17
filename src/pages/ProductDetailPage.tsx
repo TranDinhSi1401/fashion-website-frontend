@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react';
 import axios from 'axios';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Star } from 'lucide-react';
 import { aiService } from '../services/aiService';
 import { productService } from '../services/productService';
 import { ProductResponse } from '../types/product';
+import { ReviewSummaryResponse } from '../types/review';
 import { SizeOption } from '../types/ui';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import BackButton from '../components/common/BackButton';
+import ProductReviewsSection from '../components/product/ProductReviewsSection';
 import {
   Badge,
   Button,
@@ -22,6 +24,7 @@ import { formatCurrencyVND, extractAllProductImages } from '../utils/format';
 import { normalizeSize } from '../utils/catalog';
 import { availableVariants, findVariant, quantityWithinStock } from '../utils/variants';
 import { trackBehavior } from '../services/behaviorService';
+import { useLiveStock } from '../components/product/useLiveStock';
 import { cn } from '../utils/cn';
 import styles from './ProductDetailPage.module.css';
 
@@ -65,6 +68,18 @@ export default function ProductDetailPage() {
   const recommendationsViewport = useRef<HTMLDivElement>(null);
   const viewedProductId = useRef<number | null>(null);
   const selectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const handleReviewSummaryChange = useCallback((summary: ReviewSummaryResponse) => {
+    setProduct((prev) =>
+      prev
+        ? {
+            ...prev,
+            averageRating: summary.averageRating,
+            reviewCount: summary.totalReviews,
+          }
+        : prev
+    );
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -175,10 +190,19 @@ export default function ProductDetailPage() {
     });
   };
 
-  const variants = (product?.variants || []).filter((variant) => variant.isActive);
+  const liveStocks = useLiveStock(product?.id);
+  const variants = (product?.variants || [])
+    .filter((variant) => variant.isActive)
+    .map((variant) => ({
+      ...variant,
+      stockQuantity:
+        typeof liveStocks[variant.id] === 'number'
+          ? liveStocks[variant.id]
+          : variant.stockQuantity,
+    }));
   const sellable = availableVariants(variants);
   const selectedVariant = findVariant(variants, selection.color, selection.size);
-  const stock = selectedVariant?.stockQuantity || 0;
+  const stock = selectedVariant ? (liveStocks[selectedVariant.id] ?? selectedVariant.stockQuantity ?? 0) : 0;
   const alreadyInCart =
     cart?.items.find((item) => item.variantId === selectedVariant?.id)?.quantity || 0;
   const remaining = Math.max(0, stock - alreadyInCart);
@@ -358,19 +382,42 @@ export default function ProductDetailPage() {
               {product.isNew && <Badge variant="new">NEW</Badge>}
             </div>
 
-            <h1 className="mb-3 text-lg font-bold tracking-wide text-content-primary md:text-2xl">
+            <h1 className="mb-2.5 text-lg font-bold tracking-wide text-content-primary md:text-2xl">
               {product.name}
             </h1>
 
-            <p className="mb-2 text-[22px] font-bold text-content-primary">
-              {formatCurrencyVND(selectedVariant?.price ?? product.basePrice)}
-            </p>
+            <button
+              type="button"
+              onClick={() => {
+                document
+                  .getElementById('product-reviews-section')
+                  ?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="mb-3 inline-flex items-center gap-2 text-xs text-content-secondary transition-colors hover:text-content-primary"
+            >
+              <span className="inline-flex items-center gap-0.5" aria-hidden="true">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    size={13}
+                    className={
+                      star <= Math.round(Number(product.averageRating || 0))
+                        ? 'fill-primary text-primary'
+                        : 'fill-transparent text-[#CCCCCC]'
+                    }
+                  />
+                ))}
+              </span>
+              <span className="font-semibold text-content-primary">
+                {Number(product.averageRating || 0).toFixed(1)}
+              </span>
+              <span className="text-content-muted">
+                ({product.reviewCount || 0} đánh giá)
+              </span>
+            </button>
 
-            <p className="text-sm text-content-secondary">
-              {product.reviewCount || 0} đánh giá
-              {product.averageRating != null
-                ? ` · ${Number(product.averageRating).toFixed(1)}/5`
-                : ''}
+            <p className="mb-1 text-[22px] font-bold text-content-primary">
+              {formatCurrencyVND(selectedVariant?.price ?? product.basePrice)}
             </p>
           </div>
 
@@ -543,6 +590,12 @@ export default function ProductDetailPage() {
           )}
         </section>
       </div>
+
+      {/* PHẦN ĐÁNH GIÁ SẢN PHẨM */}
+      <ProductReviewsSection
+        productId={product.id}
+        onSummaryChange={handleReviewSummaryChange}
+      />
 
       {isCustomer &&
         (recommendationsLoading || recommendationsError || recommendations.length > 0) && (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Package, Users, Shield, ArrowUpRight, Store } from 'lucide-react';
+import { Package, Users, Shield, ArrowUpRight, Store, MessageSquare, BellRing } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Badge } from '../ui';
 import { cn } from '../../utils/cn';
@@ -17,6 +17,8 @@ export default function AdminNav({ title, subtitle, actions }: AdminNavProps) {
 
   const isProductsActive = location.pathname.startsWith('/admin/products');
   const isUsersActive = location.pathname.startsWith('/admin/users');
+  const isChatActive = location.pathname.startsWith('/admin/chat');
+  const isNotificationsActive = location.pathname.startsWith('/admin/notifications');
 
   return (
     <div className="mb-6">
@@ -77,6 +79,32 @@ export default function AdminNav({ title, subtitle, actions }: AdminNavProps) {
           >
             <Users size={16} />
             <span>Quản Lý Người Dùng &amp; Sổ Địa Chỉ</span>
+          </Link>
+
+          <Link
+            to="/admin/chat"
+            className={cn(
+              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
+              isChatActive
+                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
+                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
+            )}
+          >
+            <MessageSquare size={16} />
+            <span>Chat Hỗ Trợ Khách Hàng</span>
+          </Link>
+
+          <Link
+            to="/admin/notifications"
+            className={cn(
+              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
+              isNotificationsActive
+                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
+                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
+            )}
+          >
+            <BellRing size={16} />
+            <span>Thông Báo Realtime &amp; Sự Kiện</span>
           </Link>
         </div>
 

@@ -22,6 +22,7 @@ function normalizeLocationName(name: string): string {
 
 interface AddressFormModalProps {
   isOpen: boolean;
+  targetUserId?: number;
   address?: UserAddressResponse | null;
   defaultAddress?: boolean;
   onClose: () => void;
@@ -38,6 +39,7 @@ interface AddressFormValues {
 
 export default function AddressFormModal({
   isOpen,
+  targetUserId,
   address = null,
   defaultAddress = false,
   onClose,
@@ -293,7 +295,11 @@ export default function AddressFormModal({
           addressType: form.addressType,
           isDefault: form.isDefault,
         };
-        response = await userService.createAddress(addressToSave);
+        if (targetUserId) {
+          response = await userService.createAddressForUser(targetUserId, addressToSave);
+        } else {
+          response = await userService.createAddress(addressToSave);
+        }
       }
 
       onSaved(response.data);

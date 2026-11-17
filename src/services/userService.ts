@@ -2,6 +2,7 @@ import apiClient from './apiClient';
 import { ApiResponse } from '../types/api';
 import {
   UserResponse,
+  UserPageResponse,
   UserAddressResponse,
   UserAddressCreationRequest,
   UserAddressUpdateRequest,
@@ -78,8 +79,31 @@ export const userService = {
   },
 
   // Admin / Staff user management
-  async getAllUsers(): Promise<ApiResponse<UserResponse[]>> {
-    const res = await apiClient.get<ApiResponse<UserResponse[]>>('/users');
+  async getAllUsers(params?: {
+    page?: number;
+    size?: number;
+    search?: string;
+    role?: string;
+    gender?: string;
+    status?: string;
+    sortBy?: string;
+  }): Promise<ApiResponse<UserPageResponse>> {
+    const res = await apiClient.get<ApiResponse<UserPageResponse>>('/users', {
+      params: {
+        page: params?.page ?? 0,
+        size: params?.size ?? 10,
+        ...(params?.search ? { search: params.search } : {}),
+        ...(params?.role && params.role !== 'ALL' ? { role: params.role } : {}),
+        ...(params?.gender && params.gender !== 'ALL' ? { gender: params.gender } : {}),
+        ...(params?.status && params.status !== 'ALL' ? { status: params.status } : {}),
+        ...(params?.sortBy ? { sortBy: params.sortBy } : {}),
+      },
+    });
+    return res.data;
+  },
+
+  async getAllUsersUnpaged(): Promise<ApiResponse<UserResponse[]>> {
+    const res = await apiClient.get<ApiResponse<UserResponse[]>>('/users/all');
     return res.data;
   },
 
@@ -117,6 +141,11 @@ export const userService = {
 
   async getUserAddressesByAdmin(userId: number): Promise<ApiResponse<UserAddressResponse[]>> {
     const res = await apiClient.get<ApiResponse<UserAddressResponse[]>>(`/users/${userId}/addresses`);
+    return res.data;
+  },
+
+  async createAddressForUser(userId: number, data: UserAddressCreationRequest): Promise<ApiResponse<UserAddressResponse>> {
+    const res = await apiClient.post<ApiResponse<UserAddressResponse>>(`/users/${userId}/addresses`, data);
     return res.data;
   },
 

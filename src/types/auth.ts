@@ -17,6 +17,8 @@ export interface RegisterRequest {
   username: string;
   password?: string;
   fullname: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | string;
+  dateOfBirth?: string | null;
   email: string;
   phone: string;
 }

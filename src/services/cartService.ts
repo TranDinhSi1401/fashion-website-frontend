@@ -16,6 +16,6 @@ export const cartService = {
     return (await apiClient.delete<ApiResponse<CartResponse>>(`/cart/items/${itemId}`)).data.data;
   },
   async clear(): Promise<CartResponse> {
-    return (await apiClient.delete<ApiResponse<CartResponse>>('/cart/items')).data.data;
+    return (await apiClient.delete<ApiResponse<CartResponse>>('/cart/items')).data.data;  
   },
 };

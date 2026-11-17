@@ -2,24 +2,102 @@
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(-6px);
-  transition: var(--transition-fast);
+  transform: translateY(-8px);
+  transition: opacity 220ms ease, visibility 220ms ease, transform 220ms ease;
 }
 
-.open {
+.panel.open {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
   transform: translateY(0);
 }
 
+.panel[aria-hidden='false'] {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+.content {
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+
+.columns {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
 .subLink {
   display: block;
-  transition: var(--transition-fast);
+  transition: color 180ms ease, transform 180ms ease;
 }
 
 .subLink:hover {
-  color: var(--text-primary);
+  color: var(--color-header-accent);
   font-weight: var(--fw-medium);
   transform: translateX(4px);
+}
+
+.banner {
+  display: flex;
+  width: 230px;
+  min-height: 190px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  padding: 1.25rem;
+  background-color: var(--bg-dark);
+  background-position: center;
+  background-size: cover;
+  color: var(--text-inverse);
+  transition: filter 180ms ease;
+}
+
+.banner:hover {
+  filter: brightness(1.08);
+}
+
+.bannerEyebrow {
+  font-size: 9px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.13em;
+}
+
+.bannerTitle {
+  max-width: 12rem;
+  color: var(--text-inverse);
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.bannerCta {
+  margin-top: 0.3rem;
+  color: var(--text-inverse);
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 1100px) {
+  .banner {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .subLink {
+    transition-duration: 0.01ms;
+  }
 }
