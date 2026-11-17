@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CreditCard, ShoppingBag, CheckCircle2 } from 'lucide-react';
+import { CreditCard, ShoppingBag, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { userService } from '../services/userService';
 import { orderService } from '../services/orderService';
 import { shippingService, ShippingOrderPreview } from '../services/shippingService';
+import { paymentMethodService, PaymentMethodResponse } from '../services/paymentMethodService';
+import { specialOfferService, SpecialOfferResponse } from '../services/specialOfferService';
 import { UserAddressResponse } from '../types/user';
 import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import AddressFormModal from '../components/profile/AddressFormModal';
 import { Button, Input, Radio, Select } from '../components/ui';
-
-type PaymentMethod = 'VNPay' | 'COD';
 
 function CheckoutProductImage({ url, name }: { url?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
@@ -34,28 +34,159 @@ function CheckoutProductImage({ url, name }: { url?: string | null; name: string
   );
 }
 
+function isOrderOffer(offer: SpecialOfferResponse) {
+  return offer.type === 'ORDER' || offer.offerType === 'ORDER';
+}
+
+function isPercentageOffer(offer: SpecialOfferResponse) {
+  if (offer.offerType === 'PERCENT') return true;
+  if (offer.offerType === 'AMOUNT') return false;
+
+  return (
+    !(typeof offer.discountAmount === 'number' && offer.discountAmount > 0) &&
+    typeof offer.discountPercent === 'number'
+  );
+}
+
+function getPaymentRedirectUrl(paymentUrl: string | null | undefined) {
+  if (!paymentUrl?.trim()) return null;
+
+  try {
+    const url = new URL(paymentUrl);
+    return url.protocol === 'https:' || url.protocol === 'http:'
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function CheckoutPage() {
   const { user } = useAuth();
   const { cart, loading, error, refresh } = useCart();
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
-  const paymentMethodRef = useRef(paymentMethod);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodResponse[]>([]);
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<number | ''>('');
+  const selectedPaymentMethodIdRef = useRef(selectedPaymentMethodId);
+  const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(true);
+  const [paymentMethodsError, setPaymentMethodsError] = useState('');
+  const [paymentMethodsRetry, setPaymentMethodsRetry] = useState(0);
   const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | ''>('');
   const [addressesLoading, setAddressesLoading] = useState(true);
   const [addressesError, setAddressesError] = useState('');
   const [addressesRetry, setAddressesRetry] = useState(0);
+  const [checkoutNotes, setCheckoutNotes] = useState('');
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [shippingPreview, setShippingPreview] = useState<ShippingOrderPreview | null>(null);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingError, setShippingError] = useState('');
+  const [specialOffers, setSpecialOffers] = useState<SpecialOfferResponse[]>([]);
+  const [selectedOfferId, setSelectedOfferId] = useState<number | ''>('');
+  const [isOfferMenuOpen, setIsOfferMenuOpen] = useState(false);
+  const [specialOfferLoading, setSpecialOfferLoading] = useState(true);
+  const [specialOfferError, setSpecialOfferError] = useState('');
+  const [specialOfferRetry, setSpecialOfferRetry] = useState(0);
+  const offerSelectorRef = useRef<HTMLDivElement>(null);
+  const offerTriggerRef = useRef<HTMLButtonElement>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState('');
-  const [orderSuccess, setOrderSuccess] = useState<string>('');
+  const [orderCreatedWithoutPaymentUrl, setOrderCreatedWithoutPaymentUrl] = useState(false);
   const navigate = useNavigate();
+
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    let active = true;
+
+    specialOfferService
+      .getActiveOffers()
+      .then((offers) => {
+        if (!active) return;
+        setSpecialOffers(
+          offers.filter((offer) => offer.isActive && isOrderOffer(offer))
+        );
+        setSelectedOfferId('');
+      })
+      .catch((failure) => {
+        if (active) {
+          setSpecialOfferError(
+            extractErrorMessage(failure, 'Không thể tải ưu đãi.')
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setSpecialOfferLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [specialOfferRetry]);
+
+  useEffect(() => {
+    if (!isOfferMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!offerSelectorRef.current?.contains(event.target as Node)) {
+        setIsOfferMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOfferMenuOpen(false);
+        offerTriggerRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOfferMenuOpen]);
+
+  useEffect(() => {
+    let active = true;
+
+    paymentMethodService
+      .getPaymentMethods()
+      .then((response) => {
+        if (!active) return;
+        const activePaymentMethods = (response.data || []).filter(
+          (paymentMethod) => paymentMethod.isActive === true
+        );
+        setPaymentMethods(activePaymentMethods);
+        const selectedId = activePaymentMethods.some(
+          (paymentMethod) => paymentMethod.id === selectedPaymentMethodIdRef.current
+        )
+          ? selectedPaymentMethodIdRef.current
+          : activePaymentMethods.find(
+              (paymentMethod) => paymentMethod.code === 'FWDEMO1_VNPAY'
+            )?.id ??
+            activePaymentMethods[0]?.id ??
+            '';
+        selectedPaymentMethodIdRef.current = selectedId;
+        setSelectedPaymentMethodId(selectedId);
+      })
+      .catch((failure) => {
+        if (active) {
+          setPaymentMethodsError(
+            extractErrorMessage(failure, 'Không thể tải phương thức thanh toán.')
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setPaymentMethodsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [paymentMethodsRetry]);
 
   useEffect(() => {
     let active = true;
@@ -87,14 +218,14 @@ export default function CheckoutPage() {
   }, [addressesRetry]);
 
   useEffect(() => {
-    paymentMethodRef.current = paymentMethod;
-  }, [paymentMethod]);
+    const paymentMethodId = selectedPaymentMethodId;
 
-  useEffect(() => {
     if (
       typeof selectedAddressId !== 'number' ||
       !Number.isFinite(selectedAddressId) ||
-      selectedAddressId <= 0
+      selectedAddressId <= 0 ||
+      typeof paymentMethodId !== 'number' ||
+      !Number.isFinite(paymentMethodId)
     ) {
       setShippingPreview(null);
       setShippingError('');
@@ -112,7 +243,7 @@ export default function CheckoutPage() {
       .getOrderPreview(
         {
           userAddressId: selectedAddressId,
-          paymentMethodId: paymentMethodRef.current === 'COD' ? 1 : 2,
+          paymentMethodId,
         },
         controller.signal
       )
@@ -134,7 +265,7 @@ export default function CheckoutPage() {
       active = false;
       controller.abort();
     };
-  }, [selectedAddressId]);
+  }, [selectedAddressId, selectedPaymentMethodId]);
 
   const handleAddressSaved = (address: UserAddressResponse) => {
     setAddresses((current) => [
@@ -150,24 +281,81 @@ export default function CheckoutPage() {
         timeStyle: 'short',
       }).format(new Date(shippingPreview.expected_delivery_time))
     : '';
+  const selectedOffer =
+    specialOffers.find((offer) => offer.id === selectedOfferId) ?? null;
+  const offerEligible =
+    selectedOffer !== null &&
+    cart !== null &&
+    cart.totalPrice >= (selectedOffer.minOrderAmount ?? 0);
+  const discountAmount =
+    selectedOffer && offerEligible && cart
+      ? Math.min(
+          cart.totalPrice,
+          Math.round(
+            isPercentageOffer(selectedOffer)
+              ? Math.min(
+                  (cart.totalPrice * (selectedOffer.discountPercent ?? 0)) / 100,
+                  selectedOffer.maxDiscountAmount ?? Number.POSITIVE_INFINITY
+                )
+              : selectedOffer.discountAmount ?? 0
+          )
+        )
+      : 0;
 
   const handlePlaceOrder = async () => {
     if (typeof selectedAddressId !== 'number' || selectedAddressId <= 0) {
       setOrderError('Vui lòng chọn địa chỉ nhận hàng trước khi đặt mua.');
       return;
     }
+    if (typeof selectedPaymentMethodId !== 'number' || selectedPaymentMethodId <= 0) {
+      setOrderError('Vui lòng chọn phương thức thanh toán trước khi đặt mua.');
+      return;
+    }
+    if (selectedOfferId !== '' && (!selectedOffer || !offerEligible)) {
+      setOrderError('Ưu đãi đã chọn không còn phù hợp với đơn hàng. Vui lòng chọn lại.');
+      return;
+    }
+
+    const selectedPaymentMethod = paymentMethods.find(
+      (paymentMethod) => paymentMethod.id === selectedPaymentMethodId
+    );
+    if (!selectedPaymentMethod) {
+      setOrderError('Phương thức thanh toán đã chọn không còn khả dụng. Vui lòng chọn lại.');
+      return;
+    }
+
+    setOrderError('');
+    const isVnPay = selectedPaymentMethod.code === 'FWDEMO1_VNPAY';
+    const confirmationMessage = isVnPay
+      ? `Bạn xác nhận đặt hàng và tiếp tục thanh toán qua VNPay?`
+      : `Bạn xác nhận đặt hàng với phương thức "${selectedPaymentMethod.name}"?`;
+    if (!window.confirm(confirmationMessage)) return;
+
     setPlacingOrder(true);
     setOrderError('');
-    setOrderSuccess('');
     try {
-      const res = await orderService.createOrder({
+      const response = await orderService.createOrder({
         userAddressId: selectedAddressId,
-        paymentMethodId: paymentMethod === 'COD' ? 1 : 2,
+        paymentMethodId: selectedPaymentMethodId,
+        specialOfferId: selectedOfferId === '' ? null : selectedOfferId,
+        notes: checkoutNotes.trim() || undefined,
       });
-      await refresh();
-      setOrderSuccess(
-        `Đặt hàng thành công! Mã đơn hàng: ${res.data?.orderCode || '#' + res.data?.id}. Tồn kho sản phẩm và thông báo đơn hàng đã được đồng bộ realtime.`
-      );
+      void refresh();
+      if (isVnPay) {
+        const paymentUrl = getPaymentRedirectUrl(response.data?.paymentUrl);
+        if (!paymentUrl) {
+          setOrderCreatedWithoutPaymentUrl(true);
+          setOrderError(
+            'Đơn hàng đã được tạo nhưng backend không trả về paymentUrl hợp lệ. Không thể chuyển đến VNPay; vui lòng kiểm tra đơn hàng trước khi thử lại.'
+          );
+          return;
+        }
+
+        window.location.assign(paymentUrl);
+        return;
+      }
+
+      navigate('/account/orders');
     } catch (err) {
       setOrderError(extractErrorMessage(err, 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại tồn kho.'));
     } finally {
@@ -216,19 +404,7 @@ export default function CheckoutPage() {
           {error}
         </p>
       )}
-      {orderSuccess && (
-        <div className="mx-auto mb-6 max-w-[1060px] border border-emerald-200 bg-emerald-50 p-6 text-center text-emerald-900">
-          <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-600" />
-          <p className="mb-4 text-sm font-semibold">{orderSuccess}</p>
-          <div className="flex justify-center gap-3">
-            <Button variant="primary" onClick={() => navigate('/products')}>
-              Tiếp tục mua sắm
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {!loading && !error && !orderSuccess && cart && cart.items.length === 0 && (
+      {!loading && !error && cart && cart.items.length === 0 && (
         <div className="mx-auto mb-6 max-w-[1060px] bg-surface p-6 text-center">
           <p className="mb-4 text-base text-content-secondary">Giỏ hàng đang trống.</p>
           <Link to="/products">
@@ -343,6 +519,33 @@ export default function CheckoutPage() {
             </section>
 
             <section
+              className="border-b border-line-light py-6"
+              aria-labelledby="checkout-notes-heading"
+            >
+              <h2
+                id="checkout-notes-heading"
+                className="mb-4 text-md font-bold uppercase tracking-wide text-content-primary"
+              >
+                Ghi chú đơn hàng
+              </h2>
+              <Input
+                id="checkout-notes"
+                label="Ghi chú cho đơn hàng"
+                name="notes"
+                multiline
+                rows={3}
+                maxLength={255}
+                value={checkoutNotes}
+                onChange={(event) =>
+                  setCheckoutNotes(event.target.value.slice(0, 255))
+                }
+                placeholder="Nhập ghi chú nếu bạn có yêu cầu thêm…"
+                helperText={`${checkoutNotes.length}/255 ký tự`}
+                className="[&_textarea]:resize-y"
+              />
+            </section>
+
+            <section
               className="flex flex-col items-start gap-3 border-b border-line-light py-6"
               aria-labelledby="checkout-payment-heading"
             >
@@ -353,26 +556,60 @@ export default function CheckoutPage() {
                 Hình thức thanh toán
               </h2>
 
-              <Radio
-                name="paymentMethod"
-                value="COD"
-                label="Thanh toán khi nhận hàng"
-                checked={paymentMethod === 'COD'}
-                onChange={() => setPaymentMethod('COD')}
-              />
-
-              <Radio
-                name="paymentMethod"
-                value="VNPay"
-                label="Thanh toán qua VNPay"
-                checked={paymentMethod === 'VNPay'}
-                onChange={() => setPaymentMethod('VNPay')}
-              />
+              {paymentMethodsLoading && (
+                <p className="text-sm text-content-muted" role="status">
+                  Đang tải phương thức thanh toán…
+                </p>
+              )}
+              {paymentMethodsError && (
+                <p className="text-xs italic text-status-error" role="alert">
+                  {paymentMethodsError}{' '}
+                  <button
+                    type="button"
+                    className="underline underline-offset-2"
+                    onClick={() => {
+                      setPaymentMethodsLoading(true);
+                      setPaymentMethodsError('');
+                      setPaymentMethodsRetry((value) => value + 1);
+                    }}
+                  >
+                    Thử lại
+                  </button>
+                </p>
+              )}
+              {!paymentMethodsLoading &&
+                !paymentMethodsError &&
+                paymentMethods.length === 0 && (
+                  <p className="text-sm text-content-muted">
+                    Hiện không có phương thức thanh toán khả dụng.
+                  </p>
+                )}
+              {paymentMethods.map((paymentMethod) => (
+                <Radio
+                  key={paymentMethod.id}
+                  id={`payment-method-${paymentMethod.id}`}
+                  name="paymentMethod"
+                  value={paymentMethod.id}
+                  label={paymentMethod.name}
+                  checked={selectedPaymentMethodId === paymentMethod.id}
+                  onChange={() => {
+                    selectedPaymentMethodIdRef.current = paymentMethod.id;
+                    setSelectedPaymentMethodId(paymentMethod.id);
+                  }}
+                />
+              ))}
             </section>
 
             {orderError && (
               <p className="mt-4 text-xs font-medium text-status-error" role="alert">
                 {orderError}
+              </p>
+            )}
+            {orderCreatedWithoutPaymentUrl && (
+              <p className="mt-2 text-xs text-content-secondary">
+                <Link to="/account/orders" className="underline underline-offset-2">
+                  Xem đơn hàng của tôi
+                </Link>
               </p>
             )}
 
@@ -381,7 +618,12 @@ export default function CheckoutPage() {
               size="lg"
               className="mt-5 w-full"
               loading={placingOrder}
-              disabled={!selectedAddressId || placingOrder}
+              disabled={
+                !selectedAddressId ||
+                typeof selectedPaymentMethodId !== 'number' ||
+                placingOrder ||
+                orderCreatedWithoutPaymentUrl
+              }
               onClick={() => void handlePlaceOrder()}
             >
               Đặt hàng
@@ -434,24 +676,118 @@ export default function CheckoutPage() {
             </ul>
 
             <div className="border-t border-line-light py-4">
-              <label
-                htmlFor="checkout-coupon-code"
-                className="mb-2 block text-sm font-semibold text-content-primary"
-              >
-                Mã khuyến mãi
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="checkout-coupon-code"
-                  name="coupon"
-                  type="text"
-                  placeholder="Nhập mã"
-                  className="flex-1"
-                />
-                <Button type="button" variant="secondary" className="shrink-0">
-                  Xác nhận
-                </Button>
+              <div className="flex w-full flex-col">
+                <label
+                  htmlFor="checkout-special-offer"
+                  className="mb-1.5 text-sm font-semibold text-content-primary"
+                >
+                  Ưu đãi
+                </label>
+                <div ref={offerSelectorRef} className="relative w-full">
+                  <button
+                    ref={offerTriggerRef}
+                    id="checkout-special-offer"
+                    type="button"
+                    aria-expanded={isOfferMenuOpen}
+                    aria-controls="checkout-special-offer-options"
+                    disabled={specialOfferLoading || specialOffers.length === 0}
+                    onClick={() => setIsOfferMenuOpen((isOpen) => !isOpen)}
+                    className="flex min-h-10 w-full items-center justify-between gap-2 rounded-input border border-line bg-surface-body px-3 py-2 text-left text-sm text-content-primary hover:border-line-focus focus:border-line-focus focus:outline-none focus-visible:ring-2 focus-visible:ring-line-focus disabled:cursor-not-allowed disabled:bg-surface-disabled disabled:text-content-disabled"
+                  >
+                    <span className="min-w-0 flex-1 whitespace-normal break-words [overflow-wrap:anywhere]">
+                      {specialOfferLoading ? (
+                        'Đang tải ưu đãi…'
+                      ) : selectedOffer ? (
+                        selectedOffer.title
+                      ) : specialOffers.length > 0 ? (
+                        'Chọn ưu đãi'
+                      ) : (
+                        'Không có ưu đãi khả dụng'
+                      )}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`shrink-0 text-content-muted transition-transform ${
+                        isOfferMenuOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {isOfferMenuOpen && (
+                    <div
+                      id="checkout-special-offer-options"
+                      role="group"
+                      aria-label="Danh sách ưu đãi đơn hàng"
+                      className="absolute left-0 right-0 z-20 mt-1 max-h-64 overflow-y-auto rounded-input border border-line bg-surface-body shadow-lg"
+                    >
+                      {selectedOfferId !== '' && (
+                        <button
+                          type="button"
+                          aria-pressed={false}
+                          onClick={() => {
+                            setSelectedOfferId('');
+                            setIsOfferMenuOpen(false);
+                            offerTriggerRef.current?.focus();
+                          }}
+                          className="block w-full border-b border-line-light px-3 py-2.5 text-left text-sm text-content-secondary hover:bg-surface"
+                        >
+                          Không áp dụng ưu đãi
+                        </button>
+                      )}
+                      {specialOffers.map((offer) => {
+                        const eligible =
+                          cart.totalPrice >= (offer.minOrderAmount ?? 0);
+                        return (
+                          <button
+                            key={offer.id}
+                            type="button"
+                            aria-pressed={selectedOfferId === offer.id}
+                            disabled={!eligible}
+                            onClick={() => {
+                              setSelectedOfferId(offer.id);
+                              setIsOfferMenuOpen(false);
+                              offerTriggerRef.current?.focus();
+                            }}
+                            className="block w-full border-b border-line-light px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-surface disabled:cursor-not-allowed disabled:text-content-disabled"
+                          >
+                            <span className="block whitespace-normal break-words [overflow-wrap:anywhere]">
+                              {offer.title}
+                            </span>
+                            {!eligible && (
+                              <span className="mt-1 block text-xs text-content-secondary">
+                                Đơn tối thiểu {formatCurrencyVND(offer.minOrderAmount)}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {specialOfferError && (
+                <p className="mt-2 text-xs italic text-status-error" role="alert">
+                  {specialOfferError}{' '}
+                  <button
+                    type="button"
+                    className="underline underline-offset-2"
+                    onClick={() => {
+                      setSpecialOfferLoading(true);
+                      setSpecialOfferError('');
+                      setSpecialOfferRetry((value) => value + 1);
+                    }}
+                  >
+                    Thử lại
+                  </button>
+                </p>
+              )}
+              {selectedOffer && !offerEligible && (
+                <p className="mt-2 text-xs text-content-muted">
+                  Đơn hàng tối thiểu {formatCurrencyVND(selectedOffer.minOrderAmount)} để
+                  áp dụng ưu đãi này.
+                </p>
+              )}
             </div>
 
             <section
@@ -483,6 +819,15 @@ export default function CheckoutPage() {
                 </strong>
               </div>
 
+              {selectedOffer && offerEligible && (
+                <div className="flex justify-between gap-3 py-2 text-sm text-content-secondary">
+                  <span>Ưu đãi</span>
+                  <strong className="whitespace-nowrap font-semibold text-status-success">
+                    −{formatCurrencyVND(discountAmount)}
+                  </strong>
+                </div>
+              )}
+
               {shippingError && (
                 <p className="my-1.5 text-xs italic text-status-error" role="alert">
                   {shippingError}
@@ -496,10 +841,12 @@ export default function CheckoutPage() {
               )}
 
               <div className="mt-2 flex justify-between gap-3 border-t border-line-light pt-3.5 text-base font-bold text-content-primary">
-                <span>Tổng thanh toán</span>
+                <span>Tổng tạm tính</span>
                 <strong className="whitespace-nowrap text-lg text-accent-red">
                   {shippingPreview
-                    ? formatCurrencyVND(cart.totalPrice + shippingPreview.total_fee)
+                    ? formatCurrencyVND(
+                        cart.totalPrice - discountAmount + shippingPreview.total_fee
+                      )
                     : '—'}
                 </strong>
               </div>

@@ -15,6 +15,15 @@ import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import { cn } from '../utils/cn';
 
+type CustomerOrderFilter = 'ALL' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED';
+
+const CUSTOMER_ORDER_FILTERS: { value: CustomerOrderFilter; label: string }[] = [
+  { value: 'ALL', label: 'Tất cả' },
+  { value: 'PROCESSING', label: 'Đang xử lý' },
+  { value: 'SHIPPING', label: 'Đang giao' },
+  { value: 'DELIVERED', label: 'Giao thành công' },
+];
+
 /**
  * Chức năng: Hiển thị danh sách các đơn hàng đã mua của khách hàng và điều kiện tạo phiếu trả hàng.
  *
@@ -25,6 +34,7 @@ export default function CustomerOrdersTab() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [activeFilter, setActiveFilter] = useState<CustomerOrderFilter>('ALL');
 
   // Tải danh sách đơn hàng của khách hàng từ orderService
   useEffect(() => {
@@ -104,6 +114,17 @@ export default function CustomerOrdersTab() {
     );
   }
 
+  const supportedOrders = orders.filter(
+    (order) =>
+      order.orderStatus === 'PROCESSING' ||
+      order.orderStatus === 'SHIPPING' ||
+      order.orderStatus === 'DELIVERED'
+  );
+  const filteredOrders =
+    activeFilter === 'ALL'
+      ? supportedOrders
+      : supportedOrders.filter((order) => order.orderStatus === activeFilter);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between border-b border-line-light pb-4">
@@ -116,13 +137,40 @@ export default function CustomerOrdersTab() {
           </p>
         </div>
         <span className="text-xs font-semibold text-content-muted">
-          Tổng cộng: <strong className="text-content-primary">{orders.length}</strong> đơn
+          Tổng cộng: <strong className="text-content-primary">{supportedOrders.length}</strong> đơn
         </span>
+      </div>
+
+      <div
+        role="group"
+        aria-label="Lọc đơn hàng theo trạng thái"
+        className="flex flex-wrap gap-2"
+      >
+        {CUSTOMER_ORDER_FILTERS.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            aria-pressed={activeFilter === filter.value}
+            onClick={() => setActiveFilter(filter.value)}
+            className={cn(
+              'border-b-2 px-4 py-2 text-sm font-semibold transition-colors',
+              activeFilter === filter.value
+                ? 'border-primary text-content-primary'
+                : 'border-transparent text-content-secondary hover:border-line-light hover:text-content-primary'
+            )}
+          >
+            {filter.label}
+          </button>
+        ))}
       </div>
 
       {/* Danh sách thẻ đơn hàng */}
       <div className="flex flex-col gap-5">
-        {orders.map((order) => {
+        {filteredOrders.length === 0 ? (
+          <div className="border border-line-light bg-surface p-8 text-center text-sm text-content-muted">
+            Không có đơn hàng phù hợp với trạng thái này.
+          </div>
+        ) : filteredOrders.map((order) => {
           const eligibleForReturn = isOrderEligibleForReturn(order);
           const isDelivered = order.orderStatus === 'DELIVERED';
 
