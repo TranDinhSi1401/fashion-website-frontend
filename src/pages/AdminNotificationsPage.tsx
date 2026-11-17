@@ -40,9 +40,9 @@ export default function AdminNotificationsPage() {
   const loadOrders = useCallback(async () => {
     setLoadingOrders(true);
     try {
-      const res = await orderService.getAllOrders();
+      const res = await orderService.searchOrders({ page: 0 });
       if (res?.data) {
-        const sorted = [...res.data].sort((a, b) => b.id - a.id);
+        const sorted = [...res.data.content].sort((a, b) => b.id - a.id);
         setOrders(sorted);
         if (sorted.length > 0 && !selectedOrderId) {
           setSelectedOrderId(String(sorted[0].id));

@@ -1,6 +1,15 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Package, Users, Shield, ArrowUpRight, Store, MessageSquare, BellRing } from 'lucide-react';
+import {
+  Package,
+  Users,
+  Shield,
+  ArrowUpRight,
+  Store,
+  MessageSquare,
+  BellRing,
+  ShoppingCart,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Badge } from '../ui';
 import { cn } from '../../utils/cn';
@@ -16,6 +25,7 @@ export default function AdminNav({ title, subtitle, actions }: AdminNavProps) {
   const { user, isAdmin } = useAuth();
 
   const isProductsActive = location.pathname.startsWith('/admin/products');
+  const isOrdersActive = location.pathname.startsWith('/admin/orders');
   const isUsersActive = location.pathname.startsWith('/admin/users');
   const isChatActive = location.pathname.startsWith('/admin/chat');
   const isNotificationsActive = location.pathname.startsWith('/admin/notifications');
@@ -66,6 +76,19 @@ export default function AdminNav({ title, subtitle, actions }: AdminNavProps) {
           >
             <Package size={16} />
             <span>Quản Lý Sản Phẩm</span>
+          </Link>
+
+          <Link
+            to="/admin/orders"
+            className={cn(
+              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
+              isOrdersActive
+                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
+                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
+            )}
+          >
+            <ShoppingCart size={16} />
+            <span>Quản Lý Đơn Hàng</span>
           </Link>
 
           <Link
