@@ -1,9 +1,10 @@
+import { isCurrentOffer } from '../../utils/productOffers';
 import { ProductOffer } from '../../types/product';
 import { formatCurrencyVND } from '../../utils/format';
 
 export default function ProductPrice({ price, offer }: { price: number; offer?: ProductOffer | null }) {
   const original = offer?.originalPrice ?? price;
-  const discounted = offer && Number(offer.discountedPrice) < Number(original);
+  const discounted = isCurrentOffer(offer) && Number(offer.discountedPrice) < Number(original);
   return <span>
     <span className="font-bold">{formatCurrencyVND(discounted ? offer.discountedPrice : price)}</span>
     {discounted && <>

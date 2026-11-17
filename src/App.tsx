@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -29,6 +29,8 @@ import AdminDormantReviewsPage from './pages/AdminDormantReviewsPage';
 import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
 
 export default function App() {
+  const { pathname } = useLocation();
+  const purchasing = pathname === '/cart' || pathname === '/checkout';
   return (
     <div className="relative flex min-h-screen flex-col">
       <ScrollManager />
@@ -204,8 +206,10 @@ export default function App() {
       <Footer />
 
       {/* Floating AI Stylist Advisor Widget & Realtime Customer Support Chat Widget */}
-      <AiAdvisorWidget />
-      <ChatWidget />
+      <div hidden={purchasing} inert={purchasing}>
+        <AiAdvisorWidget />
+        <ChatWidget />
+      </div>
     </div>
   );
 }

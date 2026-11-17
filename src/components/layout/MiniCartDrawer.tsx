@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Trash2, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -17,57 +17,56 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
   const { isAuthenticated, isCustomer } = useAuth();
   const { cart, busy, error, updateItem, removeItem } = useCart();
   const navigate = useNavigate();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [actionError, setActionError] = useState('');
 
   useLayoutEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (!isOpen) { if (dialog.open) dialog.close(); return; }
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-
+    if (!dialog.open) dialog.showModal();
     return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
+      if (dialog.open) dialog.close();
+      document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
+
+  async function mutate(action: () => Promise<unknown>) {
+    setActionError('');
+    try { await action(); }
+    catch (e) { setActionError(e instanceof Error ? e.message : 'Không cập nhật được giỏ hàng. Vui lòng thử lại.'); }
+  }
 
   const items = cart?.items || [];
   const totalQuantity = cart?.totalQuantity || 0;
   const totalPrice = cart?.totalPrice || 0;
 
   const handleClose = () => {
-    document.body.style.overflow = '';
     onClose();
   };
 
   const handleNavigate = (to: string) => {
-    document.body.style.overflow = '';
     onClose();
     navigate(to);
   };
 
   return (
-    <div
-      aria-hidden={!isOpen}
-      className={cn(
-        'fixed inset-0 z-50',
-        isOpen ? 'pointer-events-auto' : 'pointer-events-none'
-      )}
+    <dialog
+      ref={dialogRef}
+      aria-label="Giỏ hàng nhanh"
+      className={styles.shell}
+      onCancel={event => { event.preventDefault(); onClose(); }}
     >
       <div
         onClick={onClose}
-        className={cn('fixed inset-0', styles.backdrop, isOpen && styles.backdropOpen)}
+        className={cn(styles.backdrop)}
       />
 
       <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label="Giỏ hàng nhanh"
         className={cn(
-          'fixed right-0 top-0 z-50 flex h-screen w-[420px] max-w-full flex-col rounded-none bg-surface-elevated shadow-modal',
+          'flex flex-col rounded-none bg-surface-elevated shadow-modal',
           styles.drawer,
           isOpen && styles.drawerOpen
         )}
@@ -90,10 +89,10 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
         </div>
 
         {/* Scrollable Product List */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {error && (
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {(actionError || error) && (
             <p className="mb-4 border border-line-error bg-surface p-3 text-xs italic text-status-error">
-              {error}
+              {actionError || error}
             </p>
           )}
 
@@ -142,7 +141,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-xs text-content-muted">
-                        No image
+                        Chưa có ảnh
                       </div>
                     )}
                   </Link>
@@ -160,7 +159,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => void removeItem(item.id)}
+                          onClick={() => void mutate(() => removeItem(item.id))}
                           aria-label={`Xóa ${item.productName}`}
                           className="shrink-0 text-content-muted transition-colors hover:text-accent-red disabled:cursor-not-allowed disabled:text-content-disabled"
                         >
@@ -177,10 +176,10 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
                       <QuantityStepper
                         value={item.quantity}
                         min={1}
-                        max={Math.max(1, item.stockQuantity || 99)}
+                        max={Math.max(1, item.stockQuantity ?? 0)}
                         disabled={busy || !item.available}
                         label={`Số lượng ${item.productName}`}
-                        onChange={(qty) => void updateItem(item.id, qty)}
+                        onChange={(qty) => void mutate(() => updateItem(item.id, qty))}
                       />
 
                       <span className="text-md font-bold text-content-primary">
@@ -195,7 +194,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
         </div>
 
         {/* Footer: 160px */}
-        <div className="flex h-[160px] shrink-0 flex-col justify-between border-t border-line-light bg-surface-body px-6 py-5">
+        <div className={styles.footer}>
           <div className="flex items-baseline justify-between">
             <span className="text-sm font-semibold uppercase tracking-wide text-content-secondary">
               Tạm tính
@@ -205,15 +204,17 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className={styles.actions}>
             <Button
               variant="secondary"
+              className={styles.actionButton}
               onClick={() => handleNavigate('/cart')}
             >
               Xem giỏ hàng
             </Button>
             <Button
               variant="primary"
+              className={styles.actionButton}
               disabled={!isCustomer || items.length === 0}
               onClick={() => handleNavigate('/checkout')}
             >
@@ -222,6 +223,6 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
           </div>
         </div>
       </aside>
-    </div>
+    </dialog>
   );
 }

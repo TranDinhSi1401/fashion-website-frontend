@@ -29,6 +29,9 @@ export interface ProductPage {
   size: number;
 }
 export interface ProductVariantInput {
+  clientId?: string;
+  id?: number;
+  isActive?: boolean;
   color: string;
   size: string;
   price: number;
@@ -38,7 +41,7 @@ export interface ProductVariantInput {
   packageWidth?: number;
   packageHeight?: number;
 }
-export interface ProductImageInput { imageUrl: string; variantIndex?: number; }
+export interface ProductImageInput { id?: number; imageUrl: string; variantIndex?: number; }
 
 export interface ProductResponse {
   bestOffer?: ProductOffer | null;
@@ -64,6 +67,10 @@ export interface ProductResponse {
 }
 
 export interface ProductVariant {
+  packageWeight?: number;
+  packageLength?: number;
+  packageWidth?: number;
+  packageHeight?: number;
   sku?: string;
   bestOffer?: ProductOffer | null;
   discountedPrice?: number;
@@ -76,6 +83,7 @@ export interface ProductVariant {
 }
 
 export interface ProductFilters {
+  saleOnly?: boolean;
   isActive?: boolean;
   inStock?: boolean;
   newWithinDays?: number;

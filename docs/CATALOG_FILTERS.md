@@ -18,7 +18,9 @@ Không cần thay schema hoặc import lại dữ liệu; ảnh và biến thể
 URL hỗ trợ `categoryId`, `search`, `minPrice`, `maxPrice`, `size`, `color`, `sort`.
 Link cũ của Header như `category=ao`, `category=polo`, `category=quan` tra ID thực từ danh mục API.
 `tag=new` gọi GET `/products/new?days=30`, lấy sản phẩm tạo trong 30 ngày và mặc định mới nhất trước.
-`tag=sale` báo chưa hỗ trợ; cần nối luồng khuyến mãi trước khi triển khai.
+`tag=sale` hiển thị sản phẩm có ưu đãi PRODUCT hợp lệ từ `bestOffer` của backend. Kết hợp với danh mục, giá, màu, size và phân trang; sản phẩm hết hàng hoặc ưu đãi hết hạn không được tính. Khi chọn màu/size, giá trên thẻ lấy ưu đãi của biến thể phù hợp, không lấy mức giảm ở biến thể khác.
+
+Ô “Tìm trong kết quả” ở sidebar là tìm kiếm phụ, giữ các bộ lọc đang chọn; nhấn Enter hoặc nút kính lúp để áp dụng. Ô tìm kiếm chính vẫn nằm ở header.
 Tay áo/cổ áo/form/chất liệu chưa có dữ liệu cấu trúc, nên không hiển thị các nút lọc giả.
 
 Kiểm tra: `node --test tests/catalog.test.mjs` (Node 22.18+), `npm run build`, `npm run lint`.
