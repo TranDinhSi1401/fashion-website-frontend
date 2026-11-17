@@ -14,6 +14,7 @@ export interface UserResponse {
   role: UserRole;
   avt?: string | null;
   status?: 'ACTIVE' | 'INACTIVE' | string;
+  deletedAt?: string | null;
 }
 
 export interface UserAddressResponse {

@@ -558,8 +558,8 @@ export default function Header() {
                           {user?.email || `@${user?.username}`}
                         </div>
                         <div className="mt-1 flex items-center gap-1.5">
-                          <Badge variant={isAdmin ? 'dark' : isStaff ? 'warning' : 'vip'}>
-                            {isAdmin ? 'ADMINISTRATOR' : isStaff ? 'STAFF OPERATOR' : 'CUSTOMER VIP'}
+                          <Badge variant={isAdmin ? 'dark' : isStaff ? 'warning' : 'default'}>
+                            {isAdmin ? 'ADMINISTRATOR' : isStaff ? 'STAFF OPERATOR' : 'CUSTOMER'}
                           </Badge>
                         </div>
                       </div>
