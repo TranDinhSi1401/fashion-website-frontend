@@ -1,6 +1,10 @@
 import apiClient from './apiClient';
 import { ApiResponse } from '../types/api';
-import type { OrderResponse as ReturnOrderResponse, OrderWithItems } from '../types/order';
+import type {
+  OrderItemResponse as ReturnOrderItemResponse,
+  OrderResponse as ReturnOrderResponse,
+  OrderWithItems,
+} from '../types/order';
 import { normalizeOrderWithItems } from '../utils/returnHelpers';
 
 export { normalizeOrderWithItems } from '../utils/returnHelpers';
@@ -13,6 +17,15 @@ export type OrderStatus =
   | 'CANCELLED'
   | 'SYSTEM_CANCELED'
   | 'RETURNED';
+
+export type PaymentStatus =
+  | 'PENDING'
+  | 'PENDING_COD'
+  | 'PAID'
+  | 'FAILED'
+  | 'EXPIRED'
+  | 'PARTIALLY_PAID'
+  | 'REFUNDED';
 
 export interface OrderResponse {
   id: number;
@@ -28,19 +41,44 @@ export interface OrderResponse {
   orderStatus: OrderStatus;
   deliveredAt?: string | null;
   paymentStatus: string;
+  paymentUrl?: string | null;
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
+  orderItems?: ReturnOrderItemResponse[];
+}
+
+export interface OrdersPage {
+  content: OrderResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+}
+
+export interface OrderSearchFilters {
+  page?: number;
+  user_id?: number;
+  order_code?: string;
+  created_at?: string;
+  order_status?: OrderStatus;
+  payment_status?: PaymentStatus;
 }
 
 export interface OrderCreationRequest {
   userAddressId: number;
   paymentMethodId: number;
+  specialOfferId: number | null;
+  notes?: string;
 }
 
 export const orderService = {
-  async getAllOrders(): Promise<ApiResponse<OrderResponse[]>> {
-    const res = await apiClient.get<ApiResponse<OrderResponse[]>>('/orders');
+  async searchOrders(filters: OrderSearchFilters = {}): Promise<ApiResponse<OrdersPage>> {
+    const res = await apiClient.get<ApiResponse<OrdersPage>>('/orders', {
+      params: filters,
+    });
     return res.data;
   },
 
