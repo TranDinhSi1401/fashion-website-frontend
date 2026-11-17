@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Package, Users, Shield, ArrowUpRight, Store, MessageSquare, Tag } from 'lucide-react';
+import { Package, Users, Shield, ArrowUpRight, Store, MessageSquare, Tag, BellRing } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Badge } from '../ui';
 import { cn } from '../../utils/cn';

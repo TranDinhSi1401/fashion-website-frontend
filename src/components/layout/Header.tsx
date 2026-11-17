@@ -439,7 +439,7 @@ export default function Header() {
                       className={cn(
                         'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
                         location.pathname === '/admin/promotions'
-                          ? 'bg-accent-gold/10 text-accent-gold'
+                          ? cn('bg-accent-gold/10', styles.accentText)
                           : 'text-content-primary hover:bg-surface'
                       )}
                     >
@@ -657,10 +657,13 @@ export default function Header() {
                         <Link
                           to="/admin/promotions"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                          className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10', styles.accentHover)}
                         >
-                          <Tag size={15} />
-                          <span>Quản lý khuyến mãi</span>
+                          <div className="flex items-center gap-2.5">
+                            <Tag size={15} className="text-accent-gold" />
+                            <span className="font-medium">Quản lý khuyến mãi</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
                         <Link
                           to="/admin/users"
