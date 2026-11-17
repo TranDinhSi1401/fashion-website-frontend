@@ -24,3 +24,10 @@ Link cũ của Header như `category=ao`, `category=polo`, `category=quan` tra I
 Tay áo/cổ áo/form/chất liệu chưa có dữ liệu cấu trúc, nên không hiển thị các nút lọc giả.
 
 Kiểm tra: `node --test tests/catalog.test.mjs` (Node 22.18+), `npm run build`, `npm run lint`.
+
+
+## Điều hướng Áo/Quần từ danh mục thật
+
+Menu desktop và mobile lấy tên/ID từ `GET /categories`, nhóm theo cây danh mục Áo/Quần và đối tượng Nam/Nữ/Unisex. Từng mục dẫn tới `categoryId` thật. Các tên marketing không tồn tại trong database và `sort=popular` chưa được hỗ trợ không xuất hiện trong menu.
+
+`group=ao`, `group=quan`, `group=phukien` giới hạn kết quả vào các danh mục tương ứng. `tag=new` và `tag=sale` trong menu giữ nguyên group; chọn thêm đối tượng/loại sản phẩm sẽ giao với group hiện tại. Nhánh danh mục bị tắt, thiếu cha hoặc vòng lặp không được quảng bá. Menu đọc lại dữ liệu khi đổi trang hoặc quay lại cửa sổ.

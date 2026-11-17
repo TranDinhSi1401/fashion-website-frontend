@@ -16,6 +16,7 @@ import {
   resolveCategories,
   searchColors,
 } from '../utils/catalog';
+import { GROUP_LABELS, groupCategoryIds, isCatalogGroup } from '../utils/categoryNavigation';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import {
   Button,
@@ -180,12 +181,14 @@ export default function ProductsPage() {
     const maxPrice = parsePrice(params.get('maxPrice'));
     const rawId = params.get('categoryId');
     const alias = params.get('category') || '';
+    const group = params.get('group');
+    const groupIds = isCatalogGroup(group) ? new Set(groupCategoryIds(group, categories)) : null;
     const audiences = (params.get('audience') || '').split('|').filter(Boolean);
     const types = (params.get('type') || '').split('|').filter(Boolean);
     const sizes = (params.get('size') || '').split('|').filter(Boolean);
     const colors = (params.get('color') || '').split('|').filter(Boolean);
     const hasFacets = audiences.length > 0 || types.length > 0;
-    const ids = hasFacets
+    let ids = hasFacets
       ? facets
           .filter(
             (category) =>
@@ -198,6 +201,7 @@ export default function ProductsPage() {
         : alias
           ? resolveCategories(alias, categories)
           : [];
+    if (groupIds) ids = (hasFacets || rawId || alias ? ids : [...groupIds]).filter(id => groupIds.has(id));
     const sort = params.get('sort') || 'newest';
     const invalidPrice =
       Number.isNaN(minPrice) ||
@@ -206,6 +210,7 @@ export default function ProductsPage() {
     let validation = invalidPrice
       ? 'Khoảng giá không hợp lệ. Giá từ phải nhỏ hơn hoặc bằng giá đến.'
       : '';
+    if (group && !isCatalogGroup(group)) validation = 'Nhóm sản phẩm không hợp lệ.';
     if (rawId && (!Number.isSafeInteger(Number(rawId)) || Number(rawId) < 1)) {
       validation = 'Danh mục không hợp lệ.';
     }
@@ -216,7 +221,7 @@ export default function ProductsPage() {
       validation = 'Bộ lọc không hợp lệ.';
     }
     const filters: ProductFilters = {
-      ...(!hasFacets && rawId
+      ...(!hasFacets && !group && rawId
         ? { categoryId: rawId }
         : ids.length
           ? { categoryIds: ids.join(',') }
@@ -229,10 +234,10 @@ export default function ProductsPage() {
       saleOnly: params.get('tag') === 'sale',
     };
     const missingCategory = Boolean(
-      (hasFacets || alias || rawId) &&
+      (hasFacets || alias || rawId || group) &&
         !categories.some((category) => ids.includes(category.id))
     );
-    return { filters, ids, validation, missingCategory, audiences, types, sizes, colors, hasFacets };
+    return { filters, ids, validation, missingCategory, audiences, types, sizes, colors, hasFacets, group };
   }, [paramsKey, categories, facets]);
 
   const products = useMemo(
@@ -262,7 +267,7 @@ export default function ProductsPage() {
   ].sort((a, b) => a.localeCompare(b, 'vi'));
   const visibleColors = searchColors([...new Set([...colors, ...selection.colors])], colorSearch);
   const availableFacets = facets.filter((category) =>
-    catalog.some((product) => product.categoryId === category.id)
+    (!isCatalogGroup(selection.group) || groupCategoryIds(selection.group, categories).includes(category.id)) && catalog.some((product) => product.categoryId === category.id)
   );
   const audiences = [
     ...new Set(availableFacets.map((category) => category.audience).filter(Boolean)),
@@ -276,6 +281,7 @@ export default function ProductsPage() {
   ].sort((a, b) => a[1].localeCompare(b[1], 'vi'));
 
   const categoryName =
+    isCatalogGroup(selection.group) ? GROUP_LABELS[selection.group] :
     !selection.hasFacets && selection.ids.length === 1
       ? categories.find((category) => category.id === selection.ids[0])?.name
       : '';
@@ -289,7 +295,8 @@ export default function ProductsPage() {
   const categoryTag = searchParams.get('tag') === 'new' ? 'new' : '';
 
   const activeFilters: { label: string; changes: Record<string, string> }[] = [];
-  if (selection.ids.length && !selection.hasFacets) {
+  if (isCatalogGroup(selection.group)) activeFilters.push({ label: `Nhóm: ${GROUP_LABELS[selection.group]}`, changes: { group: '' } });
+  if (selection.ids.length && !selection.hasFacets && !selection.group) {
     activeFilters.push({
       label: `Danh mục: ${categories
         .filter((category) => selection.ids.includes(category.id))
