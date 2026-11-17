@@ -12,6 +12,8 @@
   --color-accent-red: #D0021B;
   --color-accent-red-hover: #A80015;
   --color-accent-gold: #C5A059;
+  --color-header-accent: #8A642D;
+  --color-topbar-hover: #E4C48F;
 
   /* Màu nền (Backgrounds) */
   --bg-body: #FFFFFF;                /* Nền chính toàn trang */
@@ -77,6 +79,7 @@
   --container-padding: 24px;
   --grid-gap: 24px;          /* Khoảng cách giữa các cột sản phẩm */
   --header-height: 76px;
+  --header-height-compact: 62px;
   --topbar-height: 36px;
   --btn-height: 44px;
   --btn-height-lg: 48px;
@@ -84,6 +87,7 @@
 
   /* ================= 5. ĐỔ BÓNG & HIỆU ỨNG (SHADOWS & TRANSITIONS) ================= */
   --shadow-header: 0 2px 10px rgba(0, 0, 0, 0.06);
+  --shadow-header-scrolled: 0 5px 20px rgba(0, 0, 0, 0.09);
   --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.12);
   --shadow-modal: 0 16px 40px rgba(0, 0, 0, 0.2);
   --transition-fast: all 0.2s ease-in-out;

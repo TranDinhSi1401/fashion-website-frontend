@@ -1,0 +1,87 @@
+/* ReturnTimeline.module.css - Styles cho tiến trình 6 bước và các banner cảnh báo */
+
+.timelineContainer {
+  padding: 24px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-card);
+}
+
+.stepLine {
+  height: 2px;
+  background-color: var(--border-light);
+  flex: 1;
+  margin: 0 8px;
+  transition: background-color 0.3s ease;
+}
+
+.stepLineCompleted {
+  background-color: var(--color-primary);
+}
+
+.stepCircle {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  border: 2px solid var(--border-default);
+  background-color: var(--bg-body);
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+}
+
+.stepCircleActive {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+}
+
+.stepCircleCompleted {
+  border-color: var(--color-primary);
+  background-color: var(--bg-body);
+  color: var(--color-primary);
+}
+
+.stepCircleRejected {
+  border-color: var(--status-error);
+  background-color: var(--status-error);
+  color: var(--text-inverse);
+}
+
+.stepCircleCancelled {
+  border-color: var(--border-default);
+  background-color: var(--bg-disabled);
+  color: var(--text-disabled);
+}
+
+/* Các banner thông báo phản hồi và cảnh báo SLA sử dụng rgba không chứa mã hex */
+.bannerOverdue {
+  padding: 14px 18px;
+  background-color: rgba(230, 126, 34, 0.09);
+  border-left: 4px solid var(--status-warning);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+}
+
+.bannerRejected {
+  padding: 14px 18px;
+  background-color: rgba(208, 2, 27, 0.08);
+  border-left: 4px solid var(--status-error);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+}
+
+.bannerFeedback {
+  padding: 14px 18px;
+  background-color: rgba(197, 160, 89, 0.12);
+  border-left: 4px solid var(--color-accent-gold);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+}

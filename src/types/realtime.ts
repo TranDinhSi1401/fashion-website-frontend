@@ -28,6 +28,7 @@ export interface ChatMessageResponse {
   senderUsername: string;
   senderRole: ChatRole;
   content: string;
+  imageUrl?: string | null;
   createdAt: string;
 }
 

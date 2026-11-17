@@ -43,6 +43,70 @@ export function isValidVietnamPhone(phone: string): boolean {
 }
 
 /**
+ * Format ISO date string (YYYY-MM-DD) to Vietnamese display format (DD/MM/YYYY)
+ */
+export function formatDateVN(dateStr?: string | null): string {
+  if (!dateStr || typeof dateStr !== 'string') return 'Chưa cập nhật';
+  const trimmed = dateStr.trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString('vi-VN');
+  }
+  return trimmed;
+}
+
+/**
+ * Validate Date of Birth (must be in the past, age between 10 and 110)
+ * Returns error message string if invalid, or null if valid.
+ */
+export function validateDateOfBirth(dateStr?: string | null, required = false): string | null {
+  if (!dateStr || !dateStr.trim()) {
+    return required ? 'Vui lòng chọn ngày sinh' : null;
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim());
+  if (!match) {
+    return 'Định dạng ngày sinh không hợp lệ (YYYY-MM-DD)';
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const birthDate = new Date(year, month, day);
+  if (
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month ||
+    birthDate.getDate() !== day
+  ) {
+    return 'Ngày sinh không tồn tại trên lịch';
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (birthDate >= today) {
+    return 'Ngày sinh phải là một ngày trong quá khứ';
+  }
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  if (age < 10) {
+    return 'Người dùng phải đủ từ 10 tuổi trở lên';
+  }
+  if (age > 110) {
+    return 'Ngày sinh không hợp lệ (không được vượt quá 110 tuổi)';
+  }
+
+  return null;
+}
+
+/**
  * Từ điển ánh xạ mã lỗi hệ thống sang thông báo tiếng Việt thân thiện
  */
 export const ERROR_CODE_TRANSLATIONS: Record<string, string> = {

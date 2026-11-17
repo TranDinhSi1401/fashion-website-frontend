@@ -7,6 +7,7 @@ export interface UserResponse {
   username: string;
   fullname?: string | null;
   gender?: UserGender | null;
+  dateOfBirth?: string | null;
   email: string;
   phone?: string | null;
   address?: string | null;
@@ -46,6 +47,7 @@ export interface UserAddressUpdateRequest {
 export interface UpdateUserRequest {
   fullname?: string;
   gender?: UserGender;
+  dateOfBirth?: string | null;
   email?: string;
   phone?: string;
   avt?: string;
@@ -58,4 +60,16 @@ export interface ChangePasswordRequest {
   newPassword?: string;
   confirmPassword?: string;
 }
+
+export interface UserPageResponse {
+  content: UserResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
+}
+
 

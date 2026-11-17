@@ -19,7 +19,7 @@
 .tryon-modal-container {
   width: 100%;
   max-width: 1060px;
-  max-height: 92vh;
+  max-height: 92dvh;
   background: #141416;
   border: 1px solid rgba(197, 160, 89, 0.25);
   border-radius: 12px;
@@ -35,6 +35,7 @@
     opacity: 0;
     transform: scale(0.97);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -129,55 +130,52 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.tryon-token-pill {
+.tryon-header-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 11px;
+  background: rgba(197, 160, 89, 0.12);
+  border: 1px solid rgba(197, 160, 89, 0.35);
   border-radius: 999px;
-  font-size: 0.7rem;
+  color: #E6CA85;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
   transition: all 0.2s ease;
-  cursor: default;
 }
 
-.tryon-token-pill:hover {
-  border-color: rgba(197, 160, 89, 0.4);
-  background: rgba(197, 160, 89, 0.06);
+.tryon-header-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  background: rgba(197, 160, 89, 0.18);
+  border: 1px solid rgba(197, 160, 89, 0.5);
+  border-radius: 999px;
+  color: #FFFFFF;
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
-.tryon-token-dot {
-  width: 6px;
-  height: 6px;
+.tryon-header-progress-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #10B981;
-  box-shadow: 0 0 8px #10B981;
-  animation: tokenPulse 2s infinite;
+  background: #E6CA85;
+  box-shadow: 0 0 10px #E6CA85;
+  animation: progressPulse 1.2s infinite;
 }
 
-@keyframes tokenPulse {
+@keyframes progressPulse {
   0%, 100% {
     opacity: 1;
     transform: scale(1);
   }
   50% {
-    opacity: 0.45;
+    opacity: 0.4;
     transform: scale(0.85);
   }
-}
-
-.tryon-token-label {
-  color: #8E8E93;
-  font-size: 0.68rem;
-  font-weight: 500;
-}
-
-.tryon-token-value {
-  color: #E6CA85;
-  font-weight: 700;
-  font-family: monospace;
-  font-size: 0.72rem;
 }
 
 .tryon-close-btn {
@@ -200,6 +198,16 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+.tryon-close-btn:focus-visible,
+.tryon-tab-item:focus-visible,
+.tryon-camera-capture:focus-visible,
+.tryon-camera-wrapper button:focus-visible,
+.tryon-dropzone:focus-visible,
+.tryon-btn-action:focus-visible {
+  outline: 3px solid #E6CA85;
+  outline-offset: 3px;
+}
+
 /* Tabs */
 .tryon-tabs {
   display: flex;
@@ -207,6 +215,7 @@
   padding: 12px 24px;
   background: #111113;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
 }
 
 .tryon-tab-item {
@@ -235,10 +244,17 @@
   border-color: rgba(197, 160, 89, 0.35);
 }
 
+.tryon-tab-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 /* Body Layout */
 .tryon-body {
   padding: 16px 22px;
   overflow-y: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
   gap: 20px;
@@ -262,13 +278,59 @@
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid rgba(197, 160, 89, 0.3);
+  isolation: isolate;
 }
 
 .tryon-camera-video {
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scaleX(-1); /* Lật gương webcam tự nhiên */
+  pointer-events: none;
+  /* QUAN TRỌNG: Ngăn iOS Safari bắt sự kiện click mở AVPlayer toàn màn hình */
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.tryon-camera-video.mirrored {
+  transform: scaleX(-1);
+}
+
+.tryon-camera-video.normal {
+  transform: scaleX(1);
+}
+
+.tryon-camera-flip-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(20, 20, 22, 0.78);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.tryon-camera-flip-btn:hover {
+  background: rgba(197, 160, 89, 0.25);
+  border-color: rgba(197, 160, 89, 0.6);
+  color: #E6CA85;
+}
+
+.tryon-camera-flip-btn:active {
+  transform: scale(0.92);
 }
 
 .tryon-camera-guide {
@@ -281,6 +343,7 @@
   align-items: flex-start;
   justify-content: center;
   padding-top: 16px;
+  z-index: 1;
 }
 
 .tryon-camera-guide::after {
@@ -293,68 +356,397 @@
   border-radius: 20px;
 }
 
-/* Models Grid */
-.tryon-models-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+.tryon-camera-controls {
+  position: absolute;
+  inset-inline: 0;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
 }
 
-.tryon-model-card {
-  position: relative;
-  aspect-ratio: 3 / 4;
-  background: #1C1C1F;
-  border: 2px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  overflow: hidden;
+.tryon-camera-capture {
+  width: 68px;
+  height: 68px;
+  border: 4px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  background: #E6CA85;
+  color: #121214;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.65);
   cursor: pointer;
-  transition: all 0.25s ease;
+  pointer-events: auto;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  touch-action: manipulation;
 }
 
-.tryon-model-card:hover {
-  border-color: rgba(197, 160, 89, 0.6);
-  transform: translateY(-2px);
+.tryon-camera-capture:hover:not(:disabled) {
+  transform: scale(1.06);
 }
 
-.tryon-model-card.selected {
-  border-color: #C5A059;
-  box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.35);
+.tryon-camera-capture:active:not(:disabled) {
+  transform: scale(0.94);
 }
 
-.tryon-model-card img {
+.tryon-camera-capture:disabled {
+  opacity: 0.58;
+  cursor: wait;
+}
+
+.tryon-camera-capture-label {
+  color: #FFFFFF;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-shadow: 0 1px 6px #000000, 0 0 12px rgba(0, 0, 0, 0.9);
+}
+
+.tryon-camera-native-alt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #E6CA85;
+  background: rgba(15, 15, 18, 0.78);
+  backdrop-filter: blur(8px);
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(197, 160, 89, 0.35);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.tryon-camera-native-alt:hover {
+  background: rgba(197, 160, 89, 0.22);
+  border-color: rgba(197, 160, 89, 0.65);
+  color: #FFFFFF;
+}
+
+.tryon-camera-native-alt:active {
+  transform: scale(0.96);
+}
+
+.tryon-camera-wrapper>img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.tryon-model-card-info {
+.tryon-camera-wrapper button {
+  z-index: 2;
+}
+
+/* Nút nhỏ nổi trên ảnh preview ("Đổi ảnh khác" / "Chụp lại") */
+.tryon-photo-btn {
   position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  padding: 8px 10px;
-  background: linear-gradient(180deg, transparent 0%, rgba(10, 10, 12, 0.95) 100%);
-  color: #FFF;
+  bottom: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  touch-action: manipulation;
+}
+
+.tryon-photo-btn:hover {
+  background: #000;
+}
+
+/* Khung báo lỗi camera (đã đổi từ selector chung `> .flex` gây phủ đen nút/ảnh) */
+.tryon-camera-error {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(18, 18, 20, 0.92);
 }
 
 /* Upload Dropzone */
+/* Upload Dropzone - Luxury Studio Atelier Theme */
 .tryon-dropzone {
-  border: 2px dashed rgba(197, 160, 89, 0.35);
-  border-radius: 8px;
+  width: 100%;
   aspect-ratio: 3 / 4;
+  min-height: 340px;
+  border: 1.5px dashed rgba(197, 160, 89, 0.45);
+  border-radius: 10px;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 24px 20px;
   text-align: center;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.02);
-  transition: all 0.2s ease;
+  background: radial-gradient(circle at 50% 36%, rgba(197, 160, 89, 0.1) 0%, rgba(18, 18, 20, 0.96) 72%), #121214;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
 
-.tryon-dropzone:hover {
-  background: rgba(197, 160, 89, 0.05);
-  border-color: #C5A059;
+.tryon-dropzone:hover,
+.tryon-dropzone.dragging {
+  border-color: #E6CA85;
+  background: radial-gradient(circle at 50% 36%, rgba(197, 160, 89, 0.18) 0%, rgba(18, 18, 20, 0.96) 68%), #141416;
+  box-shadow: 0 0 28px rgba(197, 160, 89, 0.2), inset 0 0 24px rgba(197, 160, 89, 0.08);
+  transform: translateY(-1px);
+}
+
+.tryon-dropzone:active {
+  transform: scale(0.995);
+}
+
+.tryon-dropzone-pedestal {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(197, 160, 89, 0.22) 0%, rgba(197, 160, 89, 0.05) 100%);
+  border: 1px solid rgba(197, 160, 89, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 16px rgba(197, 160, 89, 0.15);
+  margin-bottom: 14px;
+  transition: transform 0.25s ease;
+}
+
+.tryon-dropzone:hover .tryon-dropzone-pedestal {
+  transform: translateY(-3px) scale(1.06);
+}
+
+.tryon-dropzone-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #E6CA85;
+  background: rgba(197, 160, 89, 0.14);
+  border: 1px solid rgba(197, 160, 89, 0.35);
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
+.tryon-dropzone-title {
+  color: #FFFFFF;
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+.tryon-dropzone-desc {
+  color: #A1A1AA;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  max-width: 290px;
+  margin: 0 0 16px;
+}
+
+.tryon-dropzone-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(197, 160, 89, 0.25) 0%, rgba(197, 160, 89, 0.1) 100%);
+  border: 1px solid rgba(197, 160, 89, 0.45);
+  color: #E6CA85;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 16px;
+  touch-action: manipulation;
+}
+
+.tryon-dropzone:hover .tryon-dropzone-cta-btn {
+  background: #E6CA85;
+  color: #121214;
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.35);
+}
+
+.tryon-dropzone-tips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  width: 90%;
+}
+
+.tryon-dropzone-tip {
+  font-size: 0.65rem;
+  color: #8E8E93;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tryon-dropzone-preset-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  margin-top: 14px;
+  background: rgba(197, 160, 89, 0.12);
+  border: 1px dashed rgba(197, 160, 89, 0.45);
+  border-radius: 999px;
+  color: #E6CA85;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.tryon-dropzone-preset-banner:hover {
+  background: rgba(197, 160, 89, 0.24);
+  border-color: #E6CA85;
+  transform: translateY(-1px);
+}
+
+/* Preset Models Container */
+.tryon-preset-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tryon-preset-banner {
+  padding: 10px 14px;
+  background: rgba(197, 160, 89, 0.1);
+  border: 1px solid rgba(197, 160, 89, 0.35);
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.72rem;
+  color: #E6CA85;
+  line-height: 1.45;
+}
+
+.tryon-preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.tryon-preset-card {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  background: #121214;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  text-align: left;
+}
+
+.tryon-preset-card:hover {
+  border-color: rgba(197, 160, 89, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.tryon-preset-card.selected {
+  border-color: #E6CA85;
+  box-shadow: 0 0 16px rgba(197, 160, 89, 0.35);
+}
+
+.tryon-preset-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.tryon-preset-card:hover img {
+  transform: scale(1.04);
+}
+
+.tryon-preset-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(10, 10, 12, 0.95) 100%);
+  pointer-events: none;
+}
+
+.tryon-preset-info {
+  position: relative;
+  z-index: 2;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tryon-preset-name {
+  color: #FFFFFF;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.tryon-preset-meta {
+  color: #A1A1AA;
+  font-size: 0.65rem;
+}
+
+.tryon-preset-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(197, 160, 89, 0.22);
+  border: 1px solid rgba(197, 160, 89, 0.45);
+  color: #E6CA85;
+  margin-top: 3px;
+}
+
+.tryon-preset-selected-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #E6CA85;
+  color: #121214;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 /* Preview Column (Right) */
@@ -384,6 +776,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: border-color 0.2s ease;
+}
+
+.tryon-duo-card.active {
+  border-color: rgba(197, 160, 89, 0.5);
 }
 
 .tryon-duo-card img {
@@ -400,10 +797,42 @@
   font-weight: 700;
   text-transform: uppercase;
   padding: 2px 8px;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
   border-radius: 4px;
   color: #FFF;
   border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.tryon-empty-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+}
+
+.tryon-empty-icon-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(197, 160, 89, 0.08);
+  border: 1px solid rgba(197, 160, 89, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #E6CA85;
+  margin-bottom: 2px;
+}
+
+.tryon-photo-hint {
+  margin: 0;
+  color: #A1A1AA;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  text-align: center;
 }
 
 /* Nút kích hoạt AI */
@@ -538,7 +967,8 @@
   }
 
   .tryon-token-label {
-    display: none; /* Rút gọn trên mobile */
+    display: none;
+    /* Rút gọn trên mobile */
   }
 
   .tryon-close-btn {
@@ -577,11 +1007,22 @@
   }
 
   .tryon-camera-wrapper {
-    max-height: 380px;
+    width: 100%;
+    max-width: 430px;
+    max-height: 48dvh;
+    min-height: 220px;
+    margin-inline: auto;
   }
 
-  .tryon-models-grid {
-    gap: 8px;
+  .tryon-camera-capture {
+    width: 72px;
+    height: 72px;
+  }
+
+  .tryon-dropzone {
+    min-height: 260px;
+    max-height: 48dvh;
+    aspect-ratio: auto;
   }
 
   .tryon-btn-action {

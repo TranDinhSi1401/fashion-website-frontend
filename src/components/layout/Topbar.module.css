@@ -1,0 +1,127 @@
+.topbar {
+  height: var(--topbar-height);
+  width: 100%;
+  background: var(--bg-dark);
+  color: var(--text-inverse);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.025em;
+}
+
+.content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: min(100%, var(--container-max-width));
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 var(--container-padding);
+}
+
+.trustMessage,
+.contactLinks,
+.contactLink {
+  display: inline-flex;
+  align-items: center;
+}
+
+.trustMessage {
+  flex: 1;
+}
+
+.trustIcon {
+  color: var(--color-topbar-hover);
+}
+
+.announcement {
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+  animation: announcement-in 250ms ease both;
+}
+
+.contactLinks {
+  flex: 1;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.contactLink {
+  gap: 0.4rem;
+  color: var(--text-inverse);
+  transition: color 200ms ease;
+}
+
+.contactLink:hover,
+.contactLink:focus-visible {
+  color: var(--color-topbar-hover);
+}
+
+.closeButton {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-inverse);
+  cursor: pointer;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-topbar-hover);
+}
+
+.closeButton:focus-visible,
+.contactLink:focus-visible {
+  outline: 2px solid var(--color-topbar-hover);
+  outline-offset: 2px;
+}
+
+@keyframes announcement-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 760px) {
+  .content {
+    justify-content: center;
+    padding: 0 2.75rem 0 0.75rem;
+  }
+
+  .trustMessage,
+  .contactLinks {
+    display: none;
+  }
+
+  .announcement {
+    flex: 1;
+    font-size: 11px;
+  }
+
+  .closeButton {
+    position: absolute;
+    right: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement {
+    animation: none;
+  }
+}

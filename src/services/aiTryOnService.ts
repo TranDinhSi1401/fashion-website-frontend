@@ -265,8 +265,8 @@ export class AiTryOnService {
             garm_img: handle_file(garmentOptimizedBlob),
             category: ootdCategory,
             n_samples: 1,
-            n_steps: Math.min(25, denoiseSteps),
-            image_scale: 2.0,
+            n_steps: Math.min(30, Math.max(18, denoiseSteps)),
+            image_scale: 2.2,
             seed: seed === 42 ? -1 : seed,
           });
 

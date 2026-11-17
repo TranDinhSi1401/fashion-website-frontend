@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Lock, Mail, Phone, UserCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Lock, Mail, Phone, UserCheck, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { authService } from '../services/authService';
 import { Button, Input, Select } from '../components/ui';
-import { isValidVietnamPhone, extractErrorMessage } from '../utils/format';
+import { isValidVietnamPhone, validateDateOfBirth, extractErrorMessage } from '../utils/format';
 import { cn } from '../utils/cn';
 import styles from './AuthPages.module.css';
 
@@ -16,6 +16,7 @@ export default function RegisterPage() {
     confirmPassword: '',
     fullname: '',
     gender: 'MALE',
+    dateOfBirth: '',
     email: '',
     phone: '',
   });
@@ -56,6 +57,11 @@ export default function RegisterPage() {
       newErrors.gender = 'Vui lòng chọn giới tính';
     }
 
+    const dobError = validateDateOfBirth(formData.dateOfBirth, false);
+    if (dobError) {
+      newErrors.dateOfBirth = dobError;
+    }
+
     if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email không đúng định dạng';
     }
@@ -82,6 +88,7 @@ export default function RegisterPage() {
         password: formData.password,
         fullname: formData.fullname.trim(),
         gender: formData.gender,
+        ...(formData.dateOfBirth ? { dateOfBirth: formData.dateOfBirth } : {}),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
       });
@@ -141,6 +148,19 @@ export default function RegisterPage() {
               required
             />
 
+            <Input
+              label="Tên đăng nhập"
+              name="username"
+              placeholder="Ví dụ: nguyenvana (3-50 ký tự)"
+              value={formData.username}
+              onChange={handleChange}
+              error={errors.username}
+              icon={User}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Giới tính"
               name="gender"
@@ -159,18 +179,18 @@ export default function RegisterPage() {
               ]}
               required
             />
-          </div>
 
-          <Input
-            label="Tên đăng nhập"
-            name="username"
-            placeholder="Ví dụ: nguyenvana (3-50 ký tự)"
-            value={formData.username}
-            onChange={handleChange}
-            error={errors.username}
-            icon={User}
-            required
-          />
+            <Input
+              label="Ngày sinh (Tùy chọn)"
+              name="dateOfBirth"
+              type="date"
+              value={formData.dateOfBirth}
+              onChange={handleChange}
+              error={errors.dateOfBirth}
+              icon={Calendar}
+              max={new Date().toISOString().split('T')[0]}
+            />
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
