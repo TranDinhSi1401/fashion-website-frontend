@@ -50,6 +50,8 @@ export default function ProfilePage() {
   const [editingAddress, setEditingAddress] = useState<UserAddressResponse | null>(null);
   const [confirmDeleteAddress, setConfirmDeleteAddress] = useState<UserAddressResponse | null>(null);
   const [deletingAddress, setDeletingAddress] = useState<boolean>(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState<boolean>(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [avatarUploading, setAvatarUploading] = useState<boolean>(false);
@@ -251,6 +253,25 @@ export default function ProfilePage() {
       setErrorMessage(extractErrorMessage(err, 'Xóa địa chỉ thất bại'));
     } finally {
       setDeletingAddress(false);
+    }
+  };
+
+  const handleDeleteMyAccount = async () => {
+    try {
+      setIsDeletingAccount(true);
+      await userService.deleteCurrentAccount();
+      logout();
+      navigate('/login', {
+        state: {
+          message:
+            'Tài khoản của bạn đã được xóa thành công. Bạn có thể sử dụng lại username hoặc email này để đăng ký tài khoản mới bất cứ lúc nào.',
+        },
+      });
+    } catch (err: any) {
+      setErrorMessage(extractErrorMessage(err, 'Xóa tài khoản thất bại. Vui lòng thử lại sau.'));
+      setConfirmDeleteAccount(false);
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -745,6 +766,28 @@ export default function ProfilePage() {
                     </form>
                   </>
                 )}
+
+                {/* VÙNG NGUY HIỂM: XÓA TÀI KHOẢN (SOFT DELETE) */}
+                <div className="mt-12 pt-8 border-t border-line-light">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Trash2 size={18} className="text-status-error" />
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-status-error">
+                      Khu Vực Nguy Hiểm: Xóa Tài Khoản
+                    </h4>
+                  </div>
+                  <p className="text-xs text-content-secondary mb-4 leading-relaxed max-w-[560px]">
+                    Khi bạn xóa tài khoản, hệ thống sẽ thực hiện <strong>xóa mềm (Soft Delete)</strong>. Bạn sẽ lập tức được đăng xuất. Username và email của bạn sẽ được giải phóng để có thể đăng ký tài khoản mới khi cần. Lịch sử đơn hàng trước đây vẫn được lưu trữ an toàn.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setConfirmDeleteAccount(true)}
+                  >
+                    Xóa Tài Khoản Của Tôi
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -823,6 +866,47 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={confirmDeleteAccount}
+        onClose={() => !isDeletingAccount && setConfirmDeleteAccount(false)}
+        title="Xác nhận xóa tài khoản"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-3 p-3.5 bg-red-50/70 border border-red-200 text-red-900">
+            <AlertTriangle size={20} className="text-red-600 shrink-0 mt-0.5" />
+            <div className="text-[0.85rem] leading-relaxed">
+              Bạn có chắc chắn muốn xóa tài khoản của mình?
+              <br />
+              <span className="text-xs text-red-700 block mt-1">
+                • Hệ thống sẽ thực hiện <strong>xóa mềm (Soft Delete)</strong> và đăng xuất bạn ngay lập tức.
+                <br />
+                • Username và email của bạn sẽ được giải phóng để bạn có thể tạo tài khoản mới nếu muốn.
+                <br />
+                • Các dữ liệu đơn hàng và lịch sử đã giao dịch vẫn được lưu trữ bảo mật.
+              </span>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2.5 pt-2 border-t border-line-light">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmDeleteAccount(false)}
+              disabled={isDeletingAccount}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              loading={isDeletingAccount}
+              onClick={handleDeleteMyAccount}
+            >
+              Xác Nhận Xóa Tài Khoản
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

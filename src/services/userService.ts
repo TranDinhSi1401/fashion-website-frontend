@@ -47,6 +47,11 @@ export const userService = {
     return res.data;
   },
 
+  async deleteCurrentAccount(): Promise<ApiResponse<null>> {
+    const res = await apiClient.delete<ApiResponse<null>>('/users/info');
+    return res.data;
+  },
+
   // Address book endpoints
   async getAddresses(): Promise<ApiResponse<UserAddressResponse[]>> {
     const res = await apiClient.get<ApiResponse<UserAddressResponse[]>>('/users/addresses');
