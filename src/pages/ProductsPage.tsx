@@ -17,6 +17,8 @@ import {
   searchColors,
 } from '../utils/catalog';
 import { GROUP_LABELS, groupCategoryIds, isCatalogGroup } from '../utils/categoryNavigation';
+import MoneyInput from '../components/ui/MoneyInput';
+import { formatMoneyInput } from '../utils/moneyInput';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import {
   Button,
@@ -326,7 +328,7 @@ export default function ProductsPage() {
   }
   if (searchParams.has('minPrice') || searchParams.has('maxPrice')) {
     activeFilters.push({
-      label: `Giá: ${searchParams.get('minPrice') || '0'} – ${searchParams.get('maxPrice') || 'không giới hạn'} ₫`,
+      label: `Giá: ${formatMoneyInput(searchParams.get('minPrice') || '0')} – ${searchParams.has('maxPrice') ? formatMoneyInput(searchParams.get('maxPrice') || '0') : 'không giới hạn'} đ`,
       changes: { minPrice: '', maxPrice: '' },
     });
   }
@@ -405,22 +407,16 @@ export default function ProductsPage() {
           }}
           className="flex flex-col gap-3"
         >
-          <Input
+          <MoneyInput
             id="catalog-min-price"
-            label="Giá từ (₫)"
+            label="Giá từ"
             name="minPrice"
-            type="number"
-            min="0"
-            step="any"
             defaultValue={searchParams.get('minPrice') || ''}
           />
-          <Input
+          <MoneyInput
             id="catalog-max-price"
-            label="Giá đến (₫)"
+            label="Giá đến"
             name="maxPrice"
-            type="number"
-            min="0"
-            step="any"
             defaultValue={searchParams.get('maxPrice') || ''}
           />
           <Button type="submit" variant="secondary" size="sm">

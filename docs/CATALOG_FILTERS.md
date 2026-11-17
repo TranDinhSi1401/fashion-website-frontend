@@ -31,3 +31,6 @@ Kiểm tra: `node --test tests/catalog.test.mjs` (Node 22.18+), `npm run build`,
 Menu desktop và mobile lấy tên/ID từ `GET /categories`, nhóm theo cây danh mục Áo/Quần và đối tượng Nam/Nữ/Unisex. Từng mục dẫn tới `categoryId` thật. Các tên marketing không tồn tại trong database và `sort=popular` chưa được hỗ trợ không xuất hiện trong menu.
 
 `group=ao`, `group=quan`, `group=phukien` giới hạn kết quả vào các danh mục tương ứng. `tag=new` và `tag=sale` trong menu giữ nguyên group; chọn thêm đối tượng/loại sản phẩm sẽ giao với group hiện tại. Nhánh danh mục bị tắt, thiếu cha hoặc vòng lặp không được quảng bá. Menu đọc lại dữ liệu khi đổi trang hoặc quay lại cửa sổ.
+
+
+Ô lọc giá ở trang khách và quản lý hiển thị nhóm hàng nghìn bằng dấu cách (`2 000 000`), đơn vị `đ` riêng bên phải. Form/URL/API nhận số không phân cách (`2000000`). Ô trống và giá 0 được phân biệt; số âm, phần thập phân và số vượt giới hạn chính xác bị từ chối. Có thể dán số có phân cách hàng nghìn thông dụng hoặc ký hiệu đ/₫.

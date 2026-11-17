@@ -9,6 +9,7 @@ import { CategoryResponse } from '../types/category';
 import { useAuth } from '../context/AuthContext';
 import { ProductResponse, ProductFilters, ProductPage, ProductVariantInput, ProductImageInput } from '../types/product';
 import { Badge, Button, Checkbox, Input, Modal, Select } from '../components/ui';
+import MoneyInput from '../components/ui/MoneyInput';
 import ProductPrice from '../components/product/ProductPrice';
 import { extractErrorMessage } from '../utils/format';
 import styles from './AdminPages.module.css';
@@ -24,6 +25,7 @@ export default function AdminProductsPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState(emptyFilters);
+  const [filterReset, setFilterReset] = useState(0);
   const [applied, setApplied] = useState<ProductFilters>({});
   const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -205,8 +207,8 @@ export default function AdminProductsPage() {
         options={[{ value: '', label: 'Tất cả' }, ...categories.map(c => ({ value: c.id, label: c.name }))]} />
       <Select label="Trạng thái" value={filters.isActive} onChange={e => setFilters({ ...filters, isActive: e.target.value })}
         options={[{ value: '', label: 'Tất cả' }, { value: 'true', label: 'Hoạt động' }, { value: 'false', label: 'Đang ẩn' }]} />
-      <Input label="Giá gốc từ" type="number" min="0" value={filters.minPrice} onChange={e => setFilters({ ...filters, minPrice: e.target.value })} />
-      <Input label="Giá gốc đến" type="number" min="0" value={filters.maxPrice} onChange={e => setFilters({ ...filters, maxPrice: e.target.value })} />
+      <MoneyInput key={`min-${filterReset}`} id="admin-min-price" label="Giá gốc từ" value={filters.minPrice} onValueChange={minPrice => setFilters({ ...filters, minPrice })} />
+      <MoneyInput key={`max-${filterReset}`} id="admin-max-price" label="Giá gốc đến" value={filters.maxPrice} onValueChange={maxPrice => setFilters({ ...filters, maxPrice })} />
       <Select label="Màu" value={filters.color} onChange={e => setFilters({ ...filters, color: e.target.value })} options={[{ value: '', label: 'Tất cả màu' }, ...colorOptions.map(value => ({ value, label: value }))]} />
       <Select label="Size" value={filters.size} onChange={e => setFilters({ ...filters, size: e.target.value })} options={[{ value: '', label: 'Tất cả size' }, ...sizeOptions.map(value => ({ value, label: value }))]} />
       <Select label="Tồn kho" value={filters.inStock} onChange={e => setFilters({ ...filters, inStock: e.target.value })}
@@ -214,7 +216,7 @@ export default function AdminProductsPage() {
       <Select label="Sắp xếp" value={filters.sort} onChange={e => setFilters({ ...filters, sort: e.target.value })}
         options={[{ value: 'newest', label: 'Mới nhất' }, { value: 'name', label: 'Tên' }, { value: 'price-asc', label: 'Giá tăng' }, { value: 'price-desc', label: 'Giá giảm' }]} />
       <Button type="submit">Áp dụng bộ lọc</Button>
-      <Button variant="secondary" onClick={() => { setFilters(emptyFilters); setApplied({}); setPage(0); }}>Xóa bộ lọc</Button>
+      <Button variant="secondary" onClick={() => { setFilters(emptyFilters); setFilterReset(n => n + 1); setApplied({}); setPage(0); }}>Xóa bộ lọc</Button>
     </form>
     {notice.text && <p role="status" className={notice.error ? styles.alertError : styles.alertSuccess}>{notice.text}</p>}
     <div className="overflow-x-auto border border-line-light">
