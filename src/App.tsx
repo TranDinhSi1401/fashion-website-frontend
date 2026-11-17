@@ -19,6 +19,7 @@ import ProfilePage from './pages/ProfilePage';
 import ReturnCreatePage from './pages/ReturnCreatePage';
 import ReturnDetailPage from './pages/ReturnDetailPage';
 import AdminProductsPage from './pages/AdminProductsPage';
+import AdminPromotionsPage from './pages/AdminPromotionsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminChatPage from './pages/AdminChatPage';
 import AdminNotificationsPage from './pages/AdminNotificationsPage';
@@ -117,6 +118,14 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
                 <AdminProductsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/promotions"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                <AdminPromotionsPage />
               </ProtectedRoute>
             }
           />

@@ -14,6 +14,7 @@ import {
   Shield,
   ShieldCheck,
   ShoppingBag,
+  Tag,
   User,
   Users,
   X,
@@ -433,6 +434,20 @@ export default function Header() {
                     </Link>
 
                     <Link
+                      to="/admin/promotions"
+                      onClick={() => setAdminDropdownOpen(false)}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
+                        location.pathname === '/admin/promotions'
+                          ? 'bg-accent-gold/10 text-accent-gold'
+                          : 'text-content-primary hover:bg-surface'
+                      )}
+                    >
+                      <Tag size={15} className="text-accent-gold" />
+                      <span>Quản lý khuyến mãi</span>
+                    </Link>
+
+                    <Link
                       to="/admin/users"
                       onClick={() => setAdminDropdownOpen(false)}
                       className={cn(
@@ -639,6 +654,14 @@ export default function Header() {
                           <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
 
+                        <Link
+                          to="/admin/promotions"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-accent-gold hover:bg-surface"
+                        >
+                          <Tag size={15} />
+                          <span>Quản lý khuyến mãi</span>
+                        </Link>
                         <Link
                           to="/admin/users"
                           onClick={() => setDropdownOpen(false)}
@@ -1012,6 +1035,14 @@ export default function Header() {
                   >
                     <Package size={16} className="text-accent-gold" />
                     <span>Quản lý sản phẩm</span>
+                  </Link>
+                  <Link
+                    to="/admin/promotions"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 p-2.5 rounded text-xs font-semibold text-content-primary hover:bg-surface"
+                  >
+                    <Tag size={16} className="text-accent-gold" />
+                    <span>Quản lý khuyến mãi</span>
                   </Link>
                   <Link
                     to="/admin/users"
