@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { ApiResponse } from '../types/api';
 import { AuthTokens } from '../types/auth';
+import { requestAuthorization } from '../utils/requestAuth';
 
 let rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1').trim();
 if (rawBaseUrl.endsWith('/')) {
@@ -44,19 +45,9 @@ const processQueue = (error: any, token: string | null = null) => {
 // Request Interceptor
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const url = config.url || '';
-    const method = (config.method || '').toLowerCase();
-
-    // Do NOT attach token for auth endpoints and public GET /products requests
-    const isAuthEndpoint = url.includes('/auth/');
-    const isPublicProductGet = method === 'get' && (url.startsWith('/products') || url.includes('/products'));
-
-    if (!isAuthEndpoint && !isPublicProductGet) {
-      const token = localStorage.getItem(TOKEN_KEY);
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
+    // Public endpoints also receive an optional token so managers retain their role.
+    // In particular, GET /products/paged requires ADMIN/STAFF authentication.
+    Object.assign(config.headers, requestAuthorization(config.url || '', localStorage.getItem(TOKEN_KEY)));
 
     return config;
   },

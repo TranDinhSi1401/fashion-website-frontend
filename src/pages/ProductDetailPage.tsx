@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import BackButton from '../components/common/BackButton';
+import ProductPrice from '../components/product/ProductPrice';
 import ProductReviewsSection from '../components/product/ProductReviewsSection';
 import {
   Badge,
@@ -20,7 +21,7 @@ import {
   QuantityStepper,
   SizeSelector,
 } from '../components/ui';
-import { formatCurrencyVND, extractAllProductImages } from '../utils/format';
+import { extractAllProductImages } from '../utils/format';
 import { normalizeSize } from '../utils/catalog';
 import { availableVariants, findVariant, quantityWithinStock } from '../utils/variants';
 import { trackBehavior } from '../services/behaviorService';
@@ -417,7 +418,7 @@ export default function ProductDetailPage() {
             </button>
 
             <p className="mb-1 text-[22px] font-bold text-content-primary">
-              {formatCurrencyVND(selectedVariant?.price ?? product.basePrice)}
+              <ProductPrice price={selectedVariant?.price ?? product.basePrice} offer={selectedVariant ? selectedVariant.bestOffer : product.bestOffer} />
             </p>
           </div>
 
