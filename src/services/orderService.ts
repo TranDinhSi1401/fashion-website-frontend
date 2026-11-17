@@ -28,6 +28,7 @@ export interface OrderResponse {
   orderStatus: OrderStatus;
   deliveredAt?: string | null;
   paymentStatus: string;
+  paymentUrl?: string | null;
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -36,6 +37,8 @@ export interface OrderResponse {
 export interface OrderCreationRequest {
   userAddressId: number;
   paymentMethodId: number;
+  specialOfferId: number | null;
+  notes?: string;
 }
 
 export const orderService = {

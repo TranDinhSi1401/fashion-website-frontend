@@ -4,7 +4,8 @@ import { ApiResponse } from '../types/api';
 export interface SpecialOfferResponse {
   id: number;
   title: string;
-  offerType: 'PERCENT' | 'AMOUNT';
+  type?: 'ORDER' | 'PRODUCT';
+  offerType?: 'ORDER' | 'PRODUCT' | 'PERCENT' | 'AMOUNT';
   discountPercent?: number | null;
   discountAmount?: number | null;
   minOrderAmount?: number | null;
@@ -29,12 +30,23 @@ function normalizeSpecialOffer(value: unknown): SpecialOfferResponse | null {
     amount === undefined ||
     amount === null ||
     (typeof amount === 'number' && Number.isFinite(amount) && amount >= 0);
+  const hasOfferScope =
+    offer.type === 'ORDER' ||
+    offer.type === 'PRODUCT' ||
+    offer.offerType === 'ORDER' ||
+    offer.offerType === 'PRODUCT';
+  const hasDiscountType =
+    offer.offerType === 'PERCENT' ||
+    offer.offerType === 'AMOUNT' ||
+    typeof offer.discountPercent === 'number' ||
+    typeof offer.discountAmount === 'number';
 
   const validOffer =
     typeof offer.id === 'number' &&
     Number.isFinite(offer.id) &&
     typeof offer.title === 'string' &&
-    typeof offer.offerType === 'string' &&
+    hasOfferScope &&
+    hasDiscountType &&
     typeof offer.isActive === 'boolean' &&
     isOptionalAmount(offer.discountPercent) &&
     isOptionalAmount(offer.discountAmount) &&
@@ -47,28 +59,7 @@ function normalizeSpecialOffer(value: unknown): SpecialOfferResponse | null {
 
   if (!validOffer) return null;
 
-  const offerType =
-    offer.offerType === 'PERCENT'
-      ? 'PERCENT'
-      : offer.offerType === 'AMOUNT'
-        ? 'AMOUNT'
-        : typeof offer.discountAmount === 'number' && offer.discountAmount > 0
-          ? 'AMOUNT'
-          : typeof offer.discountPercent === 'number'
-            ? 'PERCENT'
-            : typeof offer.discountAmount === 'number'
-              ? 'AMOUNT'
-              : null;
-
-  if (
-    !offerType ||
-    (offerType === 'PERCENT' && typeof offer.discountPercent !== 'number') ||
-    (offerType === 'AMOUNT' && typeof offer.discountAmount !== 'number')
-  ) {
-    return null;
-  }
-
-  return { ...(offer as SpecialOfferResponse), offerType };
+  return offer as SpecialOfferResponse;
 }
 
 export const specialOfferService = {
