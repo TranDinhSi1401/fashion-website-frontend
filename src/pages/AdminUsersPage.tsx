@@ -359,8 +359,8 @@ export default function AdminUsersPage() {
 
     setConfirmDialog({
       isOpen: true,
-      title: 'Xác Nhận Xóa Mềm Tài Khoản',
-      message: `Bạn có chắc chắn muốn xóa tài khoản "${name}" (#${id})? Tài khoản sẽ được chuyển sang trạng thái XÓA MỀM (Soft Delete), ẩn khỏi danh sách và giải phóng username/email để có thể tái sử dụng đăng ký mới. Dữ liệu lịch sử đơn hàng vẫn được lưu giữ an toàn.`,
+      title: 'Xác Nhận Xóa Tài Khoản',
+      message: `Bạn có chắc chắn muốn xóa tài khoản "${name}" (#${id}) không?`,
       confirmText: 'Xóa Tài Khoản',
       cancelText: 'Hủy Bỏ',
       variant: 'danger',
