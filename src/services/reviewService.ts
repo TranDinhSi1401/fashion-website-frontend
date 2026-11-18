@@ -6,6 +6,7 @@ import {
   ProductReviewUpsertPayload,
   ReviewPageResponse,
   ReviewSummaryResponse,
+  ReviewableOrderItemResponse,
 } from '../types/review';
 
 export interface ReviewListQuery {
@@ -58,6 +59,34 @@ export const reviewService = {
     const res = await apiClient.get<ApiResponse<ReviewSummaryResponse>>(
       `/products/${productId}/reviews/summary`,
       { signal }
+    );
+    return res.data;
+  },
+
+  /**
+   * Lấy danh sách đánh giá của người dùng đang đăng nhập
+   */
+  async getMyReviews(signal?: AbortSignal): Promise<ApiResponse<ProductReviewResponse[]>> {
+    const res = await apiClient.get<ApiResponse<ProductReviewResponse[]>>('/product-reviews/me', {
+      signal,
+    });
+    return res.data;
+  },
+
+  /**
+   * Lấy danh sách dòng sản phẩm trong các đơn đã giao thành công (DELIVERED) kèm trạng thái đánh giá
+   * phục vụ hiển thị đồng bộ tại mục "Đơn hàng của tôi"
+   */
+  async getMyReviewableOrderItems(
+    orderId?: number,
+    signal?: AbortSignal
+  ): Promise<ApiResponse<ReviewableOrderItemResponse[]>> {
+    const res = await apiClient.get<ApiResponse<ReviewableOrderItemResponse[]>>(
+      '/product-reviews/my-order-items',
+      {
+        params: orderId != null ? { orderId } : undefined,
+        signal,
+      }
     );
     return res.data;
   },
@@ -123,7 +152,7 @@ export const reviewService = {
       const res = await apiClient.post<ApiResponse<ProductReviewImageResponse>>(
         '/product-review-images',
         {
-          productReview: { id: reviewId },
+          productReviewId: reviewId,
           imageUrl: dataUrl,
           mediaType: 'IMAGE',
           displayOrder,
