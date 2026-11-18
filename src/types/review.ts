@@ -15,15 +15,32 @@ export interface ProductReviewResponse {
   userName?: string | null;
   fullName?: string | null;
   orderItemId?: number | null;
+  variantInfo?: string | null;
   verifiedPurchase?: boolean | null;
   rating: number;
   comment?: string | null;
   fitRating?: string | number | null;
-  userHeight?: number | null;
-  userWeight?: number | null;
   images?: ProductReviewImageResponse[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ReviewableOrderItemResponse {
+  orderId: number;
+  orderCode?: string | null;
+  deliveredAt?: string | null;
+  reviewDeadline?: string | null;
+  orderItemId: number;
+  productId: number;
+  productVariantId?: number | null;
+  productName: string;
+  variantInfo?: string | null;
+  productImageUrl?: string | null;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  reviewed: boolean;
+  review?: ProductReviewResponse | null;
 }
 
 export interface ReviewSummaryResponse {
@@ -44,12 +61,9 @@ export interface ReviewPageResponse<T> {
 }
 
 export interface ProductReviewUpsertPayload {
-  product: { id: number };
-  user?: { id: number };
-  orderItem?: { id: number } | null;
+  productId?: number;
+  orderItemId?: number | null;
   rating: number;
-  comment: string;
+  comment?: string;
   fitRating?: number | null;
-  userHeight?: number | null;
-  userWeight?: number | null;
 }

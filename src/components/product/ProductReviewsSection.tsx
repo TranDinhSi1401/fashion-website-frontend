@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Ruler,
   Star,
   X,
 } from 'lucide-react';
@@ -388,15 +388,16 @@ export default function ProductReviewsSection({
                       </span>
                     )}
 
-                    {(review.userHeight != null || review.userWeight != null) && (
-                      <span className="inline-flex items-center gap-1 text-xs text-content-muted">
-                        <Ruler size={13} className="shrink-0" />
-                        <span>
-                          Người mặc:
-                          {review.userHeight != null ? ` ${review.userHeight}cm` : ''}
-                          {review.userHeight != null && review.userWeight != null ? ' -' : ''}
-                          {review.userWeight != null ? ` ${review.userWeight}kg` : ''}
-                        </span>
+                    {review.verifiedPurchase && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-status-success">
+                        <CheckCircle2 size={13} className="shrink-0" />
+                        <span>Đã mua hàng</span>
+                      </span>
+                    )}
+
+                    {review.variantInfo && (
+                      <span className="text-xs text-content-muted">
+                        Phân loại: {review.variantInfo}
                       </span>
                     )}
 
