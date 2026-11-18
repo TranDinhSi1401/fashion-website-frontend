@@ -17,7 +17,7 @@ function CartItemImage({ src, alt }: { src?: string | null; alt: string }) {
   const [imgError, setImgError] = useState(false);
 
   return (
-    <div className="relative aspect-square w-20 sm:w-22 shrink-0 overflow-hidden rounded-lg border border-gray-100 bg-gray-50 transition-transform duration-200 hover:scale-[1.03]">
+    <div className="relative aspect-square w-20 sm:w-22 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50 transition-transform duration-200 hover:scale-[1.03]">
       {src && !imgError ? (
         <img
           src={src}
@@ -244,7 +244,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
 
                     {/* Bộ tăng giảm số lượng & Thành tiền */}
                     <div className="mt-3 flex items-center justify-between gap-2">
-                      <div className="inline-flex h-8 items-center rounded-md border border-gray-200 bg-white">
+                      <div className="inline-flex h-8 items-center rounded-lg border border-gray-200 bg-white">
                         <button
                           type="button"
                           aria-label="Giảm số lượng"
@@ -285,7 +285,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
 
         {/* Footer Cố Định Ở Đáy Sidebar */}
         {items.length > 0 && isCustomer && (
-          <div className="shrink-0 border-t border-gray-200 bg-white p-5 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+          <div className="shrink-0 border-t border-gray-100 bg-white p-5 sm:p-6 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
             {/* Dòng Tổng tiền */}
             <div className="flex items-center justify-between">
               <span className="text-base font-semibold text-gray-800">
@@ -301,7 +301,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
               <button
                 type="button"
                 onClick={() => handleNavigate('/cart')}
-                className="flex h-11 sm:h-12 items-center justify-center rounded-lg border border-gray-900 bg-white px-3 text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 transition-all hover:bg-gray-50 active:scale-[0.99]"
+                className="flex h-11 sm:h-12 items-center justify-center rounded-xl border border-gray-900 bg-white px-3 text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 transition-all hover:bg-gray-50 active:scale-[0.99]"
               >
                 Giỏ hàng
               </button>
@@ -309,7 +309,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
                 type="button"
                 disabled={busy || items.length === 0}
                 onClick={() => handleNavigate('/checkout')}
-                className="flex h-11 sm:h-12 items-center justify-center rounded-lg bg-black px-3 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow-sm transition-all hover:bg-zinc-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+                className="flex h-11 sm:h-12 items-center justify-center rounded-xl bg-black px-3 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow-sm transition-all hover:bg-zinc-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
               >
                 Thanh toán ngay
               </button>
