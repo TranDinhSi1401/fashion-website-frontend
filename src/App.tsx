@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -18,6 +18,8 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProfilePage from './pages/ProfilePage';
 import ReturnCreatePage from './pages/ReturnCreatePage';
 import ReturnDetailPage from './pages/ReturnDetailPage';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminProductsPage from './pages/AdminProductsPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminPromotionsPage from './pages/AdminPromotionsPage';
@@ -116,6 +118,9 @@ export default function App() {
           />
 
           {/* Admin & Staff Protected Routes */}
+          <Route element={<AdminLayout />}>
+          <Route path="/admin" element={<ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}><Navigate to="/admin/dashboard" replace /></ProtectedRoute>} />
+          <Route path="/admin/dashboard" element={<ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}><AdminDashboardPage /></ProtectedRoute>} />
           <Route
             path="/admin/products"
             element={
@@ -197,6 +202,8 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
+          </Route>
 
           {/* 404 Fallback */}
           <Route
