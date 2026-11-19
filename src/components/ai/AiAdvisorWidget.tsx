@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sparkles, Send, X, Bot, RefreshCw } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { ChatMessage } from '../../types/ai';
@@ -13,8 +14,14 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export default function AiAdvisorWidget() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isAdmin, isStaff } = useAuth();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Ẩn hoàn toàn trên các trang quản trị của Admin/Staff
+  if (isAdmin || isStaff || location.pathname.startsWith('/admin')) {
+    return null;
+  }
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
