@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   KeyRound,
+  LayoutDashboard,
   LogOut,
   MapPin,
   Menu,
@@ -332,10 +333,6 @@ export default function Header() {
               <span className={styles.saleBadge}>HOT</span>
             </Link>
 
-            <Link to="/#stores" className={styles.navLink}>
-              Cửa hàng
-            </Link>
-
             {(isAdmin || isStaff) && (
               <div
                 className="relative flex h-full items-center"
@@ -343,7 +340,7 @@ export default function Header() {
                 onMouseLeave={() => setAdminDropdownOpen(false)}
               >
                 <Link
-                  to="/admin/products"
+                  to="/admin/dashboard"
                   onFocus={() => setAdminDropdownOpen(true)}
                   aria-haspopup="true"
                   aria-expanded={adminDropdownOpen}
@@ -366,6 +363,19 @@ export default function Header() {
                       </span>
                     </div>
 
+                    <Link
+                      to="/admin/dashboard"
+                      onClick={() => setAdminDropdownOpen(false)}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
+                        location.pathname === '/admin/dashboard'
+                          ? cn('bg-accent-gold/10', styles.accentText)
+                          : 'text-content-primary hover:bg-surface'
+                      )}
+                    >
+                      <LayoutDashboard size={15} className="text-accent-gold" />
+                      <span>Dashboard</span>
+                    </Link>
                     <Link
                       to="/admin/products"
                       onClick={() => setAdminDropdownOpen(false)}
@@ -603,6 +613,17 @@ export default function Header() {
                           <span>Quản Trị Hệ Thống</span>
                         </div>
 
+                        <Link
+                          to="/admin/dashboard"
+                          onClick={() => setDropdownOpen(false)}
+                          className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10', styles.accentHover)}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <LayoutDashboard size={15} className="text-accent-gold" />
+                            <span className="font-medium">Dashboard</span>
+                          </div>
+                          <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
+                        </Link>
                         <Link
                           to="/admin/products"
                           onClick={() => setDropdownOpen(false)}
@@ -992,19 +1013,20 @@ export default function Header() {
               >
                 <span>Ưu đãi đặc quyền</span>
               </Link>
-              <Link
-                to="/#stores"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between p-2.5 rounded text-content-primary hover:bg-surface transition-colors"
-              >
-                <span>Hệ thống cửa hàng</span>
-              </Link>
 
               {(isAdmin || isStaff) && (
                 <div className="pt-3 mt-3 border-t border-line space-y-1">
                   <div className={cn('px-2.5 text-[0.68rem] font-bold uppercase tracking-wider', styles.accentText)}>
                     Phân Hệ Quản Trị
                   </div>
+                  <Link
+                    to="/admin/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2.5 p-2.5 rounded text-xs font-semibold text-content-primary hover:bg-surface"
+                  >
+                    <LayoutDashboard size={16} className="text-accent-gold" />
+                    <span>Dashboard</span>
+                  </Link>
                   <Link
                     to="/admin/products"
                     onClick={() => setMobileMenuOpen(false)}

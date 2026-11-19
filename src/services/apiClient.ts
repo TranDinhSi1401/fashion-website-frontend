@@ -3,11 +3,12 @@ import { ApiResponse } from '../types/api';
 import { AuthTokens } from '../types/auth';
 import { requestAuthorization } from '../utils/requestAuth';
 
-let rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1').trim();
+// Use Vite's /api proxy locally; deployments can provide a separate backend URL.
+let rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
 if (rawBaseUrl.endsWith('/')) {
   rawBaseUrl = rawBaseUrl.slice(0, -1);
 }
-const BASE_URL = rawBaseUrl.includes('/api/v1') ? rawBaseUrl : `${rawBaseUrl}/api/v1`;
+export const API_BASE_URL = rawBaseUrl.includes('/api/v1') ? rawBaseUrl : `${rawBaseUrl}/api/v1`;
 
 export const TOKEN_KEY = 'fashion_access_token';
 export const REFRESH_TOKEN_KEY = 'fashion_refresh_token';
@@ -17,7 +18,7 @@ interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
 }
 
 const apiClient = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -102,7 +103,7 @@ apiClient.interceptors.response.use(
       }
 
       try {
-        const response = await axios.post<ApiResponse<AuthTokens>>(`${BASE_URL}/auth/refresh`, {
+        const response = await axios.post<ApiResponse<AuthTokens>>(`${API_BASE_URL}/auth/refresh`, {
           refreshToken,
         });
 
