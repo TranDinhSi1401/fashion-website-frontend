@@ -66,11 +66,9 @@ export default function AdminDashboardPage() {
   const applyRange = (event: FormEvent) => {
     event.preventDefault();
     if (!validDate(draftRange.from) || !validDate(draftRange.to)) { setRangeError('Chọn đủ từ ngày và đến ngày hợp lệ.'); return; }
-    if (draftRange.from < '1001-01-01') { setRangeError('Ngày bắt đầu phải từ năm 1001.'); return; }
+    if (draftRange.from < '1000-01-01') { setRangeError('Ngày bắt đầu phải từ năm 1000.'); return; }
     if (draftRange.from > draftRange.to) { setRangeError('Từ ngày phải trước hoặc bằng đến ngày.'); return; }
     if (draftRange.to > today) { setRangeError('Không chọn ngày trong tương lai.'); return; }
-    const count = (Date.parse(draftRange.to) - Date.parse(draftRange.from)) / 86400000 + 1;
-    if (count > 365) { setRangeError('Khoảng ngày tối đa là 365 ngày.'); return; }
     setRangeError('');
     if (appliedRange?.from !== draftRange.from || appliedRange?.to !== draftRange.to) {
       setLoading(true); setError(''); setAppliedRange({ ...draftRange });
@@ -95,10 +93,10 @@ export default function AdminDashboardPage() {
         <div className={styles.periods} role="group" aria-label="Kỳ thống kê">{[7, 30, 90].map(value => <button key={value} type="button" aria-pressed={rangeMode === 'preset' && days === value} onClick={() => changePeriod(value)}>{value} ngày</button>)}<button type="button" aria-pressed={rangeMode === 'custom'} aria-expanded={rangeMode === 'custom'} aria-controls="custom-statistics-range" onClick={() => { setRangeMode('custom'); setRangeError(''); }}><CalendarDays size={14} />Tùy chọn</button></div>
       </div>
       {rangeMode === 'custom' && <form id="custom-statistics-range" className={styles.rangeForm} onSubmit={applyRange} noValidate>
-        <label>Từ ngày<input type="date" aria-label="Thống kê từ ngày" value={draftRange.from} min="1001-01-01" max={draftRange.to && draftRange.to < today ? draftRange.to : today} required onChange={e => { setDraftRange(old => ({ ...old, from: e.target.value })); setRangeError(''); }} /></label>
+        <label>Từ ngày<input type="date" aria-label="Thống kê từ ngày" value={draftRange.from} min="1000-01-01" max={draftRange.to && draftRange.to < today ? draftRange.to : today} required onChange={e => { setDraftRange(old => ({ ...old, from: e.target.value })); setRangeError(''); }} /></label>
         <span className={styles.dateSeparator}>→</span>
-        <label>Đến ngày<input type="date" aria-label="Thống kê đến ngày" value={draftRange.to} min={draftRange.from || '1001-01-01'} max={today} required onChange={e => { setDraftRange(old => ({ ...old, to: e.target.value })); setRangeError(''); }} /></label>
-        <button type="submit" disabled={loading}>Áp dụng</button><small>Tối đa 365 ngày</small>
+        <label>Đến ngày<input type="date" aria-label="Thống kê đến ngày" value={draftRange.to} min={draftRange.from || '1000-01-01'} max={today} required onChange={e => { setDraftRange(old => ({ ...old, to: e.target.value })); setRangeError(''); }} /></label>
+        <button type="submit" disabled={loading}>Áp dụng</button>
         {rangeError && <p role="alert" className={styles.filterError}>{rangeError}</p>}
       </form>}
       {loading && <p role="status" className={styles.message}>Đang tổng hợp số liệu...</p>}
