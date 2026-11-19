@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { API_BASE_URL } from './apiClient';
 import { AiAdviseRequest, AiAdviseResponse } from '../types/ai';
 import { ApiResponse } from '../types/api';
 import { ProductResponse } from '../types/product';
@@ -36,9 +36,8 @@ export const aiService = {
     signal?: AbortSignal
   ): Promise<string> {
     const token = localStorage.getItem('fashion_access_token');
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
-    const response = await fetch(`${baseUrl}/ai/advise-stream`, {
+    const response = await fetch(`${API_BASE_URL}/ai/advise-stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

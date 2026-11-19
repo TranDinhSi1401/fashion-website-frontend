@@ -16,6 +16,8 @@ import { productService } from '../services/productService';
 import { ProductResponse } from '../types/product';
 import { Button, ProductCard, SectionHeader } from '../components/ui';
 import { cn } from '../utils/cn';
+import { normalize } from '../utils/catalog';
+import { extractProductImage } from '../utils/format';
 import styles from './HomePage.module.css';
 
 interface HeroSlide {
@@ -70,6 +72,7 @@ const HERO_SLIDES: HeroSlide[] = [
 ];
 
 interface CategoryCard {
+  isSports?: boolean;
   title: string;
   subtitle: string;
   link: string;
@@ -103,12 +106,13 @@ const FEATURED_CATEGORIES: CategoryCard[] = [
     count: '22 Sản phẩm',
   },
   {
-    title: 'ÁO KHOÁC & BLAZER',
-    subtitle: 'Đệm vai mềm, phom dáng quyền lực cho doanh nhân',
-    link: '/products?category=khoac',
+    isSports: true,
+    title: 'ÁO THỂ THAO',
+    subtitle: 'Thoáng mát, nhanh khô, thoải mái trong từng chuyển động',
+    link: '/products?group=ao&search=th%E1%BB%83+thao',
     image:
-      'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80',
-    count: '16 Sản phẩm',
+      '',
+    count: 'Phong cách năng động',
   },
 ];
 
@@ -300,6 +304,15 @@ export default function HomePage() {
     setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length);
 
   const newArrivals = products.slice(0, 8);
+  const sportsProducts = products.filter(product => {
+    const name = normalize(product.name);
+    return name.includes('the thao') && /^(ao|polo|tshirt|t shirt)\b/.test(name);
+  });
+  const featuredCategories = FEATURED_CATEGORIES.map(category => category.isSports ? {
+    ...category,
+    image: extractProductImage(sportsProducts[0]) || category.image,
+    count: sportsProducts.length ? `${sportsProducts.length} Sản phẩm` : category.count,
+  } : category);
   const bestSellers = [...products]
     .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
     .slice(0, 4);
@@ -452,7 +465,7 @@ export default function HomePage() {
           <SectionHeader title="Không gian mua sắm theo phong cách" align="center" />
 
           <div className="grid grid-cols-2 gap-3 sm:gap-[var(--grid-gap)] lg:grid-cols-4">
-            {FEATURED_CATEGORIES.map((cat) => (
+            {featuredCategories.map((cat) => (
               <Link
                 key={cat.title}
                 to={cat.link}
@@ -463,7 +476,7 @@ export default function HomePage() {
               >
                 <div
                   className={cn('absolute inset-0', styles.categoryBg)}
-                  style={{ backgroundImage: `url(${cat.image})` }}
+                  style={{ backgroundImage: cat.image ? `url(${cat.image})` : undefined }}
                 />
                 <div className={cn('absolute inset-0', styles.categoryVignette)} />
 

@@ -25,8 +25,8 @@ Dự án Frontend cho nền tảng thương mại điện tử thời trang nam 
 3. **Cấu hình môi trường (`.env`)**:
    Tạo file `.env` tại thư mục gốc của dự án:
    ```env
-   # Base URL của Backend Spring Boot
-   VITE_API_BASE_URL=http://localhost:8080/api/v1
+   # Dùng proxy Vite tới Backend Spring Boot local ở cổng 8081
+   VITE_API_BASE_URL=/api/v1
 
    # Google Client ID (dùng cho nút Đăng nhập Google)
    VITE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com

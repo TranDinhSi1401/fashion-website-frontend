@@ -49,8 +49,8 @@ export default function LoginPage() {
       const res = await login(trimmedUsername, password);
       setSuccessMessage('Đăng nhập thành công! Đang chuyển hướng...');
       setTimeout(() => {
-        if (res?.user?.role === 'ADMIN' || res?.user?.role === 'STAFF') {
-          navigate('/admin/products');
+        if (['ADMIN', 'STAFF', 'ROLE_ADMIN', 'ROLE_STAFF'].includes(res?.user?.role || '')) {
+          navigate('/admin/dashboard', { replace: true });
         } else {
           navigate(redirectPath);
         }
@@ -74,8 +74,8 @@ export default function LoginPage() {
       const res = await loginWithGoogle(credentialResponse.credential);
       setSuccessMessage('Đăng nhập Google thành công! Đang chuyển hướng...');
       setTimeout(() => {
-        if (res?.user?.role === 'ADMIN' || res?.user?.role === 'STAFF') {
-          navigate('/admin/products');
+        if (['ADMIN', 'STAFF', 'ROLE_ADMIN', 'ROLE_STAFF'].includes(res?.user?.role || '')) {
+          navigate('/admin/dashboard', { replace: true });
         } else {
           navigate(redirectPath);
         }
@@ -504,17 +504,27 @@ export default function LoginPage() {
           <div className="flex gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => fillDemoAccount('customer1', 'password123')}
+              disabled={isLoading}
+              onClick={() => fillDemoAccount('truong01', '123456')}
               className={cn(styles.demoHelperBtn, 'text-content-inverse')}
             >
-              👤 Customer: customer1
+              👤 Khách hàng: truong01
             </button>
             <button
               type="button"
-              onClick={() => fillDemoAccount('admin', 'admin123')}
+              disabled={isLoading}
+              onClick={() => fillDemoAccount('admin01', '123456')}
               className={cn(styles.demoHelperBtn, styles.goldAccentText)}
             >
-              🛡️ Admin: admin
+              🛡️ Quản lý: admin01
+            </button>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => fillDemoAccount('staff01', '123456')}
+              className={cn(styles.demoHelperBtn, 'text-content-inverse')}
+            >
+              💼 Nhân viên: staff01
             </button>
           </div>
         </div>
