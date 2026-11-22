@@ -17,12 +17,7 @@ export default function AiAdvisorWidget() {
   const { isAuthenticated, user, isAdmin, isStaff } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-
-  // Ẩn hoàn toàn trên các trang quản trị của Admin/Staff
-  if (isAdmin || isStaff || location.pathname.startsWith('/admin')) {
-    return null;
-  }
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: 'welcome',
       sender: 'ai',
@@ -45,6 +40,11 @@ export default function AiAdvisorWidget() {
       scrollToBottom();
     }
   }, [messages, isOpen]);
+
+  // Ẩn hoàn toàn trên các trang quản trị của Admin/Staff (đặt sau toàn bộ Hook để tuân thủ Rules of Hooks)
+  if (isAdmin || isStaff || location.pathname.startsWith('/admin')) {
+    return null;
+  }
 
   const handleSend = async (questionToSend?: string) => {
     const text = (questionToSend || inputQuestion).trim();

@@ -5,6 +5,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WebSocketProvider } from './ws/WebSocketProvider';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import App from './App';
 import './styles/global.css';
 
@@ -12,14 +13,16 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'dummy-google-cl
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <GoogleOAuthProvider clientId={googleClientId}>
-      <BrowserRouter>
-        <AuthProvider>
-          <WebSocketProvider>
-            <CartProvider><App /></CartProvider>
-          </WebSocketProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </GoogleOAuthProvider>
+    <ErrorBoundary>
+      <GoogleOAuthProvider clientId={googleClientId}>
+        <BrowserRouter>
+          <AuthProvider>
+            <WebSocketProvider>
+              <CartProvider><App /></CartProvider>
+            </WebSocketProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </GoogleOAuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
