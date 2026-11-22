@@ -57,6 +57,7 @@ export default function ProductDetailPage() {
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
+  const [buyingNow, setBuyingNow] = useState(false);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [retry, setRetry] = useState(0);
   const [recommendationResult, setRecommendationResult] = useState<{
@@ -279,6 +280,38 @@ export default function ProductDetailPage() {
           /* Keep previous product and error */
         }
       }
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: '/checkout' } } });
+      return;
+    }
+    if (!isCustomer) {
+      setActionError('Chỉ tài khoản khách hàng mới có thể mua hàng.');
+      return;
+    }
+    if (!selectedVariant || chosenQuantity < 1) {
+      setActionError('Vui lòng chọn màu sắc và kích cỡ sản phẩm.');
+      return;
+    }
+    if (chosenQuantity > remaining) {
+      setActionError('Số lượng sản phẩm trong kho không đủ.');
+      return;
+    }
+    setActionError('');
+    setNotice('');
+    setBuyingNow(true);
+    try {
+      await addItem(selectedVariant.id, chosenQuantity);
+      navigate('/checkout');
+    } catch (failure) {
+      setActionError(
+        failure instanceof Error ? failure.message : 'Không thể tiến hành thanh toán.'
+      );
+    } finally {
+      setBuyingNow(false);
     }
   };
 
@@ -535,8 +568,31 @@ export default function ProductDetailPage() {
           <div className="flex flex-wrap items-center gap-3">
             <Button
               size="lg"
-              loading={busy}
+              variant="primary"
+              loading={buyingNow}
               disabled={
+                busy ||
+                buyingNow ||
+                authLoading ||
+                Boolean(quantityError) ||
+                !selectedVariant ||
+                !remaining ||
+                chosenQuantity > remaining ||
+                (isAuthenticated && !isCustomer)
+              }
+              onClick={() => void handleBuyNow()}
+              className="flex-1 sm:flex-none font-bold uppercase tracking-wider text-xs sm:text-sm px-6"
+            >
+              {isAuthenticated ? 'Mua ngay' : 'Đăng nhập để mua'}
+            </Button>
+
+            <Button
+              size="lg"
+              variant="secondary"
+              loading={busy && !buyingNow}
+              disabled={
+                busy ||
+                buyingNow ||
                 authLoading ||
                 Boolean(quantityError) ||
                 !selectedVariant ||
@@ -547,7 +603,7 @@ export default function ProductDetailPage() {
               onClick={() => void handleAddToCart()}
               className="flex-1 sm:flex-none"
             >
-              {isAuthenticated ? 'Thêm vào giỏ hàng' : 'Đăng nhập để thêm vào giỏ'}
+              Thêm vào giỏ
             </Button>
 
             {/* NÚT THỬ ĐỒ AI ✨ */}

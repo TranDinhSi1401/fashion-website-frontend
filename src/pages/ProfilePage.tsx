@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { User, KeyRound, MapPin, Camera, Trash2, Plus, Calendar, AlertCircle, CheckCircle2, Sparkles, AlertTriangle, ShieldCheck, ExternalLink, Package, RotateCcw } from 'lucide-react';
-import PreferenceMatrixTab from '../components/profile/PreferenceMatrixTab';
 import CustomerOrdersTab from './CustomerOrdersTab';
 import CustomerReturnsTab from './CustomerReturnsTab';
 import { useAuth } from '../context/AuthContext';
@@ -21,15 +20,13 @@ export default function ProfilePage() {
 
   const isGoogleUser = isGoogleAuth || Boolean(user?.avt && user.avt.includes('googleusercontent.com'));
 
-  const activeTab = location.pathname.includes('/preferences')
-    ? 'preferences'
-    : location.pathname.includes('/password')
+  const activeTab = location.pathname.includes('/password')
     ? 'password'
     : location.pathname.includes('/orders')
-    ? 'orders'
-    : location.pathname.includes('/returns')
-    ? 'returns'
-    : 'profile';
+      ? 'orders'
+      : location.pathname.includes('/returns')
+        ? 'returns'
+        : 'profile';
 
   const [profileForm, setProfileForm] = useState({
     fullname: '',
@@ -39,11 +36,25 @@ export default function ProfilePage() {
     phone: '',
   });
 
+  const [profileErrors, setProfileErrors] = useState<{
+    fullname?: string;
+    gender?: string;
+    dateOfBirth?: string;
+    email?: string;
+    phone?: string;
+  }>({});
+
   const [passwordForm, setPasswordForm] = useState({
     oldPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+
+  const [passwordErrors, setPasswordErrors] = useState<{
+    oldPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }>({});
 
   const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState<boolean>(false);
@@ -100,20 +111,48 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    const newErrors: {
+      fullname?: string;
+      gender?: string;
+      dateOfBirth?: string;
+      email?: string;
+      phone?: string;
+    } = {};
+
     if (!profileForm.fullname.trim()) {
-      setErrorMessage('Vui lòng nhập họ và tên');
-      return;
+      newErrors.fullname = 'Vui lòng nhập họ và tên';
+    } else if (profileForm.fullname.trim().length > 100) {
+      newErrors.fullname = 'Họ và tên không được vượt quá 100 ký tự';
     }
+
+    if (!['MALE', 'FEMALE', 'OTHER'].includes(profileForm.gender)) {
+      newErrors.gender = 'Vui lòng chọn giới tính hợp lệ';
+    }
+
     const dobErr = validateDateOfBirth(profileForm.dateOfBirth, false);
     if (dobErr) {
-      setErrorMessage(dobErr);
-      return;
+      newErrors.dateOfBirth = dobErr;
     }
-    if (profileForm.phone && !isValidVietnamPhone(profileForm.phone)) {
-      setErrorMessage('Số điện thoại không đúng chuẩn 10 số Việt Nam (bắt đầu bằng 0 hoặc +84)');
+
+    if (!profileForm.email.trim()) {
+      newErrors.email = 'Vui lòng nhập địa chỉ email';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileForm.email.trim())) {
+      newErrors.email = 'Email không đúng định dạng (ví dụ: user@example.com)';
+    } else if (profileForm.email.trim().length > 100) {
+      newErrors.email = 'Email không được vượt quá 100 ký tự';
+    }
+
+    if (profileForm.phone && !isValidVietnamPhone(profileForm.phone.trim())) {
+      newErrors.phone = 'Số điện thoại không đúng chuẩn 10 số Việt Nam (bắt đầu bằng 0 hoặc +84)';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setProfileErrors(newErrors);
+      setErrorMessage('');
       return;
     }
 
+    setProfileErrors({});
     setIsLoading(true);
     setErrorMessage('');
     setSuccessMessage('');
@@ -130,8 +169,33 @@ export default function ProfilePage() {
         updateUserLocal(res.data);
       }
       setSuccessMessage('Cập nhật hồ sơ cá nhân thành công!');
-    } catch (err) {
-      setErrorMessage(extractErrorMessage(err, 'Cập nhật hồ sơ thất bại.'));
+    } catch (err: any) {
+      const msg = extractErrorMessage(err, 'Cập nhật hồ sơ thất bại.');
+      const lower = msg.toLowerCase();
+      let fieldAssigned = false;
+
+      if (lower.includes('tuổi') || lower.includes('ngày sinh') || lower.includes('dateofbirth')) {
+        setProfileErrors((prev) => ({ ...prev, dateOfBirth: msg.replace(/^dateOfBirth:\s*/i, '') }));
+        fieldAssigned = true;
+      } else if (lower.includes('email') || lower.includes('duplicate_email')) {
+        setProfileErrors((prev) => ({ ...prev, email: msg.replace(/^email:\s*/i, '') }));
+        fieldAssigned = true;
+      } else if (lower.includes('phone') || lower.includes('số điện thoại')) {
+        setProfileErrors((prev) => ({ ...prev, phone: msg.replace(/^phone:\s*/i, '') }));
+        fieldAssigned = true;
+      } else if (lower.includes('fullname') || lower.includes('họ và tên')) {
+        setProfileErrors((prev) => ({ ...prev, fullname: msg.replace(/^fullname:\s*/i, '') }));
+        fieldAssigned = true;
+      } else if (lower.includes('gender') || lower.includes('giới tính')) {
+        setProfileErrors((prev) => ({ ...prev, gender: msg.replace(/^gender:\s*/i, '') }));
+        fieldAssigned = true;
+      }
+
+      if (fieldAssigned) {
+        setErrorMessage('');
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -186,19 +250,37 @@ export default function ProfilePage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    const newErrors: {
+      oldPassword?: string;
+      newPassword?: string;
+      confirmPassword?: string;
+    } = {};
+
     if (!passwordForm.oldPassword) {
-      setErrorMessage('Vui lòng nhập mật khẩu hiện tại');
-      return;
+      newErrors.oldPassword = 'Vui lòng nhập mật khẩu hiện tại';
     }
-    if (passwordForm.newPassword.length < 6) {
-      setErrorMessage('Mật khẩu mới phải có ít nhất 6 ký tự');
-      return;
+
+    if (!passwordForm.newPassword) {
+      newErrors.newPassword = 'Vui lòng nhập mật khẩu mới';
+    } else if (passwordForm.newPassword.length < 6) {
+      newErrors.newPassword = 'Mật khẩu mới phải có ít nhất 6 ký tự';
+    } else if (passwordForm.newPassword === passwordForm.oldPassword) {
+      newErrors.newPassword = 'Mật khẩu mới không được trùng với mật khẩu hiện tại';
     }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setErrorMessage('Mật khẩu xác nhận không khớp');
+
+    if (!passwordForm.confirmPassword) {
+      newErrors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới';
+    } else if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setPasswordErrors(newErrors);
+      setErrorMessage('');
       return;
     }
 
+    setPasswordErrors({});
     setIsLoading(true);
     setErrorMessage('');
     setSuccessMessage('');
@@ -216,7 +298,29 @@ export default function ProfilePage() {
         navigate('/login');
       }, 2000);
     } catch (err) {
-      setErrorMessage(extractErrorMessage(err, 'Đổi mật khẩu không thành công. Kiểm tra lại mật khẩu cũ.'));
+      const msg = extractErrorMessage(err, 'Đổi mật khẩu không thành công. Kiểm tra lại mật khẩu cũ.');
+      const lower = msg.toLowerCase();
+      let fieldAssigned = false;
+
+      if (lower.includes('cũ') || lower.includes('old_password') || lower.includes('hiện tại')) {
+        setPasswordErrors((prev) => ({ ...prev, oldPassword: msg.replace(/^oldPassword:\s*/i, '') }));
+        fieldAssigned = true;
+      } else if (lower.includes('trùng') || lower.includes('same_as_old')) {
+        setPasswordErrors((prev) => ({ ...prev, newPassword: msg.replace(/^newPassword:\s*/i, '') }));
+        fieldAssigned = true;
+      } else if (lower.includes('xác nhận') || lower.includes('mismatch')) {
+        setPasswordErrors((prev) => ({ ...prev, confirmPassword: msg.replace(/^confirmPassword:\s*/i, '') }));
+        fieldAssigned = true;
+      } else if (lower.includes('mật khẩu') || lower.includes('password')) {
+        setPasswordErrors((prev) => ({ ...prev, newPassword: msg.replace(/^newPassword:\s*/i, '') }));
+        fieldAssigned = true;
+      }
+
+      if (fieldAssigned) {
+        setErrorMessage('');
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -385,20 +489,6 @@ export default function ProfilePage() {
                 </span>
               )}
             </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/account/preferences', { state: { keepScroll: true } })}
-              className={cn(
-                'flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors',
-                activeTab === 'preferences'
-                  ? 'bg-surface-dark text-accent-gold font-bold'
-                  : 'bg-transparent text-content-primary hover:bg-surface-elevated font-medium'
-              )}
-            >
-              <Sparkles size={16} className={activeTab === 'preferences' ? 'text-accent-gold' : ''} />
-              Gu &amp; Sở Thích (AI)
-            </button>
           </div>
 
           {/* Tab Main Content */}
@@ -498,7 +588,21 @@ export default function ProfilePage() {
                       label="Họ và tên"
                       name="fullname"
                       value={profileForm.fullname}
-                      onChange={(e) => setProfileForm({ ...profileForm, fullname: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfileForm({ ...profileForm, fullname: val });
+                        if (val.trim()) {
+                          setProfileErrors((prev) => ({ ...prev, fullname: undefined }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!profileForm.fullname.trim()) {
+                          setProfileErrors((prev) => ({ ...prev, fullname: 'Vui lòng nhập họ và tên' }));
+                        } else if (profileForm.fullname.trim().length > 100) {
+                          setProfileErrors((prev) => ({ ...prev, fullname: 'Họ và tên không được vượt quá 100 ký tự' }));
+                        }
+                      }}
+                      error={profileErrors.fullname}
                       required
                     />
                   </div>
@@ -508,12 +612,19 @@ export default function ProfilePage() {
                       label="Giới tính"
                       name="gender"
                       value={profileForm.gender}
-                      onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfileForm({ ...profileForm, gender: val });
+                        if (profileErrors.gender) {
+                          setProfileErrors((prev) => ({ ...prev, gender: undefined }));
+                        }
+                      }}
                       options={[
                         { value: 'MALE', label: 'Nam' },
                         { value: 'FEMALE', label: 'Nữ' },
                         { value: 'OTHER', label: 'Khác' },
                       ]}
+                      error={profileErrors.gender}
                       required
                     />
 
@@ -522,7 +633,23 @@ export default function ProfilePage() {
                       type="date"
                       name="dateOfBirth"
                       value={profileForm.dateOfBirth}
-                      onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfileForm({ ...profileForm, dateOfBirth: val });
+                        if (val) {
+                          const err = validateDateOfBirth(val, false);
+                          setProfileErrors((prev) => ({ ...prev, dateOfBirth: err || undefined }));
+                        } else {
+                          setProfileErrors((prev) => ({ ...prev, dateOfBirth: undefined }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (profileForm.dateOfBirth) {
+                          const err = validateDateOfBirth(profileForm.dateOfBirth, false);
+                          setProfileErrors((prev) => ({ ...prev, dateOfBirth: err || undefined }));
+                        }
+                      }}
+                      error={profileErrors.dateOfBirth}
                       icon={Calendar}
                       max={new Date().toISOString().split('T')[0]}
                       helperText="Cập nhật ngày sinh để nhận ưu đãi dịp sinh nhật"
@@ -535,7 +662,23 @@ export default function ProfilePage() {
                       type="email"
                       name="email"
                       value={profileForm.email}
-                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfileForm({ ...profileForm, email: val });
+                        if (val.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) {
+                          setProfileErrors((prev) => ({ ...prev, email: undefined }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!profileForm.email.trim()) {
+                          setProfileErrors((prev) => ({ ...prev, email: 'Vui lòng nhập địa chỉ email' }));
+                        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileForm.email.trim())) {
+                          setProfileErrors((prev) => ({ ...prev, email: 'Email không đúng định dạng (ví dụ: user@example.com)' }));
+                        } else if (profileForm.email.trim().length > 100) {
+                          setProfileErrors((prev) => ({ ...prev, email: 'Email không được vượt quá 100 ký tự' }));
+                        }
+                      }}
+                      error={profileErrors.email}
                       required
                     />
 
@@ -543,7 +686,22 @@ export default function ProfilePage() {
                       label="Số điện thoại"
                       name="phone"
                       value={profileForm.phone}
-                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfileForm({ ...profileForm, phone: val });
+                        if (!val.trim() || isValidVietnamPhone(val.trim())) {
+                          setProfileErrors((prev) => ({ ...prev, phone: undefined }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (profileForm.phone.trim() && !isValidVietnamPhone(profileForm.phone.trim())) {
+                          setProfileErrors((prev) => ({
+                            ...prev,
+                            phone: 'Số điện thoại không đúng chuẩn 10 số Việt Nam (bắt đầu bằng 0 hoặc +84)',
+                          }));
+                        }
+                      }}
+                      error={profileErrors.phone}
                       placeholder="0912345678"
                     />
                   </div>
@@ -733,7 +891,19 @@ export default function ProfilePage() {
                         type="password"
                         placeholder="Nhập mật khẩu hiện tại"
                         value={passwordForm.oldPassword}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPasswordForm({ ...passwordForm, oldPassword: val });
+                          if (val) {
+                            setPasswordErrors((prev) => ({ ...prev, oldPassword: undefined }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!passwordForm.oldPassword) {
+                            setPasswordErrors((prev) => ({ ...prev, oldPassword: 'Vui lòng nhập mật khẩu hiện tại' }));
+                          }
+                        }}
+                        error={passwordErrors.oldPassword}
                         required
                       />
 
@@ -742,7 +912,21 @@ export default function ProfilePage() {
                         type="password"
                         placeholder="Tối thiểu 6 ký tự"
                         value={passwordForm.newPassword}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPasswordForm({ ...passwordForm, newPassword: val });
+                          if (val.length >= 6) {
+                            setPasswordErrors((prev) => ({ ...prev, newPassword: undefined }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!passwordForm.newPassword) {
+                            setPasswordErrors((prev) => ({ ...prev, newPassword: 'Vui lòng nhập mật khẩu mới' }));
+                          } else if (passwordForm.newPassword.length < 6) {
+                            setPasswordErrors((prev) => ({ ...prev, newPassword: 'Mật khẩu mới phải có ít nhất 6 ký tự' }));
+                          }
+                        }}
+                        error={passwordErrors.newPassword}
                         required
                       />
 
@@ -751,7 +935,21 @@ export default function ProfilePage() {
                         type="password"
                         placeholder="Nhập lại mật khẩu mới"
                         value={passwordForm.confirmPassword}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPasswordForm({ ...passwordForm, confirmPassword: val });
+                          if (val === passwordForm.newPassword) {
+                            setPasswordErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!passwordForm.confirmPassword) {
+                            setPasswordErrors((prev) => ({ ...prev, confirmPassword: 'Vui lòng xác nhận mật khẩu mới' }));
+                          } else if (passwordForm.confirmPassword !== passwordForm.newPassword) {
+                            setPasswordErrors((prev) => ({ ...prev, confirmPassword: 'Mật khẩu xác nhận không khớp' }));
+                          }
+                        }}
+                        error={passwordErrors.confirmPassword}
                         required
                       />
 
@@ -769,15 +967,6 @@ export default function ProfilePage() {
 
                 {/* XÓA TÀI KHOẢN */}
                 <div className="mt-12 pt-8 border-t border-line-light">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Trash2 size={18} className="text-status-error" />
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-status-error">
-                      Xóa Tài Khoản
-                    </h4>
-                  </div>
-                  <p className="text-xs text-content-secondary mb-4 leading-relaxed max-w-[560px]">
-                    Sau khi xóa tài khoản, bạn sẽ bị đăng xuất khỏi hệ thống.
-                  </p>
                   <Button
                     type="button"
                     variant="danger"
@@ -791,14 +980,7 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* TAB 4: PREFERENCE MATRIX & FEATURE STORE */}
-            {activeTab === 'preferences' && (
-              <div>
-                <PreferenceMatrixTab />
-              </div>
-            )}
-
-            {/* TAB 5: MY ORDERS (C1) */}
+            {/* TAB MY ORDERS (C1) */}
             {activeTab === 'orders' && (
               <div>
                 <CustomerOrdersTab />
