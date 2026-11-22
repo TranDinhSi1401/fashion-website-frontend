@@ -52,6 +52,7 @@ export default function ProfilePage() {
   const [deletingAddress, setDeletingAddress] = useState<boolean>(false);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState<boolean>(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
+  const [isOrderSuccessModalOpen, setIsOrderSuccessModalOpen] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [avatarUploading, setAvatarUploading] = useState<boolean>(false);
@@ -97,6 +98,16 @@ export default function ProfilePage() {
       }, 150);
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (
+      activeTab === 'orders' &&
+      (location.state as { orderPlacedSuccessfully?: boolean } | null)?.orderPlacedSuccessfully
+    ) {
+      setIsOrderSuccessModalOpen(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [activeTab, location.pathname, location.state, navigate]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -898,6 +909,30 @@ export default function ProfilePage() {
               Xác Nhận Xóa
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isOrderSuccessModalOpen}
+        onClose={() => setIsOrderSuccessModalOpen(false)}
+        title="Đặt hàng thành công"
+        maxWidth="480px"
+      >
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-100">
+            <CheckCircle2 size={40} className="text-emerald-600" strokeWidth={2.5} />
+          </div>
+          <p className="text-base font-medium text-content-primary">
+            Đơn hàng của bạn đã được đặt thành công
+          </p>
+          <Button
+            type="button"
+            variant="primary"
+            className="mt-2"
+            onClick={() => setIsOrderSuccessModalOpen(false)}
+          >
+            Đóng
+          </Button>
         </div>
       </Modal>
     </div>
