@@ -34,6 +34,9 @@ import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
 export default function App() {
   const { pathname } = useLocation();
   const purchasing = pathname === '/cart' || pathname === '/checkout';
+  const isAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
+  const isAdminPage = pathname.startsWith('/admin');
+  const hideFloatingWidgets = purchasing || isAuthPage || isAdminPage;
   return (
     <div className="relative flex min-h-screen flex-col">
       <ScrollManager />
@@ -223,10 +226,12 @@ export default function App() {
       <Footer />
 
       {/* Floating AI Stylist Advisor Widget & Realtime Customer Support Chat Widget */}
-      <div hidden={purchasing} inert={purchasing}>
-        <AiAdvisorWidget />
-        <ChatWidget />
-      </div>
+      {!hideFloatingWidgets && (
+        <div>
+          <AiAdvisorWidget />
+          <ChatWidget />
+        </div>
+      )}
     </div>
   );
 }
