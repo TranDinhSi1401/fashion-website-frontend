@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, Edit2, Trash2, Eye, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Edit2, Trash2, Eye, RefreshCw, Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, Package, ImageOff, X } from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
 import ProductAttributeSelect from '../components/admin/ProductAttributeSelect';
 import { DEFAULT_COLORS, DEFAULT_SIZES, newVariant, normalizeVariantSize, variantKey, uniqueChoices, generateVariantGrid, appendVariants, parseVariantTable } from '../utils/productEditor';
@@ -8,25 +9,29 @@ import { categoryService } from '../services/categoryService';
 import { CategoryResponse } from '../types/category';
 import { useAuth } from '../context/AuthContext';
 import { ProductResponse, ProductFilters, ProductPage, ProductVariantInput, ProductImageInput } from '../types/product';
-import { Badge, Button, Checkbox, Input, Modal, Select } from '../components/ui';
+import { Button, Checkbox, Input, Modal, Select } from '../components/ui';
 import MoneyInput from '../components/ui/MoneyInput';
 import ProductPrice from '../components/product/ProductPrice';
-import { extractErrorMessage } from '../utils/format';
-import styles from './AdminPages.module.css';
+import { extractErrorMessage, extractProductImage } from '../utils/format';
+import ui from './AdminProductsPage.module.css';
 import editorStyles from './ProductEditor.module.css';
+
+type VariantTarget = { id: number; focus: 'stock' | 'status' };
 
 const emptyForm = { name: '', slug: '', description: '', basePrice: '', categoryId: 0, isActive: true };
 const emptyFilters = { keyword: '', categoryId: '', minPrice: '', maxPrice: '', color: '', size: '', isActive: '', inStock: '', sort: 'newest' };
 
 export default function AdminProductsPage() {
   const { isAdmin, isStaff } = useAuth();
+  const [searchParams] = useSearchParams();
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [result, setResult] = useState<ProductPage | null>(null);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
-  const [filters, setFilters] = useState(emptyFilters);
+  const [filters, setFilters] = useState(() => ({ ...emptyFilters, keyword: searchParams.get('keyword') || '', isActive: ['true', 'false'].includes(searchParams.get('isActive') || '') ? searchParams.get('isActive')! : '', inStock: ['true', 'false'].includes(searchParams.get('inStock') || '') ? searchParams.get('inStock')! : '' }));
   const [filterReset, setFilterReset] = useState(0);
-  const [applied, setApplied] = useState<ProductFilters>({});
+  const [advancedFilters, setAdvancedFilters] = useState(false);
+  const [applied, setApplied] = useState<ProductFilters>(() => ({ keyword: searchParams.get('keyword') || undefined, isActive: filters.isActive === '' ? undefined : filters.isActive === 'true', inStock: filters.inStock === '' ? undefined : filters.inStock === 'true' }));
   const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState({ error: false, text: '' });
@@ -44,6 +49,8 @@ export default function AdminProductsPage() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [variantTarget, setVariantTarget] = useState<VariantTarget | null>(null);
+  const deepLinkHandled = useRef('');
   const [options, setOptions] = useState({ colors: DEFAULT_COLORS, sizes: DEFAULT_SIZES });
   const [quickColors, setQuickColors] = useState<string[]>([]);
   const [quickSizes, setQuickSizes] = useState<string[]>([]);
@@ -111,19 +118,22 @@ export default function AdminProductsPage() {
       inStock: filters.inStock === '' ? undefined : filters.inStock === 'true' });
   }
 
-  async function openForm(product?: ProductResponse) {
-    setEditing(product || null); setFormError(''); setQuickNotice(''); setPasteText('');
+  const openForm = useCallback(async (product?: ProductResponse | number, target?: VariantTarget) => {
+    const productId = typeof product === 'number' ? product : product?.id;
+    setVariantTarget(target || null);
+    setEditing(typeof product === 'object' ? product : null); setFormError(''); setQuickNotice(''); setPasteText('');
     setQuickColors([]); setQuickSizes([]); setQuickPrice(''); setQuickStock('0');
-    setModal(true); setFormLoading(Boolean(product));
+    setModal(true); setFormLoading(productId !== undefined);
     setForm({ ...emptyForm, categoryId: categories.find(c => c.isActive)?.id || 0 });
     setVariants([newVariant()]); setImages([{ imageUrl: '' }]);
-    if (!product) return;
+    if (productId === undefined) return;
     try {
-      const { data: fresh } = await productService.getProductById(product.id);
+      const { data: fresh } = await productService.getProductById(productId);
       setEditing(fresh);
       setForm({ name: fresh.name, slug: fresh.slug || '', description: fresh.description || '', basePrice: String(fresh.basePrice), categoryId: fresh.categoryId, isActive: fresh.isActive !== false });
       const rows = fresh.variants?.map(v => ({ ...newVariant(v.price), ...v, packageWeight: v.packageWeight || 200, packageLength: v.packageLength || 20, packageWidth: v.packageWidth || 15, packageHeight: v.packageHeight || 3 })) || [];
       setVariants(rows.length ? rows : [newVariant(fresh.basePrice)]);
+      if (target && !rows.some(v => v.id === target.id)) { setVariantTarget(null); setFormError('Biến thể được chọn không còn tồn tại. Vui lòng kiểm tra lại sản phẩm.'); }
       const pictures = fresh.productImages?.map(img => ({ id: img.id, imageUrl: img.imageUrl,
         variantIndex: img.variantId ? rows.findIndex(v => v.id === img.variantId) : undefined }))
         .map(img => ({ ...img, variantIndex: img.variantIndex === -1 ? undefined : img.variantIndex })) || [];
@@ -131,7 +141,28 @@ export default function AdminProductsPage() {
     } catch (e) {
       setModal(false); setNotice({ error: true, text: extractErrorMessage(e, 'Không tải được thông tin để sửa sản phẩm') });
     } finally { setFormLoading(false); }
-  }
+  }, [categories]);
+
+  useEffect(() => {
+    const key = searchParams.toString();
+    const productId = Number(searchParams.get('edit'));
+    const variantId = Number(searchParams.get('variant'));
+    if (!categories.length || !Number.isSafeInteger(productId) || productId <= 0 || deepLinkHandled.current === key) return;
+    deepLinkHandled.current = key;
+    void openForm(productId, Number.isSafeInteger(variantId) && variantId > 0 ? {
+      id: variantId, focus: searchParams.get('focus') === 'status' ? 'status' : 'stock',
+    } : undefined);
+  }, [categories, searchParams, openForm]);
+
+  useEffect(() => {
+    if (!modal || formLoading || !variantTarget) return;
+    const frame = requestAnimationFrame(() => {
+      const field = document.getElementById(`variant-${variantTarget.focus}-${variantTarget.id}`);
+      field?.scrollIntoView({ block: 'center', behavior: 'instant' });
+      field?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [modal, formLoading, variantTarget]);
 
   function addQuickVariants(next: ProductVariantInput[]) {
     // Remap image indices by object identity when an empty placeholder row is removed.
@@ -197,79 +228,112 @@ export default function AdminProductsPage() {
     catch (e) { setNotice({ error: true, text: extractErrorMessage(e, 'Không xóa được sản phẩm') }); }
   }
 
-  return <div className="container py-8">
-    <AdminNav title="Quản lý sản phẩm" subtitle={`${result?.totalElements ?? 0} sản phẩm phù hợp`}
-      actions={<><Button icon={RefreshCw} variant="secondary" onClick={() => setReload(r => r + 1)}>Làm mới</Button>
-        {(isAdmin || isStaff) && <Button icon={Plus} onClick={() => openForm()} disabled={!categories.some(c => c.isActive)}>Thêm sản phẩm</Button>}</>} />
-    <form onSubmit={applyFilters} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-      <Input label="Tên hoặc slug" value={filters.keyword} onChange={e => setFilters({ ...filters, keyword: e.target.value })} />
-      <Select label="Danh mục" value={filters.categoryId} onChange={e => setFilters({ ...filters, categoryId: e.target.value })}
-        options={[{ value: '', label: 'Tất cả' }, ...categories.map(c => ({ value: c.id, label: c.name }))]} />
-      <Select label="Trạng thái" value={filters.isActive} onChange={e => setFilters({ ...filters, isActive: e.target.value })}
-        options={[{ value: '', label: 'Tất cả' }, { value: 'true', label: 'Hoạt động' }, { value: 'false', label: 'Đang ẩn' }]} />
-      <MoneyInput key={`min-${filterReset}`} id="admin-min-price" label="Giá gốc từ" value={filters.minPrice} onValueChange={minPrice => setFilters({ ...filters, minPrice })} />
-      <MoneyInput key={`max-${filterReset}`} id="admin-max-price" label="Giá gốc đến" value={filters.maxPrice} onValueChange={maxPrice => setFilters({ ...filters, maxPrice })} />
-      <Select label="Màu" value={filters.color} onChange={e => setFilters({ ...filters, color: e.target.value })} options={[{ value: '', label: 'Tất cả màu' }, ...colorOptions.map(value => ({ value, label: value }))]} />
-      <Select label="Size" value={filters.size} onChange={e => setFilters({ ...filters, size: e.target.value })} options={[{ value: '', label: 'Tất cả size' }, ...sizeOptions.map(value => ({ value, label: value }))]} />
-      <Select label="Tồn kho" value={filters.inStock} onChange={e => setFilters({ ...filters, inStock: e.target.value })}
-        options={[{ value: '', label: 'Tất cả' }, { value: 'true', label: 'Còn hàng' }, { value: 'false', label: 'Hết hàng' }]} />
-      <Select label="Sắp xếp" value={filters.sort} onChange={e => setFilters({ ...filters, sort: e.target.value })}
-        options={[{ value: 'newest', label: 'Mới nhất' }, { value: 'name', label: 'Tên' }, { value: 'price-asc', label: 'Giá tăng' }, { value: 'price-desc', label: 'Giá giảm' }]} />
-      <Button type="submit">Áp dụng bộ lọc</Button>
-      <Button variant="secondary" onClick={() => { setFilters(emptyFilters); setFilterReset(n => n + 1); setApplied({}); setPage(0); }}>Xóa bộ lọc</Button>
-    </form>
-    {notice.text && <p role="status" className={notice.error ? styles.alertError : styles.alertSuccess}>{notice.text}</p>}
-    <div className="overflow-x-auto border border-line-light">
-      <table className="w-full text-left text-sm"><thead><tr>
-        {['ID', 'Tên sản phẩm', 'Danh mục', 'Giá', 'Trạng thái', 'Thao tác'].map(h => <th className="p-3" key={h}>{h}</th>)}
-      </tr></thead><tbody>
-        {loading ? <tr><td colSpan={6} className="p-6">Đang tải...</td></tr> : !result?.content.length ? <tr><td colSpan={6} className="p-6">Không có sản phẩm phù hợp.</td></tr>
-          : result.content.map(p => <tr key={p.id} className={styles.tableRow}>
-            <td className="p-3">#{p.id}</td><td className="p-3"><button type="button" className="underline text-left" onClick={() => { setDetailId(p.id); setDetailOpen(true); }}>{p.name}</button></td>
-            <td className="p-3">{categories.find(c => c.id === p.categoryId)?.name || `#${p.categoryId}`}</td>
-            <td className="p-3"><ProductPrice price={p.basePrice} offer={p.bestOffer} /></td>
-            <td className="p-3"><Badge variant={p.isActive ? 'success' : 'error'}>{p.isActive ? 'Hoạt động' : 'Đang ẩn'}</Badge></td>
-            <td className="p-3"><div className="flex gap-2">
-              <Button size="sm" variant="secondary" icon={Eye} onClick={() => { setDetailId(p.id); setDetailOpen(true); }}>Chi tiết</Button>
-              <Button size="sm" variant="secondary" icon={Edit2} onClick={() => openForm(p)}>Sửa</Button>
-              {isAdmin && <Button size="sm" variant="danger" icon={Trash2} onClick={() => remove(p)}>Xóa</Button>}
-            </div></td>
-          </tr>)}
-      </tbody></table>
-    </div>
-    <div className="flex flex-wrap items-center gap-3 mt-4">
-      <Button variant="secondary" disabled={loading || page === 0} onClick={() => setPage(p => p - 1)}>Trước</Button>
-      <span>Trang {page + 1}/{Math.max(1, result?.totalPages ?? 0)}</span>
-      <Button variant="secondary" disabled={loading || page + 1 >= (result?.totalPages ?? 0)} onClick={() => setPage(p => p + 1)}>Sau</Button>
-      <Select label="Số sản phẩm/trang" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(0); }} options={[10, 20, 50].map(n => ({ value: n, label: String(n) }))} />
-    </div>
+  const activeFilterCount = Object.entries(applied).filter(([key, value]) => key !== 'sort' && value !== undefined && value !== '').length;
+  const resetFilters = () => { setFilters(emptyFilters); setFilterReset(n => n + 1); setApplied({}); setPage(0); setNotice({ error: false, text: '' }); };
+  const firstItem = result?.totalElements ? page * pageSize + 1 : 0;
+  const lastItem = Math.min((page + 1) * pageSize, result?.totalElements ?? 0);
 
-    <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} title="Chi tiết sản phẩm" maxWidth="900px">
-      {detailBusy ? <p>Đang tải chi tiết...</p> : detailError ? <p role="alert">{detailError}</p> : detail && <div className="space-y-4">
+  return <div className={ui.page}>
+    <div className="container py-8 sm:py-10">
+    <AdminNav title="Quản lý sản phẩm" subtitle="Sắp xếp danh mục, cập nhật sản phẩm và theo dõi tồn kho."
+      actions={<><Button size="sm" icon={RefreshCw} variant="outline" onClick={() => setReload(r => r + 1)}>Làm mới</Button>
+        {(isAdmin || isStaff) && <Button size="sm" icon={Plus} onClick={() => openForm()} disabled={!categories.some(c => c.isActive)}>Thêm sản phẩm</Button>}</>} />
+
+    <section className={ui.workspace} aria-labelledby="product-list-heading">
+      <div className={ui.listHeading}>
+        <div className={ui.titleGroup}><span className={ui.sectionIcon}><Package size={20} /></span><div><div className={ui.titleLine}><h2 id="product-list-heading">Danh sách sản phẩm</h2><span className={ui.count}>{result?.totalElements ?? '—'}</span></div><p>Quản lý thông tin và trạng thái bán hàng của bạn.</p></div></div>
+        <span className={ui.liveLabel}><span /> Dữ liệu cửa hàng</span>
+      </div>
+      <form onSubmit={applyFilters} className={ui.filters}>
+        <div className={ui.primaryFilters}>
+          <Input id="admin-product-search" label="Tìm sản phẩm" icon={Search} placeholder="Tên sản phẩm hoặc slug…" value={filters.keyword} onChange={e => setFilters({ ...filters, keyword: e.target.value })} />
+          <Select id="admin-product-category" label="Danh mục" value={filters.categoryId} onChange={e => setFilters({ ...filters, categoryId: e.target.value })}
+            options={[{ value: '', label: 'Tất cả danh mục' }, ...categories.map(c => ({ value: c.id, label: c.name }))]} />
+          <Select id="admin-product-status" label="Trạng thái" value={filters.isActive} onChange={e => setFilters({ ...filters, isActive: e.target.value })}
+            options={[{ value: '', label: 'Tất cả trạng thái' }, { value: 'true', label: 'Đang bán' }, { value: 'false', label: 'Đang ẩn' }]} />
+          <button type="button" className={`${ui.filterToggle} ${advancedFilters ? ui.filterToggleActive : ''}`} aria-expanded={advancedFilters} aria-controls="advanced-product-filters" onClick={() => setAdvancedFilters(v => !v)}><SlidersHorizontal size={16} /><span>Lọc nâng cao</span><ChevronDown size={14} /></button>
+        </div>
+        {advancedFilters && <div id="advanced-product-filters" className={ui.advancedFilters}>
+          <MoneyInput key={`min-${filterReset}`} id="admin-min-price" label="Giá gốc từ" value={filters.minPrice} onValueChange={minPrice => setFilters({ ...filters, minPrice })} />
+          <MoneyInput key={`max-${filterReset}`} id="admin-max-price" label="Giá gốc đến" value={filters.maxPrice} onValueChange={maxPrice => setFilters({ ...filters, maxPrice })} />
+          <Select label="Màu sắc" value={filters.color} onChange={e => setFilters({ ...filters, color: e.target.value })} options={[{ value: '', label: 'Tất cả màu' }, ...colorOptions.map(value => ({ value, label: value }))]} />
+          <Select label="Kích thước" value={filters.size} onChange={e => setFilters({ ...filters, size: e.target.value })} options={[{ value: '', label: 'Tất cả size' }, ...sizeOptions.map(value => ({ value, label: value }))]} />
+          <Select label="Tình trạng kho" value={filters.inStock} onChange={e => setFilters({ ...filters, inStock: e.target.value })}
+            options={[{ value: '', label: 'Tất cả tồn kho' }, { value: 'true', label: 'Còn hàng' }, { value: 'false', label: 'Hết hàng' }]} />
+          <Select label="Sắp xếp" value={filters.sort} onChange={e => setFilters({ ...filters, sort: e.target.value })}
+            options={[{ value: 'newest', label: 'Mới nhất' }, { value: 'name', label: 'Tên A–Z' }, { value: 'price-asc', label: 'Giá thấp đến cao' }, { value: 'price-desc', label: 'Giá cao đến thấp' }]} />
+        </div>}
+        <div className={ui.filterFooter}>
+          <span>{activeFilterCount ? <><strong>{activeFilterCount}</strong> bộ lọc đang áp dụng</> : 'Hiển thị tất cả sản phẩm trong cửa hàng'}</span>
+          <div><button type="button" className={ui.resetButton} onClick={resetFilters}><X size={14} />Xóa bộ lọc</button><Button type="submit" size="sm" icon={Search}>Tìm kiếm</Button></div>
+        </div>
+      </form>
+      {notice.text && <p role="status" className={notice.error ? ui.alertError : ui.alertSuccess}>{notice.text}</p>}
+      <div className={ui.tableWrap} aria-busy={loading}>
+        <table className={ui.table}><thead><tr>
+          {['Sản phẩm', 'Danh mục', 'Giá bán', 'Tồn kho', 'Trạng thái', 'Thao tác'].map(h => <th key={h}>{h}</th>)}
+        </tr></thead><tbody>
+          {loading ? <tr><td colSpan={6}><div className={ui.emptyState}><RefreshCw size={25} className="animate-spin" /><strong>Đang tải sản phẩm…</strong><span>Đang cập nhật danh sách của bạn.</span></div></td></tr> : !result?.content.length ? <tr><td colSpan={6}><div className={ui.emptyState}><Package size={32} /><strong>{notice.error ? 'Chưa tải được sản phẩm' : 'Không tìm thấy sản phẩm'}</strong><span>{notice.error ? 'Vui lòng thử làm mới danh sách.' : 'Thử thay đổi từ khóa hoặc bỏ bớt bộ lọc.'}</span><button type="button" className={ui.resetButton} onClick={notice.error ? () => setReload(r => r + 1) : resetFilters}>{notice.error ? 'Thử lại' : 'Xóa bộ lọc'}</button></div></td></tr>
+            : result.content.map(p => {
+              const image = extractProductImage(p);
+              const stock = p.variants?.filter(v => v.isActive).reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+              return <tr key={p.id}>
+              <td><button type="button" className={ui.productCell} onClick={() => { setDetailId(p.id); setDetailOpen(true); }}>
+                <span className={ui.thumbnail}>{image ? <img src={image} alt="" loading="lazy" /> : <ImageOff size={22} />}</span>
+                <span className={ui.productInfo}><strong>{p.name}</strong><span>#{p.id}<i />{p.variants?.length ?? '—'} biến thể</span></span>
+              </button></td>
+              <td data-label="Danh mục"><span className={ui.category}>{categories.find(c => c.id === p.categoryId)?.name || `#${p.categoryId}`}</span></td>
+              <td data-label="Giá bán" className={ui.price}><ProductPrice price={p.basePrice} offer={p.bestOffer} /></td>
+              <td data-label="Tồn kho"><span className={`${ui.stock} ${stock === 0 ? ui.stockEmpty : ''}`}>{stock === undefined ? '—' : stock.toLocaleString('vi-VN')}</span><small className={ui.stockNote}>đơn vị</small></td>
+              <td data-label="Trạng thái"><span className={`${ui.status} ${p.isActive ? ui.statusActive : ui.statusHidden}`}><span />{p.isActive ? 'Đang bán' : 'Đang ẩn'}</span></td>
+              <td className={ui.actionsCell}><div className={ui.rowActions}>
+                <button type="button" title="Xem chi tiết" aria-label={`Chi tiết ${p.name}`} onClick={() => { setDetailId(p.id); setDetailOpen(true); }}><Eye size={16} /></button>
+                <button type="button" title="Chỉnh sửa" aria-label={`Sửa ${p.name}`} onClick={() => openForm(p)}><Edit2 size={16} /></button>
+                {isAdmin && <button type="button" className={ui.deleteAction} title="Xóa sản phẩm" aria-label={`Xóa ${p.name}`} onClick={() => remove(p)}><Trash2 size={16} /></button>}
+              </div></td>
+            </tr>; })}
+        </tbody></table>
+      </div>
+      <div className={ui.pagination}>
+        <div className={ui.resultRange}>Hiển thị <strong>{firstItem}–{lastItem}</strong> trong <strong>{result?.totalElements ?? 0}</strong> sản phẩm</div>
+        <div className={ui.pageControls}>
+          <label className={ui.pageSize}>Mỗi trang<select aria-label="Số sản phẩm mỗi trang" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(0); }}>{[10,20,50].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
+          <div className={ui.pageButtons}><button type="button" aria-label="Trang trước" disabled={loading || page === 0} onClick={() => setPage(p => p - 1)}><ChevronLeft size={16} /></button><span>{page + 1} <small>/ {Math.max(1, result?.totalPages ?? 0)}</small></span><button type="button" aria-label="Trang sau" disabled={loading || page + 1 >= (result?.totalPages ?? 0)} onClick={() => setPage(p => p + 1)}><ChevronRight size={16} /></button></div>
+        </div>
+      </div>
+    </section>
+
+    <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} title="Chi tiết sản phẩm" maxWidth="900px" className={editorStyles.dialog}>
+      {detailBusy ? <p>Đang tải chi tiết...</p> : detailError ? <p role="alert">{detailError}</p> : detail && <div className={`${editorStyles.detail} space-y-4`}>
         <h2 className="text-xl font-bold">{detail.name} · #{detail.id}</h2>
         <p>{categories.find(c => c.id === detail.categoryId)?.name} · {detail.isActive ? 'Hoạt động' : 'Đang ẩn'} · {detail.slug}</p>
         <ProductPrice price={detail.basePrice} offer={detail.bestOffer} />
         <p className="whitespace-pre-line">{detail.description || 'Chưa có mô tả'}</p>
-        <div className="flex gap-3 flex-wrap">{detail.productImages?.map(img => <figure key={img.id}><img src={img.imageUrl} alt={detail.name} className="w-28 h-28 object-cover" /><figcaption>{img.isMain ? 'Ảnh chính' : 'Ảnh phụ'}{img.variantId ? ` · Biến thể #${img.variantId}` : ''}</figcaption></figure>)}</div>
+        <div className="flex gap-3 flex-wrap">{detail.productImages?.map(img => <figure key={img.id}><img src={img.imageUrl} alt={detail.name} className="w-28 aspect-[3/4] object-cover" loading="lazy" /><figcaption>{img.isMain ? 'Ảnh chính' : 'Ảnh phụ'}{img.variantId ? ` · Biến thể #${img.variantId}` : ''}</figcaption></figure>)}</div>
         <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{['SKU', 'Màu', 'Size', 'Giá', 'Tồn kho', 'Trạng thái'].map(h => <th key={h} className="p-2">{h}</th>)}</tr></thead>
           <tbody>{detail.variants?.map(v => <tr key={v.id}><td className="p-2">{v.sku || v.id}</td><td className="p-2">{v.color}</td><td className="p-2">{v.size}</td><td className="p-2"><ProductPrice price={v.price} offer={v.bestOffer} /></td><td className="p-2">{v.stockQuantity}</td><td className="p-2">{v.isActive ? 'Hoạt động' : 'Đang ẩn'}</td></tr>)}</tbody></table></div>
       </div>}
     </Modal>
 
-    <Modal isOpen={modal} onClose={() => { if (!saving && !uploading && !formLoading) setModal(false); }} title={editing ? 'Sửa thông tin sản phẩm' : 'Thêm sản phẩm mới'} maxWidth="950px" className={editorStyles.dialog}>
+    <Modal isOpen={modal} onClose={() => { if (!saving && !uploading && !formLoading) setModal(false); }} title={formLoading ? 'Đang tải sản phẩm' : editing ? 'Sửa thông tin sản phẩm' : 'Thêm sản phẩm mới'} maxWidth="950px" className={editorStyles.dialog}>
       {formLoading && <p role="status">Đang tải đầy đủ thông tin sản phẩm…</p>}
-      <form onSubmit={submit} className={`${editorStyles.form} space-y-4`}><fieldset disabled={saving || uploading || formLoading} className="space-y-4">
-        {formError && <p role="alert" className={styles.alertError}>{formError}</p>}
-        <Input label="Tên sản phẩm" required maxLength={200} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-        <Input label="Slug (để trống để tạo từ tên)" maxLength={200} value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} />
+      <form onSubmit={submit} className={editorStyles.form}><fieldset disabled={saving || uploading || formLoading} className={editorStyles.formContent}>
+        {variantTarget && !formLoading && <div role="status" className={editorStyles.targetNotice}><strong>{variantTarget.focus === 'stock' ? 'Bổ sung hàng' : 'Tạm ẩn biến thể'}</strong><span>{variants.find(v => v.id === variantTarget.id)?.color} / {variants.find(v => v.id === variantTarget.id)?.size} · {variantTarget.focus === 'stock' ? 'Nhập tồn kho mới rồi lưu thay đổi.' : 'Bỏ chọn “Biến thể đang bán” rồi lưu thay đổi.'}</span></div>}
+        {formError && <p role="alert" className={ui.alertError}>{formError}</p>}
+        <section className={editorStyles.section}>
+        <div className={editorStyles.sectionHeading}><span>01</span><div><h3>Thông tin cơ bản</h3><p>Tên, giá và danh mục hiển thị trên cửa hàng.</p></div></div>
+        <div className={editorStyles.basicGrid}>
+        <Input className={editorStyles.fullWidth} label="Tên sản phẩm" placeholder="Ví dụ: Áo polo nam Cotton Regular Fit" required maxLength={200} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+        <Input className={editorStyles.fullWidth} label="Đường dẫn sản phẩm (slug)" helperText="Để trống để tự tạo từ tên sản phẩm." maxLength={200} value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} />
         <Input label="Giá gốc (đ)" type="number" min="1" step="0.01" required value={form.basePrice} onChange={e => setForm({ ...form, basePrice: e.target.value })} />
         <Select label="Danh mục" value={form.categoryId} onChange={e => setForm({ ...form, categoryId: Number(e.target.value) })}
           options={[{ value: 0, label: 'Chọn danh mục' }, ...categories.filter(c => c.isActive || c.id === form.categoryId).map(c => ({ value: c.id, label: c.name }))]} />
-        <Input label="Mô tả" multiline rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-        <Checkbox label="Hiển thị trên cửa hàng" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} />
+        <Input className={editorStyles.fullWidth} label="Mô tả" multiline rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+        </div><div className={editorStyles.visibility}><Checkbox label="Hiển thị trên cửa hàng" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} /><span>Tắt để ẩn sản phẩm khỏi danh sách mua sắm.</span></div></section>
         <>
-          <h3 className="font-bold">Biến thể sản phẩm</h3>
-          <details className={`${editorStyles.quick} border border-line-light bg-surface p-4`}>
+          <section className={editorStyles.section}>
+          <div className={editorStyles.sectionHeading}><span>02</span><div><h3>Biến thể sản phẩm <small>{variants.length}</small></h3><p>Quản lý màu sắc, kích thước, giá bán và số lượng.</p></div></div>
+          <details className={editorStyles.quick}>
             <summary className="cursor-pointer font-semibold">Nhập nhanh biến thể</summary>
             <div className="mt-4 space-y-4">
               <fieldset><legend className="mb-2 text-sm font-semibold">Chọn nhiều màu</legend><div className="flex max-h-36 flex-wrap gap-3 overflow-y-auto">{colorOptions.map(color => <Checkbox key={color} label={color} checked={quickColors.includes(color)} onChange={e => setQuickColors(old => e.target.checked ? [...old, color] : old.filter(v => v !== color))} />)}</div></fieldset>
@@ -287,12 +351,12 @@ export default function AdminProductsPage() {
               {quickNotice && <p role="status" className="text-sm">{quickNotice}</p>}
             </div>
           </details>
-          {variants.map((v, i) => <fieldset key={v.id ? `saved-${v.id}` : v.clientId || i} className="border border-line-light p-3 space-y-3"><legend>Biến thể {i + 1}</legend>
+          <div className={editorStyles.variantGrid}>{variants.map((v, i) => <fieldset key={v.id ? `saved-${v.id}` : v.clientId || i} data-variant-id={v.id} className={`${editorStyles.variantCard} ${variantTarget && variantTarget.id === v.id ? editorStyles.targetVariant : ''} space-y-3`}><legend>Biến thể {String(i + 1).padStart(2, '0')}</legend>
             <div className="grid grid-cols-2 gap-3">
               <ProductAttributeSelect label="Màu" value={v.color} options={colorOptions} onChange={color => setVariants(old => old.map((x, n) => n === i ? { ...x, color } : x))} />
               <ProductAttributeSelect label="Size" value={v.size} options={sizeOptions} maxLength={20} onChange={size => setVariants(old => old.map((x, n) => n === i ? { ...x, size } : x))} />
               <Input label="Giá biến thể (đ)" type="number" required min="1" step="0.01" value={v.price} onChange={e => setVariants(old => old.map((x, n) => n === i ? { ...x, price: Number(e.target.value) } : x))} />
-              <Input label="Tồn kho" type="number" required min="0" step="1" value={v.stockQuantity} onChange={e => setVariants(old => old.map((x, n) => n === i ? { ...x, stockQuantity: Number(e.target.value) } : x))} />
+              <Input id={`variant-stock-${v.id ?? v.clientId}`} label="Tồn kho" type="number" required min="0" step="1" value={v.stockQuantity} onChange={e => setVariants(old => old.map((x, n) => n === i ? { ...x, stockQuantity: Number(e.target.value) } : x))} />
               <details className="col-span-2">
                 <summary className="cursor-pointer text-sm text-content-secondary">Thông số kiện hàng (GHN)</summary>
                 <div className="mt-3 grid grid-cols-2 gap-3">
@@ -300,27 +364,30 @@ export default function AdminProductsPage() {
                 </div>
               </details>
             </div>
-            <Checkbox label="Biến thể đang bán" checked={v.isActive !== false} onChange={e => setVariants(old => old.map((x, n) => n === i ? { ...x, isActive: e.target.checked } : x))} />
+            <Checkbox id={`variant-status-${v.id ?? v.clientId}`} label="Biến thể đang bán" checked={v.isActive !== false} onChange={e => setVariants(old => old.map((x, n) => n === i ? { ...x, isActive: e.target.checked } : x))} />
             {v.id && <p className="text-xs text-content-secondary">SKU hiện có: bỏ chọn “đang bán” để ngừng bán và giữ lịch sử đơn hàng.</p>}
             {!v.id && <Button size="sm" variant="danger" disabled={variants.length === 1} onClick={() => { setVariants(old => old.filter((_, n) => n !== i)); setImages(old => old.map(img => ({ ...img, variantIndex: img.variantIndex === i ? undefined : img.variantIndex !== undefined && img.variantIndex > i ? img.variantIndex - 1 : img.variantIndex }))); }}>Xóa biến thể</Button>}
-          </fieldset>)}
-          <Button variant="secondary" disabled={variants.length >= 100} onClick={() => setVariants(old => [...old, { ...newVariant(), price: Number(form.basePrice) || 0 }])}>Thêm biến thể</Button>
-          <h3 className="font-bold">Ảnh sản phẩm · ảnh đầu tiên là ảnh chính</h3>
-          <p className="text-sm text-content-secondary">Thay URL hoặc tải ảnh mới để sửa ảnh. Dùng nút mũi tên để sắp xếp; ảnh ở vị trí đầu là ảnh chính.</p>
-          {images.map((img, i) => <div key={i} className="border border-line-light p-3 space-y-2">
+          </fieldset>)}</div>
+          <Button icon={Plus} size="sm" variant="outline" disabled={variants.length >= 100} onClick={() => setVariants(old => [...old, { ...newVariant(), price: Number(form.basePrice) || 0 }])}>Thêm biến thể</Button>
+          </section>
+          <section className={editorStyles.section}>
+          <div className={editorStyles.sectionHeading}><span>03</span><div><h3>Hình ảnh sản phẩm <small>{images.length}</small></h3><p>Ảnh đầu tiên là ảnh chính. Kéo lên hoặc xuống bằng nút mũi tên để đổi thứ tự.</p></div></div>
+          <div className={editorStyles.imageGrid}>{images.map((img, i) => <div key={i} className={`${editorStyles.imageCard} space-y-3`}><div className={editorStyles.imageLabel}>{i === 0 ? 'Ảnh chính' : `Ảnh ${i + 1}`}</div>
             <Input label={`URL ảnh ${i + 1}`} type="url" maxLength={500} value={img.imageUrl} onChange={e => setImages(old => old.map((x, n) => n === i ? { ...x, imageUrl: e.target.value } : x))} placeholder="https://..." />
             <label className="block text-sm">Hoặc tải ảnh JPEG/PNG/WebP, tối đa 5MB<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={e => { void upload(e.target.files?.[0], i); e.target.value = ''; }} /></label>
             <Select label="Áp dụng ảnh cho" value={img.variantIndex ?? ''} onChange={e => setImages(old => old.map((x, n) => n === i ? { ...x, variantIndex: e.target.value === '' ? undefined : Number(e.target.value) } : x))}
               options={[{ value: '', label: 'Toàn sản phẩm' }, ...variants.map((v, n) => ({ value: n, label: `${n + 1}. ${v.color} / ${v.size}` }))]} />
-            {img.imageUrl && <img src={img.imageUrl} alt={`Ảnh ${i + 1}`} className="w-24 h-24 object-cover" />}
+            {img.imageUrl && <img src={img.imageUrl} alt={`Ảnh ${i + 1}`} className="w-24 aspect-[3/4] object-cover" loading="lazy" />}
             <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" disabled={i === 0} onClick={() => setImages(old => { const next = [...old]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; return next; })}>↑ Lên</Button>
             <Button size="sm" variant="secondary" disabled={i === images.length - 1} onClick={() => setImages(old => { const next = [...old]; [next[i + 1], next[i]] = [next[i], next[i + 1]]; return next; })}>↓ Xuống</Button>
             <Button size="sm" variant="danger" disabled={images.length === 1} onClick={() => setImages(old => old.filter((_, n) => n !== i))}>Xóa ảnh</Button></div>
-          </div>)}
-          <Button variant="secondary" disabled={images.length >= 20} onClick={() => setImages(old => [...old, { imageUrl: '' }])}>Thêm ảnh</Button>
+          </div>)}</div>
+          <Button icon={Plus} size="sm" variant="outline" disabled={images.length >= 20} onClick={() => setImages(old => [...old, { imageUrl: '' }])}>Thêm ảnh</Button>
+          </section>
         </>
-      </fieldset><div className="flex gap-3 justify-end"><Button variant="secondary" disabled={saving || uploading || formLoading} onClick={() => setModal(false)}>Hủy</Button><Button type="submit" disabled={formLoading} loading={saving || uploading}>{editing ? 'Lưu thay đổi' : 'Tạo sản phẩm'}</Button></div></form>
+      </fieldset><div className={editorStyles.formFooter}><span>Kiểm tra thông tin trước khi lưu sản phẩm.</span><div className="flex gap-3"><Button variant="secondary" disabled={saving || uploading || formLoading} onClick={() => setModal(false)}>Hủy</Button><Button type="submit" disabled={formLoading} loading={saving || uploading}>{editing ? 'Lưu thay đổi' : 'Tạo sản phẩm'}</Button></div></div></form>
     </Modal>
+    </div>
   </div>;
 }

@@ -34,3 +34,9 @@ Menu desktop và mobile lấy tên/ID từ `GET /categories`, nhóm theo cây da
 
 
 Ô lọc giá ở trang khách và quản lý hiển thị nhóm hàng nghìn bằng dấu cách (`2 000 000`), đơn vị `đ` riêng bên phải. Form/URL/API nhận số không phân cách (`2000000`). Ô trống và giá 0 được phân biệt; số âm, phần thập phân và số vượt giới hạn chính xác bị từ chối. Có thể dán số có phân cách hàng nghìn thông dụng hoặc ký hiệu đ/₫.
+
+## Bộ lọc và mác hàng mới
+
+- Khung bộ lọc ẩn mặc định trên mọi kích thước màn hình; nút Bộ lọc mở bảng trượt bên trái. Các nhóm bên trong mở sẵn và vẫn có thể thu gọn.
+- Không còn ô tìm kiếm trong bộ lọc. Đóng bảng bằng X, Esc, bấm nền hoặc Xem kết quả; lựa chọn lọc được giữ trong query string.
+- Mác NEW trên ProductCard dùng màu đỏ theo token accent-red, dạng tia nhọn; dựa vào cờ isNew do API cung cấp. Chỉ thay mác NEW của thẻ bán hàng; NEW và SALE có thể xuất hiện đồng thời.

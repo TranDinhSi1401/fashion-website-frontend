@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -18,6 +18,8 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ProfilePage from './pages/ProfilePage';
 import ReturnCreatePage from './pages/ReturnCreatePage';
 import ReturnDetailPage from './pages/ReturnDetailPage';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminProductsPage from './pages/AdminProductsPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminPromotionsPage from './pages/AdminPromotionsPage';
@@ -32,10 +34,13 @@ import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
 export default function App() {
   const { pathname } = useLocation();
   const purchasing = pathname === '/cart' || pathname === '/checkout';
+  const isAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
+  const isAdminPage = pathname === '/admin' || pathname.startsWith('/admin/');
+  const hideFloatingWidgets = purchasing || isAuthPage || isAdminPage;
   return (
     <div className="relative flex min-h-screen flex-col">
       <ScrollManager />
-      <Header />
+      {!isAdminPage && <Header />}
 
       <main className="flex-1">
         <Routes>
@@ -76,11 +81,7 @@ export default function App() {
           />
           <Route
             path="/account/preferences"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/account/profile" replace />}
           />
           <Route
             path="/account/orders"
@@ -116,6 +117,9 @@ export default function App() {
           />
 
           {/* Admin & Staff Protected Routes */}
+          <Route element={<AdminLayout />}>
+          <Route path="/admin" element={<ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}><Navigate to="/admin/dashboard" replace /></ProtectedRoute>} />
+          <Route path="/admin/dashboard" element={<ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}><AdminDashboardPage /></ProtectedRoute>} />
           <Route
             path="/admin/products"
             element={
@@ -198,6 +202,8 @@ export default function App() {
             }
           />
 
+          </Route>
+
           {/* 404 Fallback */}
           <Route
             path="*"
@@ -213,13 +219,15 @@ export default function App() {
         </Routes>
       </main>
 
-      <Footer />
+      {!isAdminPage && <Footer />}
 
       {/* Floating AI Stylist Advisor Widget & Realtime Customer Support Chat Widget */}
-      <div hidden={purchasing} inert={purchasing}>
-        <AiAdvisorWidget />
-        <ChatWidget />
-      </div>
+      {!hideFloatingWidgets && (
+        <div>
+          <AiAdvisorWidget />
+          <ChatWidget />
+        </div>
+      )}
     </div>
   );
 }

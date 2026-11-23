@@ -1,19 +1,7 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import {
-  Package,
-  Users,
-  Shield,
-  ArrowUpRight,
-  Store,
-  MessageSquare,
-  BellRing,
-  ShoppingCart,
-  Tag,
-} from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Badge } from '../ui';
-import { cn } from '../../utils/cn';
 
 interface AdminNavProps {
   title?: string;
@@ -22,15 +10,7 @@ interface AdminNavProps {
 }
 
 export default function AdminNav({ title, subtitle, actions }: AdminNavProps) {
-  const location = useLocation();
   const { user, isAdmin } = useAuth();
-
-  const isProductsActive = location.pathname.startsWith('/admin/products');
-  const isOrdersActive = location.pathname.startsWith('/admin/orders');
-  const isPromotionsActive = location.pathname.startsWith('/admin/promotions');
-  const isUsersActive = location.pathname.startsWith('/admin/users');
-  const isChatActive = location.pathname.startsWith('/admin/chat');
-  const isNotificationsActive = location.pathname.startsWith('/admin/notifications');
 
   return (
     <div className="mb-6">
@@ -64,97 +44,6 @@ export default function AdminNav({ title, subtitle, actions }: AdminNavProps) {
         )}
       </div>
 
-      {/* Admin Module Tabs */}
-      <div className="flex items-center justify-between gap-2 overflow-x-auto pt-3 border-b border-line">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            to="/admin/products"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
-              isProductsActive
-                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
-                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
-            )}
-          >
-            <Package size={16} />
-            <span>Quản Lý Sản Phẩm</span>
-          </Link>
-
-          <Link
-            to="/admin/orders"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
-              isOrdersActive
-                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
-                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
-            )}
-          >
-            <ShoppingCart size={16} />
-            <span>Quản Lý Đơn Hàng</span>
-          </Link>
-
-          <Link
-            to="/admin/promotions"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
-              isPromotionsActive
-                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
-                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
-            )}
-          >
-            <Tag size={16} />
-            <span>Quản Lý Khuyến Mãi</span>
-          </Link>
-
-          <Link
-            to="/admin/users"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
-              isUsersActive
-                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
-                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
-            )}
-          >
-            <Users size={16} />
-            <span>Quản Lý Người Dùng &amp; Sổ Địa Chỉ</span>
-          </Link>
-
-          <Link
-            to="/admin/chat"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
-              isChatActive
-                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
-                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
-            )}
-          >
-            <MessageSquare size={16} />
-            <span>Chat Hỗ Trợ Khách Hàng</span>
-          </Link>
-
-          <Link
-            to="/admin/notifications"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold tracking-wide transition-all border-b-2 -mb-[1px]',
-              isNotificationsActive
-                ? 'border-accent-gold text-accent-gold font-bold bg-accent-gold/5'
-                : 'border-transparent text-content-secondary hover:text-content-primary hover:border-line-light'
-            )}
-          >
-            <BellRing size={16} />
-            <span>Thông Báo Realtime &amp; Sự Kiện</span>
-          </Link>
-        </div>
-
-        <Link
-          to="/"
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-content-muted hover:text-content-primary hover:bg-surface rounded transition-colors whitespace-nowrap"
-        >
-          <Store size={14} />
-          <span className="hidden sm:inline">Về Cửa Hàng</span>
-          <ArrowUpRight size={13} />
-        </Link>
-      </div>
     </div>
   );
 }

@@ -6,3 +6,10 @@
   margin-inline: auto;
   padding-inline: var(--container-padding);
 }
+
+.page button,
+.page .quantity-stepper,
+.squareModal,
+.squareModal * {
+  border-radius: 0;
+}

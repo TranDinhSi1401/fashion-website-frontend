@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, Sparkles, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
-import { extractErrorMessage } from '../utils/format';
+import { extractErrorMessage, parseJwt } from '../utils/format';
 import { cn } from '../utils/cn';
 import styles from './AuthPages.module.css';
 
@@ -18,6 +18,36 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [isGoogleConfirmOpen, setIsGoogleConfirmOpen] = useState<boolean>(false);
+  const [pendingGoogleToken, setPendingGoogleToken] = useState<string | null>(null);
+  const [selectedGoogleAccount, setSelectedGoogleAccount] = useState<{
+    email?: string;
+    name?: string;
+    picture?: string;
+  } | null>(null);
+  const isGoogleSubmittingRef = useRef<boolean>(false);
+
+  const handleCloseGoogleConfirm = useCallback(() => {
+    if (isLoading) return;
+    setIsGoogleConfirmOpen(false);
+    setPendingGoogleToken(null);
+    setSelectedGoogleAccount(null);
+  }, [isLoading]);
+
+  useEffect(() => {
+    if (!isGoogleConfirmOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isLoading) {
+        handleCloseGoogleConfirm();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isGoogleConfirmOpen, isLoading, handleCloseGoogleConfirm]);
 
   const redirectPath = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/';
 
@@ -49,8 +79,8 @@ export default function LoginPage() {
       const res = await login(trimmedUsername, password);
       setSuccessMessage('Đăng nhập thành công! Đang chuyển hướng...');
       setTimeout(() => {
-        if (res?.user?.role === 'ADMIN' || res?.user?.role === 'STAFF') {
-          navigate('/admin/products');
+        if (['ADMIN', 'STAFF', 'ROLE_ADMIN', 'ROLE_STAFF'].includes(res?.user?.role || '')) {
+          navigate('/admin/dashboard', { replace: true });
         } else {
           navigate(redirectPath);
         }
@@ -62,33 +92,57 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+  const handleGoogleSuccess = (credentialResponse: CredentialResponse) => {
     if (!credentialResponse?.credential) {
       setErrorMessage('Không nhận được thông tin xác thực từ Google.');
       return;
     }
 
+    const claims = parseJwt(credentialResponse.credential) as Record<string, any> | null;
+    setSelectedGoogleAccount({
+      email: claims?.email,
+      name: claims?.name,
+      picture: claims?.picture,
+    });
+
+    setPendingGoogleToken(credentialResponse.credential);
+    setErrorMessage('');
+    setIsGoogleConfirmOpen(true);
+  };
+
+  const handleGoogleError = () => {
+    setErrorMessage('Xác thực với Google đã bị hủy hoặc gặp sự cố.');
+  };
+
+  const handleConfirmGoogleLogin = async () => {
+    if (!pendingGoogleToken || isGoogleSubmittingRef.current || isLoading) {
+      return;
+    }
+
+    isGoogleSubmittingRef.current = true;
     setIsLoading(true);
     setErrorMessage('');
+
     try {
-      const res = await loginWithGoogle(credentialResponse.credential);
+      const res = await loginWithGoogle(pendingGoogleToken);
+      setIsGoogleConfirmOpen(false);
+      setPendingGoogleToken(null);
+      setSelectedGoogleAccount(null);
       setSuccessMessage('Đăng nhập Google thành công! Đang chuyển hướng...');
       setTimeout(() => {
-        if (res?.user?.role === 'ADMIN' || res?.user?.role === 'STAFF') {
-          navigate('/admin/products');
+        if (['ADMIN', 'STAFF', 'ROLE_ADMIN', 'ROLE_STAFF'].includes(res?.user?.role || '')) {
+          navigate('/admin/dashboard', { replace: true });
         } else {
           navigate(redirectPath);
         }
       }, 600);
     } catch (err) {
+      setIsGoogleConfirmOpen(false);
       setErrorMessage(extractErrorMessage(err, 'Đăng nhập bằng Google thất bại.'));
     } finally {
+      isGoogleSubmittingRef.current = false;
       setIsLoading(false);
     }
-  };
-
-  const handleGoogleError = () => {
-    setErrorMessage('Xác thực với Google đã bị hủy hoặc gặp sự cố.');
   };
 
   const fillDemoAccount = (u: string, p: string) => {
@@ -468,12 +522,13 @@ export default function LoginPage() {
           ) : (
             <button
               type="button"
+              disabled={isLoading}
               onClick={() => {
                 setErrorMessage('Vui lòng cấu hình VITE_GOOGLE_CLIENT_ID trong file .env để kích hoạt Google OAuth.');
               }}
               className={styles.googleFallbackBtn}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24">
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   className={styles.googleBlue}
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -496,6 +551,123 @@ export default function LoginPage() {
           )}
         </div>
 
+        {/* Google Sign-In Confirmation Dialog (Luxury Dark Glassmorphic Theme) */}
+        {isGoogleConfirmOpen && (
+          <div
+            className={styles.modalBackdrop}
+            onClick={handleCloseGoogleConfirm}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="google-confirm-title"
+          >
+            <div
+              className={styles.confirmDialogCard}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Top ambient gold gleam line */}
+              <div className={styles.dialogTopGleam} />
+
+              {/* Dialog Header */}
+              <div className={styles.dialogHeader}>
+                <div className="flex items-center gap-2">
+                  <Sparkles size={18} className={styles.goldIcon} />
+                  <h3 id="google-confirm-title" className={styles.dialogTitle}>
+                    Xác nhận đăng nhập
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={handleCloseGoogleConfirm}
+                  className={styles.dialogCloseBtn}
+                  aria-label="Đóng"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Selected Google Account Summary Card */}
+              {selectedGoogleAccount && (selectedGoogleAccount.email || selectedGoogleAccount.name) && (
+                <div className={styles.dialogAccountCard}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {selectedGoogleAccount.picture ? (
+                      <img
+                        src={selectedGoogleAccount.picture}
+                        alt={selectedGoogleAccount.name || 'Google avatar'}
+                        className={styles.dialogAvatar}
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className={styles.dialogAvatarFallback}>
+                        {(selectedGoogleAccount.name || selectedGoogleAccount.email || 'G').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      {selectedGoogleAccount.name && (
+                        <p className={styles.dialogAccountName}>
+                          {selectedGoogleAccount.name}
+                        </p>
+                      )}
+                      {selectedGoogleAccount.email && (
+                        <p className={styles.dialogAccountEmail}>
+                          {selectedGoogleAccount.email}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[11px] font-semibold text-white/90 border border-white/10 shrink-0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        className={styles.googleBlue}
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        className={styles.googleGreen}
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        className={styles.googleYellow}
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                      />
+                      <path
+                        className={styles.googleRed}
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                      />
+                    </svg>
+                    <span>Google</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirmation Prompt */}
+              <p className={styles.dialogMessage}>
+                Bạn có chắc chắn muốn đăng nhập bằng tài khoản Google không?
+              </p>
+
+              {/* Action Buttons */}
+              <div className={styles.dialogActions}>
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={handleCloseGoogleConfirm}
+                  className={styles.dialogCancelBtn}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={handleConfirmGoogleLogin}
+                  className={styles.dialogConfirmBtn}
+                >
+                  {isLoading ? 'Đang xử lý...' : 'Xác nhận'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quick Fill Test Accounts Helper */}
         <div className={styles.demoHelperBox}>
           <div className="font-bold text-accent-gold mb-1.5 uppercase tracking-[0.04em]">
@@ -504,17 +676,27 @@ export default function LoginPage() {
           <div className="flex gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => fillDemoAccount('customer1', 'password123')}
+              disabled={isLoading}
+              onClick={() => fillDemoAccount('truong01', '123456')}
               className={cn(styles.demoHelperBtn, 'text-content-inverse')}
             >
-              👤 Customer: customer1
+              👤 Khách hàng: truong01
             </button>
             <button
               type="button"
-              onClick={() => fillDemoAccount('admin', 'admin123')}
+              disabled={isLoading}
+              onClick={() => fillDemoAccount('admin01', '123456')}
               className={cn(styles.demoHelperBtn, styles.goldAccentText)}
             >
-              🛡️ Admin: admin
+              🛡️ Quản lý: admin01
+            </button>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => fillDemoAccount('staff01', '123456')}
+              className={cn(styles.demoHelperBtn, 'text-content-inverse')}
+            >
+              💼 Nhân viên: staff01
             </button>
           </div>
         </div>

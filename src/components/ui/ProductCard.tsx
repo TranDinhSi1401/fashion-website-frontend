@@ -9,6 +9,7 @@ import Badge from './Badge';
 import { isCurrentOffer } from '../../utils/productOffers';
 import ProductPrice from '../product/ProductPrice';
 import ColorSwatches from './ColorSwatches';
+import { useQuickBuy } from '../../context/QuickBuyContext';
 import styles from './ProductCard.module.css';
 
 export interface ProductCardLinkProps {
@@ -42,6 +43,7 @@ export default function ProductCard({
   LinkComponent = Link,
   className = '',
 }: ProductCardProps) {
+  const quickBuy = useQuickBuy();
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [activeImageIdx, setActiveImageIdx] = useState<number>(0);
   const [selectedColor, setSelectedColor] = useState<string>('');
@@ -124,7 +126,11 @@ export default function ProductCard({
 
         {resolvedBadges.length > 0 && (
           <div className="pointer-events-none absolute left-2 top-2 sm:left-2.5 sm:top-2.5 z-[2] flex flex-col items-start gap-1">
-            {resolvedBadges.map((badge) => (
+            {resolvedBadges.map((badge) => badge === 'new' ? (
+              <span key={badge} className={styles.newBadge} aria-label="Sản phẩm mới">
+                <span>NEW</span>
+              </span>
+            ) : (
               <Badge key={badge} variant={badge} className="text-[10px] sm:text-xs px-1.5 py-0.5 sm:px-2">
                 {BADGE_LABEL_MAP[badge]}
               </Badge>
@@ -149,19 +155,22 @@ export default function ProductCard({
           <Heart size={15} fill={isFavorite ? 'currentColor' : 'none'} />
         </button>
 
-        {onQuickBuy ? (
-          <button
-            type="button"
-            onClick={() => onQuickBuy(product)}
-            className={styles.quickBuy}
-          >
-            MUA NHANH
-          </button>
-        ) : (
-          <LinkComponent to={`/products/${id}`} className={styles.quickBuy}>
-            MUA NHANH
-          </LinkComponent>
-        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onQuickBuy) {
+              onQuickBuy(product);
+            } else if (quickBuy?.openQuickBuy) {
+              quickBuy.openQuickBuy(product);
+            }
+          }}
+          className={styles.quickBuy}
+          title="Mua nhanh sản phẩm"
+        >
+          MUA NHANH
+        </button>
       </div>
 
       <div className="mt-2.5 sm:mt-3 flex flex-col">
