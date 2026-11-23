@@ -1,5 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, Eye, RefreshCw, Search } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Package,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  Truck,
+  X,
+} from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -16,6 +29,7 @@ import type {
 } from '../services/orderService';
 import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
 import { formatDateTime } from '../utils/returnHelpers';
+import ui from './AdminOrdersPage.module.css';
 
 const ORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
   { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán' },
@@ -84,6 +98,71 @@ export default function AdminOrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
+  const [statusActionLoading, setStatusActionLoading] = useState(false);
+  const [statusActionMessage, setStatusActionMessage] = useState('');
+  const [statusActionError, setStatusActionError] = useState('');
+  const [advancedFilters, setAdvancedFilters] = useState(false);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  const handleOpenOrderDetail = async (order: OrderResponse) => {
+    setStatusActionMessage('');
+    setStatusActionError('');
+    setSelectedOrder(order);
+    setIsDetailLoading(true);
+    try {
+      const detail = await orderService.getOrderById(order.id);
+      setSelectedOrder({
+        ...order,
+        ...detail,
+        orderStatus: detail.orderStatus as OrderStatus,
+        paymentStatus: detail.paymentStatus as PaymentStatus,
+        discountAmount: detail.discountAmount ?? order.discountAmount ?? 0,
+        orderItems: detail.orderItems,
+      });
+    } catch (error) {
+      setStatusActionError(extractErrorMessage(error, 'Không thể tải dữ liệu mới nhất của đơn hàng.'));
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
+  const canShipOrder = (order: OrderResponse) =>
+    order.orderStatus === 'PROCESSING' &&
+    (order.paymentStatus === 'PAID' || order.paymentStatus === 'PENDING_COD');
+
+  const canDeliverOrder = (order: OrderResponse) => order.orderStatus === 'SHIPPING';
+
+  const handleUpdateOrderStatus = async (order: OrderResponse, status: 'SHIPPING' | 'DELIVERED') => {
+    setStatusActionLoading(true);
+    setStatusActionError('');
+    setStatusActionMessage('');
+
+    try {
+      const response = await orderService.updateOrderStatus(order.id, status);
+      const updated = response.data;
+      if (selectedOrder?.id === order.id && updated) {
+        setSelectedOrder((current) =>
+          current ? { ...current, ...updated, orderStatus: updated.orderStatus } : current
+        );
+      }
+      setOrders((current) =>
+        current.map((item) =>
+          item.id === order.id && updated ? { ...item, ...updated } : item
+        )
+      );
+      setStatusActionMessage(
+        status === 'SHIPPING'
+          ? 'Đơn hàng đã chuyển sang trạng thái đang giao.'
+          : 'Đơn hàng đã được xác nhận giao thành công.'
+      );
+    } catch (error) {
+      setStatusActionError(
+        extractErrorMessage(error, 'Không thể cập nhật trạng thái đơn hàng.')
+      );
+    } finally {
+      setStatusActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -151,8 +230,13 @@ export default function AdminOrdersPage() {
     setErrorMessage('');
   };
 
+  const activeFilterCount = Object.values(filters).filter(
+    (value) => value !== undefined && value !== ''
+  ).length;
+
   return (
-    <div className="container py-8">
+    <div className={ui.page}>
+    <div className="container py-8 sm:py-10">
       <AdminNav
         title="Quản Lý Đơn Hàng"
         subtitle={`Tìm kiếm, lọc và theo dõi ${totalElements} đơn hàng trên hệ thống.`}
@@ -167,167 +251,226 @@ export default function AdminOrdersPage() {
           </Button>
         }
       />
-
-      <form
-        onSubmit={handleSearch}
-        className="mb-6 grid grid-cols-1 items-end gap-3 border border-line-light bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3"
-      >
-        <Input
-          label="ID người dùng"
-          type="number"
-          min="1"
-          step="1"
-          value={filterForm.userId}
-          onChange={(event) =>
-            setFilterForm((current) => ({ ...current, userId: event.target.value }))
-          }
-          placeholder="Ví dụ: 12"
-        />
-        <Input
-          label="Mã đơn hàng chính xác"
-          value={filterForm.orderCode}
-          onChange={(event) =>
-            setFilterForm((current) => ({ ...current, orderCode: event.target.value }))
-          }
-          placeholder="Ví dụ: FWD1-20261117-305"
-        />
-        <Input
-          label="Ngày tạo"
-          type="date"
-          value={filterForm.createdAt}
-          onChange={(event) =>
-            setFilterForm((current) => ({ ...current, createdAt: event.target.value }))
-          }
-        />
-        <Select
-          label="Trạng thái đơn hàng"
-          value={filterForm.orderStatus}
-          onChange={(event) =>
-            setFilterForm((current) => ({
-              ...current,
-              orderStatus: event.target.value as OrderStatus | '',
-            }))
-          }
-        >
-          <option value="">Tất cả trạng thái</option>
-          {ORDER_STATUS_OPTIONS.map((status) => (
-            <option key={status.value} value={status.value}>
-              {status.label}
-            </option>
-          ))}
-        </Select>
-        <Select
-          label="Trạng thái thanh toán"
-          value={filterForm.paymentStatus}
-          onChange={(event) =>
-            setFilterForm((current) => ({
-              ...current,
-              paymentStatus: event.target.value as PaymentStatus | '',
-            }))
-          }
-        >
-          <option value="">Tất cả trạng thái</option>
-          {PAYMENT_STATUS_OPTIONS.map((status) => (
-            <option key={status.value} value={status.value}>
-              {status.label}
-            </option>
-          ))}
-        </Select>
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" icon={Search} disabled={isLoading}>
-            Tìm đơn hàng
-          </Button>
-          <Button type="button" variant="secondary" onClick={handleResetFilters}>
-            Đặt lại
-          </Button>
+      <section className={ui.workspace} aria-labelledby="order-list-heading">
+        <div className={ui.listHeading}>
+          <div className={ui.titleGroup}>
+            <span className={ui.sectionIcon}><Package size={20} /></span>
+            <div>
+              <div className={ui.titleLine}>
+                <h2 id="order-list-heading">Danh sách đơn hàng</h2>
+                <span className={ui.count}>{totalElements}</span>
+              </div>
+              <p>Quản lý trạng thái và tiến trình giao hàng.</p>
+            </div>
+          </div>
+          <span className={ui.liveLabel}><span /> Dữ liệu cửa hàng</span>
         </div>
-      </form>
+
+        <form onSubmit={handleSearch} className={ui.filters}>
+          <div className={ui.primaryFilters}>
+            <Input
+              label="Mã đơn hàng"
+              icon={Search}
+              value={filterForm.orderCode}
+              onChange={(event) =>
+                setFilterForm((current) => ({ ...current, orderCode: event.target.value }))
+              }
+              placeholder="Mã đơn hàng..."
+            />
+            <Select
+              label="Trạng thái đơn hàng"
+              value={filterForm.orderStatus}
+              onChange={(event) =>
+                setFilterForm((current) => ({
+                  ...current,
+                  orderStatus: event.target.value as OrderStatus | '',
+                }))
+              }
+              options={[
+                { value: '', label: 'Tất cả trạng thái' },
+                ...ORDER_STATUS_OPTIONS.map((status) => ({
+                  value: status.value,
+                  label: status.label,
+                })),
+              ]}
+            />
+            <Select
+              label="Trạng thái thanh toán"
+              value={filterForm.paymentStatus}
+              onChange={(event) =>
+                setFilterForm((current) => ({
+                  ...current,
+                  paymentStatus: event.target.value as PaymentStatus | '',
+                }))
+              }
+              options={[
+                { value: '', label: 'Tất cả thanh toán' },
+                ...PAYMENT_STATUS_OPTIONS.map((status) => ({
+                  value: status.value,
+                  label: status.label,
+                })),
+              ]}
+            />
+            <button
+              type="button"
+              className={`${ui.filterToggle} ${advancedFilters ? ui.filterToggleActive : ''}`}
+              aria-expanded={advancedFilters}
+              aria-controls="advanced-order-filters"
+              onClick={() => setAdvancedFilters((current) => !current)}
+            >
+              <SlidersHorizontal size={16} />
+              <span>Lọc nâng cao</span>
+              <ChevronDown size={14} />
+            </button>
+          </div>
+
+          {advancedFilters && (
+            <div id="advanced-order-filters" className={ui.advancedFilters}>
+              <Input
+                label="ID người dùng"
+                type="number"
+                min="1"
+                step="1"
+                value={filterForm.userId}
+                onChange={(event) =>
+                  setFilterForm((current) => ({ ...current, userId: event.target.value }))
+                }
+                placeholder="Ví dụ: 12"
+              />
+              <Input
+                label="Ngày tạo"
+                type="date"
+                value={filterForm.createdAt}
+                onChange={(event) =>
+                  setFilterForm((current) => ({ ...current, createdAt: event.target.value }))
+                }
+              />
+            </div>
+          )}
+
+          <div className={ui.filterFooter}>
+            <span>
+              {activeFilterCount ? (
+                <><strong>{activeFilterCount}</strong> bộ lọc đang áp dụng</>
+              ) : (
+                'Hiển thị tất cả đơn hàng'
+              )}
+            </span>
+            <div>
+              <button type="button" className={ui.resetButton} onClick={handleResetFilters}>
+                <X size={14} /> Xóa bộ lọc
+              </button>
+              <Button type="submit" size="sm" icon={Search} disabled={isLoading}>
+                Tìm kiếm
+              </Button>
+            </div>
+          </div>
+        </form>
 
       {errorMessage && (
-        <div
-          role="alert"
-          className="mb-5 flex items-center gap-2 border border-status-error bg-surface p-4 text-sm text-status-error"
-        >
-          <AlertCircle size={18} className="shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
+        <p role="alert" className={ui.alertError}>
+          <AlertCircle size={16} />
+          {errorMessage}
+        </p>
       )}
 
-      <div className="mb-3 text-xs text-content-secondary">
-        Tổng số đơn hàng: <strong className="font-mono text-content-primary">{totalElements}</strong>
-      </div>
-
-      <div className="overflow-x-auto border border-line-light bg-surface-body">
-        <table className="w-full border-collapse text-left text-xs sm:text-sm">
+      <div className={ui.tableWrap} aria-busy={isLoading}>
+        <table className={ui.table}>
           <thead>
-            <tr className="border-b border-line-light bg-surface text-[0.7rem] font-bold uppercase tracking-wide text-content-secondary">
-              <th className="p-3">Mã đơn hàng</th>
-              <th className="p-3">ID người dùng</th>
-              <th className="p-3">Ngày tạo</th>
-              <th className="p-3">Trạng thái đơn</th>
-              <th className="p-3">Thanh toán</th>
-              <th className="p-3 text-right">Tổng tiền</th>
-              <th className="p-3 text-right">Chi tiết</th>
+            <tr>
+              {['Mã đơn hàng', 'Người dùng', 'Ngày tạo', 'Trạng thái đơn', 'Thanh toán', 'Tổng tiền', 'Thao tác'].map((heading) => (
+                <th key={heading}>{heading}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="p-10 text-center text-content-muted">
-                  Đang tải danh sách đơn hàng...
+                <td colSpan={7}>
+                  <div className={ui.emptyState}>
+                    <RefreshCw size={25} className="animate-spin" />
+                    <strong>Đang tải đơn hàng…</strong>
+                  </div>
                 </td>
               </tr>
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-10 text-center text-content-muted">
-                  Không tìm thấy đơn hàng phù hợp.
+                <td colSpan={7}>
+                  <div className={ui.emptyState}>
+                    <Package size={32} />
+                    <strong>Không tìm thấy đơn hàng</strong>
+                    <span>Thử thay đổi từ khóa hoặc bỏ bớt bộ lọc.</span>
+                    <button type="button" className={ui.resetButton} onClick={handleResetFilters}>
+                      <X size={14} /> Xóa bộ lọc
+                    </button>
+                  </div>
                 </td>
               </tr>
             ) : (
               orders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="border-b border-line-light transition-colors last:border-b-0 hover:bg-surface"
-                >
-                  <td className="p-3 font-semibold text-content-primary">
-                    {order.orderCode || `#${order.id}`}
+                <tr key={order.id}>
+                  <td data-label="Mã đơn hàng">
+                    <strong className={ui.orderCode}>{order.orderCode || `#${order.id}`}</strong>
                   </td>
-                  <td className="p-3 text-content-secondary">#{order.userId}</td>
-                  <td className="p-3 whitespace-nowrap text-content-secondary">
+                  <td data-label="Người dùng">#{order.userId}</td>
+                  <td data-label="Ngày tạo" className={ui.dateCell}>
                     {formatDateTime(order.createdAt)}
                   </td>
-                  <td className="p-3">
-                    <Badge
-                      variant={
-                        order.orderStatus === 'DELIVERED'
-                          ? 'success'
-                          : order.orderStatus === 'CANCELLED' ||
-                              order.orderStatus === 'SYSTEM_CANCELED'
-                            ? 'error'
-                            : 'default'
-                      }
-                    >
+                  <td data-label="Trạng thái đơn">
+                    <span className={`${ui.status} ${order.orderStatus === 'DELIVERED' ? ui.statusSuccess : order.orderStatus === 'CANCELLED' || order.orderStatus === 'SYSTEM_CANCELED' ? ui.statusError : ui.statusDefault}`}>
+                      <span />
                       {ORDER_STATUS_LABELS[order.orderStatus] || order.orderStatus}
-                    </Badge>
+                    </span>
                   </td>
-                  <td className="p-3">
-                    <Badge variant={order.paymentStatus === 'PAID' ? 'success' : 'warning'}>
+                  <td data-label="Thanh toán">
+                    <span className={`${ui.status} ${order.paymentStatus === 'PAID' ? ui.statusSuccess : ui.statusWarning}`}>
+                      <span />
                       {PAYMENT_STATUS_LABELS[order.paymentStatus as PaymentStatus] ||
                         order.paymentStatus}
-                    </Badge>
+                    </span>
                   </td>
-                  <td className="p-3 text-right font-semibold text-content-primary">
+                  <td data-label="Tổng tiền" className={ui.price}>
                     {formatCurrencyVND(order.totalAmount)}
                   </td>
-                  <td className="p-3 text-right">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={Eye}
-                      onClick={() => setSelectedOrder(order)}
-                    >
-                      Xem
-                    </Button>
+                  <td className={ui.actionsCell}>
+                    <div className={ui.rowActions}>
+                      {canShipOrder(order) && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon={Truck}
+                          title="Chuyển đơn sang đang giao"
+                          aria-label={`Chuyển đơn hàng ${order.orderCode || order.id} sang đang giao`}
+                          loading={statusActionLoading}
+                          className={ui.statusActionButton}
+                          onClick={() => void handleUpdateOrderStatus(order, 'SHIPPING')}
+                        >
+                          <span>Giao hàng</span>
+                        </Button>
+                      )}
+                      {canDeliverOrder(order) && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon={CheckCircle2}
+                          title="Xác nhận đã giao"
+                          aria-label={`Xác nhận đơn hàng ${order.orderCode || order.id} đã giao`}
+                          loading={statusActionLoading}
+                          className={ui.statusActionButton}
+                          onClick={() => void handleUpdateOrderStatus(order, 'DELIVERED')}
+                        >
+                          <span>Đã giao</span>
+                        </Button>
+                      )}
+                      <button
+                        type="button"
+                        title="Xem chi tiết"
+                        aria-label={`Xem chi tiết đơn hàng ${order.orderCode || order.id}`}
+                        onClick={() => void handleOpenOrderDetail(order)}
+                      >
+                        <Eye size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -337,18 +480,22 @@ export default function AdminOrdersPage() {
       </div>
 
       {!isLoading && totalPages > 0 && (
-        <div className="mt-4 flex flex-col items-center gap-2">
-          <p className="text-xs text-content-muted">
-            Hiển thị {currentPage * 10 + 1}–
-            {Math.min((currentPage + 1) * 10, totalElements)} trên {totalElements} đơn hàng
-          </p>
-          <Pagination
-            currentPage={currentPage + 1}
-            totalPages={totalPages}
-            onPageChange={(page) => setCurrentPage(page - 1)}
-          />
+        <div className={ui.pagination}>
+          <div className={ui.resultRange}>
+            Hiển thị <strong>{currentPage * 10 + 1}–{Math.min((currentPage + 1) * 10, totalElements)}</strong> trong <strong>{totalElements}</strong> đơn hàng
+          </div>
+          <div className={ui.pageButtons}>
+            <button type="button" aria-label="Trang trước" disabled={currentPage === 0} onClick={() => setCurrentPage((page) => page - 1)}>
+              <ChevronLeft size={16} />
+            </button>
+            <span>{currentPage + 1} <small>/ {totalPages}</small></span>
+            <button type="button" aria-label="Trang sau" disabled={currentPage + 1 >= totalPages} onClick={() => setCurrentPage((page) => page + 1)}>
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
       )}
+      </section>
 
       <Modal
         isOpen={selectedOrder !== null}
@@ -358,10 +505,36 @@ export default function AdminOrdersPage() {
       >
         {selectedOrder && (
           <div className="space-y-5 text-sm">
+            {isDetailLoading && (
+              <p className="text-xs text-content-muted">Đang cập nhật dữ liệu đơn hàng...</p>
+            )}
+            {(statusActionMessage || statusActionError) && (
+              <div
+                role="alert"
+                className={`flex items-center gap-2 border p-3 text-sm ${
+                  statusActionError
+                    ? 'border-status-error text-status-error'
+                    : 'border-status-success text-status-success'
+                }`}
+              >
+                {statusActionError ? (
+                  <AlertCircle size={17} />
+                ) : (
+                  <CheckCircle2 size={17} />
+                )}
+                <span>{statusActionError || statusActionMessage}</span>
+              </div>
+            )}
             <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <dt className="text-xs text-content-muted">Mã đơn hàng</dt>
                 <dd className="font-semibold text-content-primary">{selectedOrder.orderCode}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-content-muted">Mã vận đơn</dt>
+                <dd className="font-semibold text-content-primary">
+                  {selectedOrder.trackingCode?.trim() || 'Chưa có mã vận đơn'}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs text-content-muted">ID người dùng</dt>
@@ -384,6 +557,22 @@ export default function AdminOrdersPage() {
                     selectedOrder.paymentStatus}
                 </dd>
               </div>
+              {selectedOrder.deliveredAt && (
+                <div>
+                  <dt className="text-xs text-content-muted">Ngày giao hàng thành công</dt>
+                  <dd className="font-semibold text-status-success">
+                    {formatDateTime(selectedOrder.deliveredAt)}
+                  </dd>
+                </div>
+              )}
+              {!selectedOrder.deliveredAt && selectedOrder.expectedDeliveryTime && (
+                <div>
+                  <dt className="text-xs text-content-muted">Ngày giao hàng dự kiến</dt>
+                  <dd className="text-content-primary">
+                    {formatDateTime(selectedOrder.expectedDeliveryTime)}
+                  </dd>
+                </div>
+              )}
               {selectedOrder.shippingRecipientName && (
                 <div>
                   <dt className="text-xs text-content-muted">Người nhận</dt>
@@ -425,8 +614,23 @@ export default function AdminOrdersPage() {
                   ) : (
                     selectedOrder.orderItems?.map((item) => (
                       <tr key={item.id} className="border-t border-line-light">
-                        <td className="p-3 font-medium text-content-primary">
-                          {item.productName}
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.productName}
+                                className="h-14 w-14 shrink-0 rounded-sm border border-line-light object-cover"
+                              />
+                            ) : (
+                              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-line-light bg-surface text-content-muted">
+                                <Package size={18} />
+                              </div>
+                            )}
+                            <span className="font-medium text-content-primary">
+                              {item.productName}
+                            </span>
+                          </div>
                         </td>
                         <td className="p-3 text-content-secondary">
                           {item.variantInfo || '—'}
@@ -469,9 +673,39 @@ export default function AdminOrdersPage() {
                 <strong className="text-content-primary">Ghi chú:</strong> {selectedOrder.notes}
               </p>
             )}
+
+            {(canShipOrder(selectedOrder) || canDeliverOrder(selectedOrder)) && (
+              <div className="flex flex-wrap justify-end gap-2 border-t border-line-light pt-4">
+                {canShipOrder(selectedOrder) && (
+                  <Button
+                    variant="primary"
+                    icon={Truck}
+                    loading={statusActionLoading}
+                    onClick={() =>
+                      void handleUpdateOrderStatus(selectedOrder, 'SHIPPING')
+                    }
+                  >
+                    Chuyển sang đang giao
+                  </Button>
+                )}
+                {canDeliverOrder(selectedOrder) && (
+                  <Button
+                    variant="primary"
+                    icon={CheckCircle2}
+                    loading={statusActionLoading}
+                    onClick={() =>
+                      void handleUpdateOrderStatus(selectedOrder, 'DELIVERED')
+                    }
+                  >
+                    Xác nhận đã giao
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Modal>
+    </div>
     </div>
   );
 }

@@ -26,9 +26,6 @@ import { cn } from '../utils/cn';
 import styles from './CartPage.module.css';
 import CartItemPrice from '../components/cart/CartItemPrice';
 
-// Mốc miễn phí giao hàng toàn quốc: 500.000 VNĐ
-const FREE_SHIPPING_THRESHOLD = 500000;
-
 function CartImage({ url, name }: { url?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
 
@@ -91,18 +88,6 @@ export default function CartPage() {
       await refresh();
     }
   };
-
-  // Tính toán thanh tiến độ Freeship
-  const freeShippingProgress = useMemo(() => {
-    if (!cart || cart.totalPrice <= 0) return 0;
-    const progress = (cart.totalPrice / FREE_SHIPPING_THRESHOLD) * 100;
-    return Math.min(100, Math.round(progress));
-  }, [cart]);
-
-  const remainingForFreeShipping = useMemo(() => {
-    if (!cart) return FREE_SHIPPING_THRESHOLD;
-    return Math.max(0, FREE_SHIPPING_THRESHOLD - cart.totalPrice);
-  }, [cart]);
 
   // Kiểm tra giỏ hàng có sản phẩm không hợp lệ
   const hasInvalidItems = useMemo(() => {
@@ -213,34 +198,6 @@ export default function CartPage() {
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]" aria-busy={busy || loading}>
           {/* CỘT TRÁI: DANH SÁCH SẢN PHẨM */}
           <section className="min-w-0 flex flex-col gap-5" aria-label="Sản phẩm trong giỏ hàng">
-            {/* Thanh tiến độ Free Shipping */}
-            <div className="rounded-none border border-line-light bg-surface p-4 shadow-2xs">
-              <div className="flex items-center justify-between gap-3 text-xs md:text-sm font-semibold mb-2">
-                <div className="flex items-center gap-2">
-                  <Truck size={17} className={freeShippingProgress >= 100 ? 'text-emerald-600' : 'text-accent-gold'} />
-                  {freeShippingProgress >= 100 ? (
-                    <span className="text-emerald-700">
-                      🎉 Chúc mừng! Bạn đã đủ điều kiện nhận <strong>Miễn Phí Giao Hàng</strong>
-                    </span>
-                  ) : (
-                    <span className="text-content-primary">
-                      Mua thêm <strong className="text-accent-gold">{formatCurrencyVND(remainingForFreeShipping)}</strong> để được <strong>Freeship</strong>
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-content-muted font-bold">{freeShippingProgress}%</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-none bg-surface-elevated border border-line-light">
-                <div
-                  className={cn(
-                    'h-full transition-all duration-500 rounded-none',
-                    freeShippingProgress >= 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-amber-400 to-accent-gold'
-                  )}
-                  style={{ width: `${freeShippingProgress}%` }}
-                />
-              </div>
-            </div>
-
             {/* Bảng Danh Sách Sản Phẩm */}
             <div className="rounded-none border border-line-light bg-surface-body overflow-hidden shadow-2xs">
               {/* Header Bảng Desktop */}
@@ -439,13 +396,7 @@ export default function CartPage() {
                   Phí vận chuyển
                   <span className="text-[10px] text-content-muted">(tiêu chuẩn)</span>
                 </span>
-                <span className="font-semibold text-content-primary">
-                  {freeShippingProgress >= 100 ? (
-                    <span className="text-emerald-600 font-bold">Miễn phí</span>
-                  ) : (
-                    <span>Tính khi thanh toán</span>
-                  )}
-                </span>
+                <span className="font-semibold text-content-primary">Tính khi thanh toán</span>
               </div>
             </div>
 

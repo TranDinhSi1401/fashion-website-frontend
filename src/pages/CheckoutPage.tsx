@@ -12,7 +12,7 @@ import { UserAddressResponse } from '../types/user';
 import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import AddressFormModal from '../components/profile/AddressFormModal';
-import { Button, Input, Radio, Select } from '../components/ui';
+import { Button, Input, Modal, Radio, Select } from '../components/ui';
 
 function CheckoutProductImage({ url, name }: { url?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
@@ -62,8 +62,9 @@ function getPaymentRedirectUrl(paymentUrl: string | null | undefined) {
 }
 
 export default function CheckoutPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { cart, loading, error, refresh } = useCart();
+  const [isPhoneSetupModalOpen, setIsPhoneSetupModalOpen] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodResponse[]>([]);
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<number | ''>('');
   const selectedPaymentMethodIdRef = useRef(selectedPaymentMethodId);
@@ -91,12 +92,22 @@ export default function CheckoutPage() {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState('');
   const [orderCreatedWithoutPaymentUrl, setOrderCreatedWithoutPaymentUrl] = useState(false);
+  const [isOrderConfirmOpen, setIsOrderConfirmOpen] = useState(false);
+  const [orderConfirmationMessage, setOrderConfirmationMessage] = useState('');
   const navigate = useNavigate();
 
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!authLoading && !user?.phone?.trim()) {
+      setIsPhoneSetupModalOpen(true);
+    } else {
+      setIsPhoneSetupModalOpen(false);
+    }
+  }, [authLoading, user?.phone]);
 
   useEffect(() => {
     let active = true;
@@ -221,6 +232,7 @@ export default function CheckoutPage() {
     const paymentMethodId = selectedPaymentMethodId;
 
     if (
+      !user?.phone?.trim() ||
       typeof selectedAddressId !== 'number' ||
       !Number.isFinite(selectedAddressId) ||
       selectedAddressId <= 0 ||
@@ -265,7 +277,7 @@ export default function CheckoutPage() {
       active = false;
       controller.abort();
     };
-  }, [selectedAddressId, selectedPaymentMethodId]);
+  }, [selectedAddressId, selectedPaymentMethodId, user?.phone]);
 
   const handleAddressSaved = (address: UserAddressResponse) => {
     setAddresses((current) => [
@@ -303,6 +315,11 @@ export default function CheckoutPage() {
       : 0;
 
   const handlePlaceOrder = async () => {
+    if (!user?.phone?.trim()) {
+      setIsPhoneSetupModalOpen(true);
+      setOrderError('');
+      return;
+    }
     if (typeof selectedAddressId !== 'number' || selectedAddressId <= 0) {
       setOrderError('Vui lòng chọn địa chỉ nhận hàng trước khi đặt mua.');
       return;
@@ -329,8 +346,21 @@ export default function CheckoutPage() {
     const confirmationMessage = isVnPay
       ? `Bạn xác nhận đặt hàng và tiếp tục thanh toán qua VNPay?`
       : `Bạn xác nhận đặt hàng với phương thức "${selectedPaymentMethod.name}"?`;
-    if (!window.confirm(confirmationMessage)) return;
+    setOrderConfirmationMessage(confirmationMessage);
+    setIsOrderConfirmOpen(true);
+  };
 
+  const confirmPlaceOrder = async () => {
+    if (typeof selectedAddressId !== 'number' || selectedAddressId <= 0) return;
+    if (typeof selectedPaymentMethodId !== 'number' || selectedPaymentMethodId <= 0) return;
+
+    const selectedPaymentMethod = paymentMethods.find(
+      (paymentMethod) => paymentMethod.id === selectedPaymentMethodId
+    );
+    if (!selectedPaymentMethod) return;
+
+    const isVnPay = selectedPaymentMethod.code === 'FWDEMO1_VNPAY';
+    setIsOrderConfirmOpen(false);
     setPlacingOrder(true);
     setOrderError('');
     try {
@@ -340,7 +370,7 @@ export default function CheckoutPage() {
         specialOfferId: selectedOfferId === '' ? null : selectedOfferId,
         notes: checkoutNotes.trim() || undefined,
       });
-      void refresh();
+      await refresh();
       if (isVnPay) {
         const paymentUrl = getPaymentRedirectUrl(response.data?.paymentUrl);
         if (!paymentUrl) {
@@ -355,7 +385,10 @@ export default function CheckoutPage() {
         return;
       }
 
-      navigate('/account/orders');
+      navigate('/account/orders', {
+        state: { orderPlacedSuccessfully: true },
+        replace: true,
+      });
     } catch (err) {
       setOrderError(extractErrorMessage(err, 'Không thể tạo đơn hàng. Vui lòng kiểm tra lại tồn kho.'));
     } finally {
@@ -619,8 +652,6 @@ export default function CheckoutPage() {
               className="mt-5 w-full"
               loading={placingOrder}
               disabled={
-                !selectedAddressId ||
-                typeof selectedPaymentMethodId !== 'number' ||
                 placingOrder ||
                 orderCreatedWithoutPaymentUrl
               }
@@ -853,7 +884,7 @@ export default function CheckoutPage() {
 
               {!shippingPreview && !shippingLoading && !shippingError && (
                 <p className="mt-2 text-xs text-content-muted">
-                  Chọn địa chỉ nhận hàng để tính phí vận chuyển.
+                  Vui lòng chọn địa chỉ nhận hàng và thiết lập số điện thoại để tính phí vận chuyển.
                 </p>
               )}
             </section>
@@ -868,6 +899,63 @@ export default function CheckoutPage() {
         defaultAddress={addresses.length === 0}
         onSaved={handleAddressSaved}
       />
+      <Modal
+        isOpen={isOrderConfirmOpen}
+        onClose={() => {
+          if (!placingOrder) setIsOrderConfirmOpen(false);
+        }}
+        title="Xác nhận thanh toán"
+        maxWidth="520px"
+      >
+        <div className="flex flex-col gap-5">
+          <p className="text-center text-sm leading-relaxed text-content-secondary">
+            {orderConfirmationMessage}
+          </p>
+          <div className="flex justify-center gap-3 border-t border-line-light pt-4">
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => setIsOrderConfirmOpen(false)}
+              disabled={placingOrder}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+              loading={placingOrder}
+              onClick={() => void confirmPlaceOrder()}
+            >
+              Xác nhận
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        isOpen={isPhoneSetupModalOpen}
+        onClose={() => setIsPhoneSetupModalOpen(false)}
+        title="Thiết lập số điện thoại"
+        maxWidth="520px"
+      >
+        <div className="flex flex-col gap-5">
+          <p className="text-center text-sm leading-relaxed text-content-secondary">
+            Hãy thiết lập số điện thoại ở profile trước khi thực hiện thanh toán để đảm bảo thông tin liên lạc và nhận thông báo về đơn hàng.
+          </p>
+          <div className="flex justify-center border-t border-line-light pt-4">
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => {
+                setIsPhoneSetupModalOpen(false);
+                navigate('/account/profile');
+              }}
+            >
+              Thiết lập số điện thoại
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
