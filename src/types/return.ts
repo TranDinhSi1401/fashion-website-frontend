@@ -135,12 +135,16 @@ export interface ReturnRequestResponse {
   extensionReason?: string | null;
   /** Thời điểm khách xác nhận đã bàn giao hàng cho đơn vị vận chuyển */
   handedOverAt?: string | null;
+  /** Ghi chú khi bàn giao hàng cho đơn vị vận chuyển */
+  handoverNote?: string | null;
   /** Thời điểm bàn giao cho shipper (trường tương thích) */
   handedOverToShipperAt?: string | null;
   /** Thời điểm gửi thông báo nhắc bàn giao */
   handoverReminderSentAt?: string | null;
   /** Thời điểm kho tiếp nhận kiện hàng trả */
   receivedAt?: string | null;
+  /** Ghi chú tình trạng kiện hàng khi kho nhận hàng */
+  receiveNote?: string | null;
   /** Thời điểm nhân viên kho kiểm định chất lượng sản phẩm xong */
   inspectedAt?: string | null;
   /** Thời điểm gửi kết quả kiểm định cho khách */
@@ -170,6 +174,22 @@ export interface ReturnRequestResponse {
   /** Thời điểm dự kiến hoàn thành mới do nhân viên cam kết lại khi trễ hạn */
   estimatedCompletionAt?: string | null;
 
+  // --- Vận chuyển chiều hoàn & Địa chỉ lấy hàng (GHN) ---
+  /** Đơn vị vận chuyển chiều hoàn (ví dụ: GHN; null nếu khách tự gửi) */
+  returnShippingProvider?: 'GHN' | string | null;
+  /** Mã vận đơn chiều hoàn do GHN cấp */
+  returnTrackingCode?: string | null;
+  /** Tên người liên hệ khi shipper tới lấy hàng trả */
+  pickupContactName?: string | null;
+  /** Số điện thoại người liên hệ khi lấy hàng trả */
+  pickupPhone?: string | null;
+  /** Địa chỉ chi tiết nơi lấy hàng trả */
+  pickupAddress?: string | null;
+  /** Tên tỉnh/thành phố nơi lấy hàng trả */
+  pickupProvinceName?: string | null;
+  /** Tên phường/xã nơi lấy hàng trả */
+  pickupWardName?: string | null;
+
   // --- Tài chính & Tài khoản ngân hàng ---
   /** Tổng tiền hoàn của các sản phẩm được duyệt (chưa trừ phí ship nếu có) (VND) */
   itemsRefundAmount?: number | null;
@@ -191,6 +211,8 @@ export interface ReturnRequestResponse {
   refundTransactionCode?: string | null;
   /** Đường dẫn ảnh biên lai chuyển khoản thành công */
   refundProofImageUrl?: string | null;
+  /** Đường dẫn ảnh mã VietQR chuyển khoản hoàn tiền cho kế toán quét */
+  refundVietQrUrl?: string | null;
 
   // --- Kết quả thẩm định & Dấu vết nhân sự ---
   /** Lý do từ chối yêu cầu trả hàng (nếu bị REJECTED) */
@@ -271,6 +293,12 @@ export interface ReturnRequestCreationRequest {
   accountNumber?: string;
   /** Tên chủ tài khoản ngân hàng (tùy chọn) */
   accountHolderName?: string;
+  /** Mã địa chỉ lấy hàng trong sổ địa chỉ của khách (tùy chọn; bỏ trống sẽ lấy từ đơn gốc) */
+  pickupAddressId?: number;
+  /** Tên người liên hệ khi lấy hàng (tùy chọn) */
+  pickupContactName?: string;
+  /** Số điện thoại liên hệ khi lấy hàng (tùy chọn, định dạng SĐT Việt Nam) */
+  pickupPhone?: string;
 }
 
 /**
@@ -290,6 +318,12 @@ export interface ReturnRequestUpdateRequest {
   accountNumber?: string;
   /** Tên chủ tài khoản ngân hàng (tùy chọn) */
   accountHolderName?: string;
+  /** Mã địa chỉ lấy hàng trong sổ địa chỉ (tùy chọn) */
+  pickupAddressId?: number;
+  /** Tên người liên hệ khi lấy hàng (tùy chọn) */
+  pickupContactName?: string;
+  /** Số điện thoại liên hệ khi lấy hàng (tùy chọn, định dạng SĐT Việt Nam) */
+  pickupPhone?: string;
 }
 
 /**
@@ -346,6 +380,8 @@ export interface AdminReturnSearchParams {
 export interface ReturnRequestApproveRequest {
   /** Ghi chú hướng dẫn đóng gói và gửi hàng cho khách (tùy chọn) */
   instructionNote?: string;
+  /** Cờ tự động tạo đơn lấy hàng GHN (mặc định true; false nếu khách tự mang tới shop) */
+  autoCreateShippingOrder?: boolean;
 }
 
 /**
@@ -404,21 +440,19 @@ export interface ReturnRequestInspectRequest {
   items: ReturnRequestInspectItemRequest[];
   /** Đề xuất phân loại lại sang lý do đổi ý (để khách chịu phí ship) */
   reclassifyToChangeOfMind?: boolean;
-  /** Phí vận chuyển gửi trả khấu trừ vào tiền hoàn của khách */
-  returnShippingFee?: number;
+  /** Phí vận chuyển gửi trả khấu trừ vào tiền hoàn của khách (null để giữ nguyên phí GHN đã tính) */
+  returnShippingFee?: number | null;
   /** Lý do từ chối (bắt buộc nếu toàn bộ sản phẩm có acceptedQuantity = 0) */
   rejectionReason?: string;
 }
 
 /**
- * DTO gửi lên khi nhân viên xác nhận đã thực hiện chuyển khoản hoàn tiền (POST /api/v1/admin/returns/{id}/refund).
+ * DTO gửi lên trong part JSON `request` của multipart/form-data khi kế toán xác nhận hoàn tiền
+ * (POST /api/v1/admin/returns/{id}/refund).
+ * Backend tự sinh mã giao dịch REFUND-... và nhận ảnh biên lai qua part `proofImage`.
  */
 export interface ReturnRequestRefundRequest {
-  /** Mã giao dịch ngân hàng hoặc số ủy nhiệm chi (bắt buộc) */
-  refundTransactionCode: string;
-  /** Đường dẫn ảnh chứng từ chuyển khoản (tùy chọn) */
-  refundProofImageUrl?: string;
-  /** Ghi chú hoàn tiền */
+  /** Ghi chú hoàn tiền (tùy chọn, tối đa 500 ký tự) */
   note?: string;
 }
 

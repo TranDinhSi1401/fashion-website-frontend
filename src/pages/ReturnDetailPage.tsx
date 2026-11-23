@@ -40,6 +40,7 @@ import {
 import ReturnStatusBadge from '../components/returns/ReturnStatusBadge';
 import ReturnTimeline from '../components/returns/ReturnTimeline';
 import ReturnImageGallery from '../components/returns/ReturnImageGallery';
+import ReturnShippingInfoCard from '../components/returns/ReturnShippingInfoCard';
 import {
   ReturnEditModal,
   ReturnBankModal,
@@ -282,6 +283,13 @@ export default function ReturnDetailPage() {
           <ReturnTimeline returnRequest={returnRequest} />
         </div>
 
+        {/* 1b. THÔNG TIN VẬN CHUYỂN CHIỀU HOÀN (GHN) */}
+        <ReturnShippingInfoCard
+          returnRequest={returnRequest}
+          viewerRole="customer"
+          className="mb-8"
+        />
+
         {/* 2. BẢNG CHI TIẾT SẢN PHẨM TRẢ & KẾT QUẢ KIỂM ĐỊNH QC */}
         <div className="bg-surface-body border border-line-light rounded-card p-6 mb-8">
           <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-1">
@@ -385,12 +393,30 @@ export default function ReturnDetailPage() {
                 </span>
               </div>
 
-              {returnRequest.refundTransactionCode && (
+              {returnRequest.status === 'REFUNDED' && returnRequest.refundTransactionCode && (
                 <div className="mt-2 p-2.5 bg-surface-body border border-line-light rounded-sm text-xs">
                   <span className="text-content-muted">Mã giao dịch ngân hàng:</span>{' '}
                   <strong className="text-content-primary font-mono">
                     {returnRequest.refundTransactionCode}
                   </strong>
+                </div>
+              )}
+
+              {returnRequest.status === 'REFUNDED' && returnRequest.refundProofImageUrl && (
+                <div className="mt-2 p-2.5 bg-surface-body border border-line-light rounded-sm text-xs">
+                  <span className="text-content-muted block mb-1.5">Ảnh biên lai chuyển khoản:</span>
+                  <a
+                    href={returnRequest.refundProofImageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block"
+                  >
+                    <img
+                      src={returnRequest.refundProofImageUrl}
+                      alt="Biên lai hoàn tiền"
+                      className="mt-2 max-h-48 rounded-sm border border-line-light object-contain"
+                    />
+                  </a>
                 </div>
               )}
             </div>

@@ -20,6 +20,8 @@ import {
   buildUpdateReturnPayload,
   buildConfirmPlanPayload,
   isValidBankAccountNumber,
+  isValidPickupPhone,
+  formatPickupAddress,
   validateReturnImageFiles,
   normalizeReturnReason,
   formatVND,
@@ -29,6 +31,8 @@ import {
   canCustomerCancelReturn,
 } from '../../utils/returnHelpers';
 import { returnService } from '../../services/returnService';
+import { userService } from '../../services/userService';
+import type { UserAddressResponse } from '../../types/user';
 import type {
   ReturnRequestResponse,
   ReturnReason,
@@ -74,27 +78,54 @@ export function ReturnEditModal({
     returnRequest.accountHolderName || returnRequest.bankAccountHolder || ''
   );
 
+  // Thông tin lấy hàng chiều hoàn (GHN)
+  const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
+  const [pickupAddressId, setPickupAddressId] = useState<string>('');
+  const [pickupContactName, setPickupContactName] = useState<string>(
+    returnRequest.pickupContactName || ''
+  );
+  const [pickupPhone, setPickupPhone] = useState<string>(returnRequest.pickupPhone || '');
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  // Khởi tạo state số lượng sản phẩm từ phiếu hiện tại
+  // Khởi tạo state số lượng sản phẩm và tải sổ địa chỉ khi mở modal
   useEffect(() => {
-    if (isOpen) {
-      setReason(normalizeReturnReason(returnRequest.reason));
-      setReasonDetail(returnRequest.reasonDetail || '');
-      setBankName(returnRequest.bankName || '');
-      setAccountNumber(returnRequest.accountNumber || returnRequest.bankAccountNumber || '');
-      setAccountHolderName(returnRequest.accountHolderName || returnRequest.bankAccountHolder || '');
-      setNewImages([]);
-      setReplaceImages(false);
-      setErrorMessage('');
+    if (!isOpen) return;
+    let isMounted = true;
 
-      const initialQtys: Record<number, number> = {};
-      (returnRequest.items || []).forEach((item) => {
-        initialQtys[item.orderItemId] = item.quantity;
+    setReason(normalizeReturnReason(returnRequest.reason));
+    setReasonDetail(returnRequest.reasonDetail || '');
+    setBankName(returnRequest.bankName || '');
+    setAccountNumber(returnRequest.accountNumber || returnRequest.bankAccountNumber || '');
+    setAccountHolderName(returnRequest.accountHolderName || returnRequest.bankAccountHolder || '');
+    setPickupAddressId('');
+    setPickupContactName(returnRequest.pickupContactName || '');
+    setPickupPhone(returnRequest.pickupPhone || '');
+    setNewImages([]);
+    setReplaceImages(false);
+    setErrorMessage('');
+
+    const initialQtys: Record<number, number> = {};
+    (returnRequest.items || []).forEach((item) => {
+      initialQtys[item.orderItemId] = item.quantity;
+    });
+    setItemQuantities(initialQtys);
+
+    userService
+      .getAddresses()
+      .then((res) => {
+        if (isMounted && Array.isArray(res?.data)) {
+          setAddresses(res.data);
+        }
+      })
+      .catch(() => {
+        // Bỏ qua lỗi tải sổ địa chỉ; vẫn cho phép giữ địa chỉ hiện tại hoặc nhập liên hệ
       });
-      setItemQuantities(initialQtys);
-    }
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, returnRequest]);
 
   // Kiểm tra quyền chỉnh sửa
@@ -131,6 +162,19 @@ export function ReturnEditModal({
       }
     }
 
+    // Kiểm tra thông tin lấy hàng GHN (nếu có nhập)
+    const trimmedPickupName = pickupContactName.trim();
+    if (trimmedPickupName.length > 100) {
+      setErrorMessage('Tên người liên hệ lấy hàng không được vượt quá 100 ký tự.');
+      return;
+    }
+
+    const trimmedPickupPhone = pickupPhone.trim();
+    if (trimmedPickupPhone !== '' && !isValidPickupPhone(trimmedPickupPhone)) {
+      setErrorMessage('Số điện thoại lấy hàng không hợp lệ (bắt đầu bằng 0 hoặc +84, gồm 10–11 chữ số).');
+      return;
+    }
+
     // Kiểm tra định dạng số tài khoản ngân hàng nếu có nhập
     const trimmedAccount = accountNumber.trim();
     if (trimmedAccount !== '' && !isValidBankAccountNumber(trimmedAccount)) {
@@ -159,6 +203,9 @@ export function ReturnEditModal({
       bankName,
       accountNumber: trimmedAccount,
       accountHolderName,
+      pickupAddressId: pickupAddressId || null,
+      pickupContactName: trimmedPickupName,
+      pickupPhone: trimmedPickupPhone,
     });
 
     setIsLoading(true);
@@ -302,7 +349,50 @@ export function ReturnEditModal({
           )}
         </div>
 
-        {/* 5. Thông tin ngân hàng nhận tiền hoàn */}
+        {/* 5. Thông tin lấy hàng chiều hoàn (GHN) */}
+        <div className="border-t border-line-light pt-4 flex flex-col gap-3">
+          <h4 className="text-sm font-bold text-content-primary">
+            Thông Tin Lấy Hàng Chiều Hoàn (GHN)
+          </h4>
+          <div>
+            <Select
+              label="Chọn địa chỉ lấy hàng mới (nếu muốn đổi)"
+              value={pickupAddressId}
+              onChange={(e) => setPickupAddressId(e.target.value)}
+            >
+              <option value="">Giữ địa chỉ lấy hàng hiện tại / đơn gốc</option>
+              {addresses.map((addr) => (
+                <option key={addr.id} value={String(addr.id)}>
+                  {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
+                  {addr.isDefault ? ' (Mặc định)' : ''}
+                </option>
+              ))}
+            </Select>
+            {formatPickupAddress(returnRequest) && (
+              <p className="text-xs text-content-muted mt-1 break-words [overflow-wrap:anywhere]">
+                Địa chỉ hiện tại: {formatPickupAddress(returnRequest)}
+              </p>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Người liên hệ lấy hàng"
+              placeholder="VD: Nguyễn Văn A"
+              maxLength={100}
+              value={pickupContactName}
+              onChange={(e) => setPickupContactName(e.target.value)}
+            />
+            <Input
+              label="SĐT lấy hàng"
+              placeholder="VD: 0901234567"
+              maxLength={20}
+              value={pickupPhone}
+              onChange={(e) => setPickupPhone(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* 6. Thông tin ngân hàng nhận tiền hoàn */}
         <div className="border-t border-line-light pt-4 flex flex-col gap-3">
           <h4 className="text-sm font-bold text-content-primary">
             Thông Tin Tài Khoản Nhận Hoàn Tiền (Tùy chọn)

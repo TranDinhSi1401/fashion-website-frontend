@@ -15,7 +15,7 @@
  * 9. ReturnCompleteModal: Hộp thoại xác nhận đóng hoàn tất hồ sơ
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   CheckCircle2,
   XCircle,
@@ -30,13 +30,21 @@ import {
   Building2,
   User,
   Hash,
+  UploadCloud,
+  X,
 } from 'lucide-react';
 import type { ReturnRequestResponse } from '../../types/return';
 import { returnAdminService } from '../../services/returnAdminService';
-import { formatVND, toLocalIsoDateTimeString } from '../../utils/returnHelpers';
+import {
+  formatVND,
+  toLocalIsoDateTimeString,
+  validateReturnImageFiles,
+  ACCEPTED_IMAGE_EXTENSIONS,
+} from '../../utils/returnHelpers';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import Checkbox from '../ui/Checkbox';
 
 /**
  * Hàm tiện ích chuyển đổi đối tượng Date sang chuỗi format của input type="datetime-local" (YYYY-MM-DDTHH:mm).
@@ -78,6 +86,7 @@ export function ReturnApproveModal({
   onSuccess,
 }: ReturnApproveModalProps) {
   const [instructionNote, setInstructionNote] = useState<string>('');
+  const [autoCreateShippingOrder, setAutoCreateShippingOrder] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -86,6 +95,7 @@ export function ReturnApproveModal({
       setInstructionNote(
         'Quý khách vui lòng đóng gói sản phẩm nguyên vẹn vào hộp, dán kín miệng hộp và chờ shipper liên hệ lấy hàng trong vòng 7 ngày làm việc.'
       );
+      setAutoCreateShippingOrder(true);
       setErrorMessage('');
       setIsSubmitting(false);
     }
@@ -99,6 +109,7 @@ export function ReturnApproveModal({
     try {
       await returnAdminService.approveReturn(returnRequest.id, {
         instructionNote: instructionNote.trim() || undefined,
+        autoCreateShippingOrder,
       });
       onSuccess();
       onClose();
@@ -124,6 +135,19 @@ export function ReturnApproveModal({
               thiết lập thời hạn bàn giao 7 ngày để khách gửi hàng cho shipper.
             </p>
           </div>
+        </div>
+
+        <div className="p-3.5 bg-surface border border-line-light rounded-sm">
+          <Checkbox
+            id="auto-create-shipping-order"
+            label="Tự động tạo đơn lấy hàng GHN"
+            checked={autoCreateShippingOrder}
+            onChange={(e) => setAutoCreateShippingOrder(e.target.checked)}
+            disabled={isSubmitting}
+          />
+          <p className="text-xs text-content-muted mt-1 ml-7">
+            Bỏ chọn nếu khách tự mang hàng đến cửa hàng
+          </p>
         </div>
 
         <div>
@@ -638,8 +662,8 @@ export interface ReturnRefundModalProps {
 }
 
 /**
- * Chức năng: Modal kế toán xác nhận chuyển khoản hoàn tiền thành công kèm mã giao dịch UNC (Bước 5).
- * Có cơ chế Pessimistic Lock chống double-click click liên tiếp gửi trùng lệnh hoàn tiền.
+ * Chức năng: Modal kế toán quét VietQR chuyển khoản và tải lên ảnh biên lai hoàn tiền (Bước 5).
+ * Có cơ chế Pessimistic Lock chống double-click gửi trùng lệnh hoàn tiền.
  *
  * @param props Đầu vào: Thuộc tính điều khiển hiển thị và thông tin phiếu trả hàng.
  * @returns Đầu ra: Thẻ JSX Modal hoàn tiền.
@@ -650,21 +674,34 @@ export function ReturnRefundModal({
   returnRequest,
   onSuccess,
 }: ReturnRefundModalProps) {
-  const [transactionCode, setTransactionCode] = useState<string>('');
-  const [proofImageUrl, setProofImageUrl] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [proofImage, setProofImage] = useState<File | null>(null);
+  const [proofPreviewUrl, setProofPreviewUrl] = useState<string>('');
   const [note, setNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
-      setTransactionCode('');
-      setProofImageUrl('');
+      setProofImage(null);
       setNote('');
       setErrorMessage('');
       setIsSubmitting(false);
     }
   }, [isOpen]);
+
+  // Tạo và giải phóng URL xem trước cho tệp ảnh biên lai đã chọn
+  useEffect(() => {
+    if (!proofImage) {
+      setProofPreviewUrl('');
+      return;
+    }
+    const objectUrl = URL.createObjectURL(proofImage);
+    setProofPreviewUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [proofImage]);
 
   const bankName = returnRequest.bankName || 'Chưa cung cấp';
   const accountNumber =
@@ -673,11 +710,34 @@ export function ReturnRefundModal({
     returnRequest.accountHolderName || returnRequest.bankAccountHolder || 'Chưa cung cấp';
   const refundAmount = returnRequest.refundAmount ?? 0;
 
+  // Kiểm tra file ảnh biên lai khi kế toán chọn từ máy
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    if (!selected) return;
+
+    const validation = validateReturnImageFiles([selected], 'CHANGE_OF_MIND');
+    if (!validation.isValid) {
+      setErrorMessage(validation.error || 'Tệp ảnh biên lai không hợp lệ.');
+      return;
+    }
+
+    setErrorMessage('');
+    setProofImage(selected);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!transactionCode.trim()) {
-      setErrorMessage('Vui lòng nhập mã giao dịch ngân hàng hoặc số ủy nhiệm chi (UNC).');
+    if (!proofImage) {
+      setErrorMessage('Vui lòng tải lên ảnh chụp màn hình biên lai chuyển khoản.');
+      return;
+    }
+
+    if (note.trim().length > 500) {
+      setErrorMessage('Ghi chú hoàn tiền không được vượt quá 500 ký tự.');
       return;
     }
 
@@ -690,11 +750,11 @@ export function ReturnRefundModal({
     setErrorMessage('');
 
     try {
-      await returnAdminService.refundReturn(returnRequest.id, {
-        refundTransactionCode: transactionCode.trim(),
-        refundProofImageUrl: proofImageUrl.trim() || undefined,
-        note: note.trim() || undefined,
-      });
+      await returnAdminService.refundReturn(
+        returnRequest.id,
+        { note: note.trim() || undefined },
+        proofImage
+      );
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -744,31 +804,91 @@ export function ReturnRefundModal({
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-content-primary mb-1.5">
-            Mã giao dịch ngân hàng / Số UNC <span className="text-status-error">*</span>
-          </label>
-          <Input
-            value={transactionCode}
-            onChange={(e) => {
-              setTransactionCode(e.target.value);
-              if (errorMessage) setErrorMessage('');
-            }}
-            placeholder="Ví dụ: FT26111589301 hoặc UNC-99482"
-            disabled={isSubmitting}
-          />
+        {/* Mã VietQR quét chuyển khoản nhanh */}
+        <div className="p-4 bg-surface border border-line-light rounded-sm text-center">
+          {returnRequest.refundVietQrUrl ? (
+            <>
+              <img
+                src={returnRequest.refundVietQrUrl}
+                alt="Mã VietQR hoàn tiền"
+                className="mx-auto w-56 h-56 object-contain border border-line-light rounded-sm bg-surface-body"
+              />
+              <p className="text-xs text-content-secondary mt-2">
+                Quét mã bằng ứng dụng ngân hàng để chuyển khoản
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-content-muted italic">
+              Chưa có mã VietQR (khách chưa cung cấp đủ STK)
+            </p>
+          )}
         </div>
 
+        {/* Upload ảnh chụp màn hình biên lai chuyển khoản (bắt buộc) */}
         <div>
           <label className="block text-sm font-semibold text-content-primary mb-1.5">
-            Link ảnh chứng từ / biên lai chuyển khoản (tùy chọn)
+            Ảnh chụp màn hình biên lai chuyển khoản <span className="text-status-error">*</span>
           </label>
-          <Input
-            value={proofImageUrl}
-            onChange={(e) => setProofImageUrl(e.target.value)}
-            placeholder="https://res.cloudinary.com/..."
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_IMAGE_EXTENSIONS.join(', ')}
+            onChange={handleFileChange}
             disabled={isSubmitting}
+            className="hidden"
           />
+
+          {proofPreviewUrl && proofImage ? (
+            <div className="p-3 bg-surface border border-line-light rounded-sm flex items-start gap-3">
+              <img
+                src={proofPreviewUrl}
+                alt="Xem trước biên lai"
+                className="w-24 h-24 object-contain rounded-sm border border-line-light bg-surface-body shrink-0"
+              />
+              <div className="flex-1 min-w-0 text-xs">
+                <p className="font-semibold text-content-primary truncate">{proofImage.name}</p>
+                <p className="text-content-muted mt-0.5">
+                  {(proofImage.size / (1024 * 1024)).toFixed(2)} MB
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSubmitting}
+                  >
+                    Đổi ảnh khác
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setProofImage(null)}
+                    disabled={isSubmitting}
+                    className="p-1.5 text-content-muted hover:text-status-error transition-colors"
+                    title="Xóa ảnh đã chọn"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isSubmitting}
+              className="w-full p-5 border border-dashed border-line rounded-sm bg-surface hover:border-line-focus transition-colors flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer"
+            >
+              <UploadCloud size={24} className="text-content-muted" />
+              <span className="text-xs font-semibold text-content-primary">
+                Bấm để chọn ảnh biên lai chuyển khoản
+              </span>
+              <span className="text-[11px] text-content-muted">
+                Hỗ trợ JPG, JPEG, PNG, WebP (tối đa 5MB)
+              </span>
+            </button>
+          )}
         </div>
 
         <div>
@@ -778,9 +898,13 @@ export function ReturnRefundModal({
           <Input
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Ví dụ: Đã chuyển khoản qua Vietcombank lúc 14:30..."
+            maxLength={500}
+            placeholder="Ví dụ: Đã chuyển khoản hoàn tiền qua VietQR."
             disabled={isSubmitting}
           />
+          <p className="text-xs text-content-muted mt-1.5">
+            Mã giao dịch <span className="font-mono font-semibold">REFUND-…</span> sẽ do hệ thống tự sinh.
+          </p>
         </div>
 
         {errorMessage && (

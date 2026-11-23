@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Package, Tag, RotateCcw, Info } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/notificationService';
 import { useStompSubscription } from '../../ws/useStompSubscription';
 import { useWsStatus } from '../../ws/WebSocketProvider';
@@ -32,13 +34,52 @@ function formatNotificationTime(iso?: string): string {
   }).format(date);
 }
 
+/**
+ * Chức năng: Kiểm tra hai thông báo có đại diện cho cùng một sự kiện realtime hay không
+ * để chống trùng lặp khi Admin/Staff nhận đồng thời từ /user/queue/notifications và /topic/admin/returns.
+ */
+function isDuplicateBroadcast(a: NotificationResponse, b: NotificationResponse): boolean {
+  if (a.id != null && b.id != null) {
+    return a.id === b.id;
+  }
+  if (a.type !== b.type || a.title !== b.title) {
+    return false;
+  }
+  if (a.referenceId == null || b.referenceId == null || a.referenceId !== b.referenceId) {
+    return false;
+  }
+  const timeA = a.createdAt ? new Date(a.createdAt).getTime() : NaN;
+  const timeB = b.createdAt ? new Date(b.createdAt).getTime() : NaN;
+  if (!Number.isNaN(timeA) && !Number.isNaN(timeB)) {
+    return Math.abs(timeA - timeB) <= 60_000;
+  }
+  return true;
+}
+
+/**
+ * Component phụ trợ lắng nghe broadcast realtime trên /topic/admin/returns dành riêng cho ADMIN/STAFF,
+ * giúp tránh gọi hook useStompSubscription có điều kiện trong NotificationBell.
+ */
+function AdminReturnsWsListener({
+  onMessage,
+}: {
+  onMessage: (notification: NotificationResponse) => void;
+}) {
+  useStompSubscription<NotificationResponse>('/topic/admin/returns', onMessage);
+  return null;
+}
+
 export default function NotificationBell() {
+  const { isAdmin, isStaff } = useAuth();
+  const navigate = useNavigate();
   const status = useWsStatus();
   const [items, setItems] = useState<NotificationResponse[]>([]);
   const [unread, setUnread] = useState<number>(0);
   const [open, setOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const canManageReturns = Boolean(isAdmin || isStaff);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,20 +112,34 @@ export default function NotificationBell() {
     }
   }, [status, load]);
 
-  useStompSubscription<NotificationResponse>(
-    '/user/queue/notifications',
-    useCallback((n) => {
-      let isNew = false;
-      setItems((prev) => {
-        if (prev.some((x) => x.id === n.id)) return prev;
-        isNew = true;
-        return [n, ...prev];
-      });
-      if (isNew && !n.seen) {
-        setUnread((c) => c + 1);
+  const handleIncomingNotification = useCallback((n: NotificationResponse) => {
+    let shouldIncrementUnread = false;
+    setItems((prev) => {
+      if (n.id != null && prev.some((x) => x.id === n.id)) {
+        return prev;
       }
-    }, [])
-  );
+
+      // Nếu thông báo mới khớp một bản ghi broadcast/tạm trước đó (id == null) thì cập nhật thay thế, không nhân đôi
+      const dupIndex = prev.findIndex((x) => isDuplicateBroadcast(x, n));
+      if (dupIndex !== -1) {
+        const existing = prev[dupIndex];
+        if (existing.id == null && n.id != null) {
+          const next = [...prev];
+          next[dupIndex] = n;
+          return next;
+        }
+        return prev;
+      }
+
+      shouldIncrementUnread = !n.seen;
+      return [n, ...prev];
+    });
+    if (shouldIncrementUnread) {
+      setUnread((c) => c + 1);
+    }
+  }, []);
+
+  useStompSubscription<NotificationResponse>('/user/queue/notifications', handleIncomingNotification);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -103,15 +158,36 @@ export default function NotificationBell() {
     };
   }, []);
 
-  const markRead = async (n: NotificationResponse) => {
+  const handleNotificationClick = async (n: NotificationResponse) => {
     if (!n.seen) {
       try {
-        await notificationService.markAsRead(n.id);
-        setItems((p) => p.map((x) => (x.id === n.id ? { ...x, seen: true } : x)));
+        if (n.id != null) {
+          await notificationService.markAsRead(n.id);
+        }
+        setItems((p) =>
+          p.map((x) =>
+            (n.id != null ? x.id === n.id : x === n) ? { ...x, seen: true } : x
+          )
+        );
         setUnread((c) => Math.max(0, c - 1));
       } catch (err) {
         console.warn('Could not mark notification as read:', err);
       }
+    }
+
+    setOpen(false);
+
+    if (n.type === 'RETURN_REQUEST' && n.referenceId) {
+      navigate(
+        canManageReturns
+          ? `/admin/returns/${n.referenceId}`
+          : `/account/returns/${n.referenceId}`
+      );
+      return;
+    }
+
+    if (n.type === 'ORDER_STATUS') {
+      navigate(canManageReturns ? '/admin/orders' : '/account/orders');
     }
   };
 
@@ -128,6 +204,7 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={containerRef}>
+      {canManageReturns && <AdminReturnsWsListener onMessage={handleIncomingNotification} />}
       <IconButton
         aria-label="Thông báo"
         title="Thông báo"
@@ -190,11 +267,15 @@ export default function NotificationBell() {
                 </p>
               </div>
             ) : (
-              items.map((n) => (
+              items.map((n, index) => (
                 <button
                   type="button"
-                  key={n.id}
-                  onClick={() => void markRead(n)}
+                  key={
+                    n.id != null
+                      ? n.id
+                      : `topic-${n.type}-${n.referenceId ?? 'none'}-${n.createdAt ?? index}`
+                  }
+                  onClick={() => void handleNotificationClick(n)}
                   className={cn(
                     'flex w-full cursor-pointer items-start gap-3 border-0 px-4 py-3 text-left transition-colors hover:bg-surface',
                     !n.seen ? 'bg-accent-gold/5' : 'bg-surface-elevated'

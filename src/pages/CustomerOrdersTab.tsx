@@ -291,14 +291,20 @@ export default function CustomerOrdersTab() {
                         ? 'Chờ xác nhận'
                         : order.orderStatus === 'COMPLETED'
                         ? 'Hoàn thành'
+                        : order.orderStatus === 'RETURNED'
+                        ? 'Đã trả hàng'
                         : order.orderStatus === 'CANCELLED'
                         ? 'Đã hủy'
                         : order.orderStatus || 'Đang xử lý'}
                     </Badge>
 
                     {order.paymentStatus && (
-                      <Badge variant={order.paymentStatus === 'PAID' ? 'dark' : 'warning'}>
-                        {order.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                      <Badge variant={order.paymentStatus === 'PAID' ? 'dark' : order.paymentStatus === 'REFUNDED' ? 'success' : 'warning'}>
+                        {order.paymentStatus === 'PAID'
+                          ? 'Đã thanh toán'
+                          : order.paymentStatus === 'REFUNDED'
+                          ? 'Đã hoàn tiền'
+                          : 'Chưa thanh toán'}
                       </Badge>
                     )}
                   </div>

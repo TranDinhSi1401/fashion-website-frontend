@@ -50,6 +50,7 @@ import {
 import ReturnStatusBadge from '../components/returns/ReturnStatusBadge';
 import ReturnTimeline from '../components/returns/ReturnTimeline';
 import ReturnImageGallery from '../components/returns/ReturnImageGallery';
+import ReturnShippingInfoCard from '../components/returns/ReturnShippingInfoCard';
 import {
   ReturnApproveModal,
   ReturnRejectModal,
@@ -471,8 +472,11 @@ export default function AdminReturnDetailPage() {
           </div>
         </div>
 
-        {/* CỘT PHẢI (4 CỘT): TÀI KHOẢN NGÂN HÀNG, DẤU VẾT NHÂN SỰ & CSKH LOG */}
+        {/* CỘT PHẢI (4 CỘT): VẬN CHUYỂN CHIỀU HOÀN, TÀI KHOẢN NGÂN HÀNG, DẤU VẾT NHÂN SỰ & CSKH LOG */}
         <div className="lg:col-span-4 space-y-6">
+          {/* Thông tin vận chuyển chiều hoàn (GHN) */}
+          <ReturnShippingInfoCard returnRequest={returnRequest} viewerRole="admin" />
+
           {/* Thông tin tài khoản ngân hàng */}
           <div className="p-5 bg-surface border border-line-light rounded-sm">
             <div className="flex items-center gap-2 mb-3 pb-2 border-b border-line-light">
@@ -523,9 +527,13 @@ export default function AdminReturnDetailPage() {
                     href={returnRequest.refundProofImageUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-primary underline break-all"
+                    className="inline-block"
                   >
-                    Xem biên lai chuyển tiền
+                    <img
+                      src={returnRequest.refundProofImageUrl}
+                      alt="Biên lai hoàn tiền"
+                      className="mt-2 max-h-48 rounded-sm border border-line-light object-contain"
+                    />
                   </a>
                 </div>
               )}

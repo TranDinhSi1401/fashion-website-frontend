@@ -22,6 +22,9 @@ import {
   normalizeReturnReason,
   getReturnReasonLabel,
   isValidBankAccountNumber,
+  isValidPickupPhone,
+  buildGhnTrackingUrl,
+  formatPickupAddress,
   buildCreateReturnPayload,
   buildUpdateReturnPayload,
   buildConfirmPlanPayload,
@@ -595,6 +598,66 @@ describe('Tier 4: Real-World Scenarios', () => {
     assert.equal(
       canCustomerEditReturn({ status: 'PENDING_APPROVAL', deliveredAt: expired8Days }, now),
       false
+    );
+  });
+
+  test('GHN pickup fields, phone validation, tracking URL, and address formatting', () => {
+    // 1. Payload tạo phiếu đính kèm pickupAddressId, pickupContactName, pickupPhone khi hợp lệ
+    const withPickup = buildCreateReturnPayload({
+      orderId: 10,
+      reason: 'DEFECTIVE',
+      reasonDetail: 'Rách đường may',
+      items: [{ orderItemId: 101, quantity: 1 }],
+      pickupAddressId: 5,
+      pickupContactName: '  Nguyễn Văn A  ',
+      pickupPhone: ' 0901234567 ',
+    });
+    assert.equal(withPickup.pickupAddressId, 5);
+    assert.equal(withPickup.pickupContactName, 'Nguyễn Văn A');
+    assert.equal(withPickup.pickupPhone, '0901234567');
+
+    // 2. Bỏ qua các trường lấy hàng khi null / chuỗi rỗng để tránh lỗi @Pattern
+    const withoutPickup = buildCreateReturnPayload({
+      orderId: 10,
+      reason: 'CHANGE_OF_MIND',
+      reasonDetail: 'Đổi ý',
+      items: [{ orderItemId: 101, quantity: 1 }],
+      pickupAddressId: null,
+      pickupContactName: '   ',
+      pickupPhone: '',
+    });
+    assert.equal('pickupAddressId' in withoutPickup, false);
+    assert.equal('pickupContactName' in withoutPickup, false);
+    assert.equal('pickupPhone' in withoutPickup, false);
+
+    // 3. Payload cập nhật vẫn giữ pickup fields và tuyệt đối không chứa orderId
+    const updatedWithPickup = buildUpdateReturnPayload({
+      orderId: 999,
+      reason: 'WRONG_ITEM',
+      reasonDetail: 'Giao sai size',
+      items: [{ orderItemId: 102, quantity: 1 }],
+      pickupAddressId: '5',
+      pickupContactName: 'Trần Thị B',
+      pickupPhone: '+84901234567',
+    });
+    assert.equal('orderId' in updatedWithPickup, false);
+    assert.equal(updatedWithPickup.pickupAddressId, 5);
+    assert.equal(updatedWithPickup.pickupContactName, 'Trần Thị B');
+    assert.equal(updatedWithPickup.pickupPhone, '+84901234567');
+
+    // 4. Kiểm tra SĐT lấy hàng, link GHN tracking và format địa chỉ
+    assert.equal(isValidPickupPhone('0901234567'), true);
+    assert.equal(isValidPickupPhone('+84901234567'), true);
+    assert.equal(isValidPickupPhone('12345'), false);
+    assert.equal(buildGhnTrackingUrl('ABC'), 'https://donhang.ghn.vn/?order_code=ABC');
+    assert.equal(buildGhnTrackingUrl(''), '');
+    assert.equal(
+      formatPickupAddress({
+        pickupAddress: '12 Nguyễn Văn Bảo',
+        pickupWardName: 'Phường 4',
+        pickupProvinceName: 'TP.HCM',
+      }),
+      '12 Nguyễn Văn Bảo, Phường 4, TP.HCM'
     );
   });
 });

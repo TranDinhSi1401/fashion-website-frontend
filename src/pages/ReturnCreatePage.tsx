@@ -18,7 +18,9 @@ import {
 } from 'lucide-react';
 import { orderService } from '../services/orderService';
 import { returnService } from '../services/returnService';
+import { userService } from '../services/userService';
 import type { OrderWithItems, OrderItemResponse } from '../types/order';
+import type { UserAddressResponse } from '../types/user';
 import type { ReturnReason } from '../types/return';
 import { RETURN_REASON_OPTIONS } from '../constants/returnMeta';
 import {
@@ -26,6 +28,7 @@ import {
   validateReturnImageFiles,
   buildCreateReturnPayload,
   isValidBankAccountNumber,
+  isValidPickupPhone,
   formatVND,
 } from '../utils/returnHelpers';
 import Button from '../components/ui/Button';
@@ -67,8 +70,40 @@ export default function ReturnCreatePage() {
   const [accountNumber, setAccountNumber] = useState<string>('');
   const [accountHolderName, setAccountHolderName] = useState<string>('');
 
+  // Thông tin địa chỉ & liên hệ lấy hàng chiều hoàn (GHN)
+  const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
+  const [addressesLoadFailed, setAddressesLoadFailed] = useState<boolean>(false);
+  const [pickupAddressId, setPickupAddressId] = useState<string>('');
+  const [pickupContactName, setPickupContactName] = useState<string>(
+    () => (location.state as { order?: OrderWithItems })?.order?.shippingRecipientName || ''
+  );
+  const [pickupPhone, setPickupPhone] = useState<string>(
+    () => (location.state as { order?: OrderWithItems })?.order?.shippingPhone || ''
+  );
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string>('');
+
+  // Tải sổ địa chỉ của khách hàng để chọn nơi shipper GHN tới lấy hàng
+  useEffect(() => {
+    let isMounted = true;
+    userService
+      .getAddresses()
+      .then((res) => {
+        if (isMounted && Array.isArray(res?.data)) {
+          setAddresses(res.data);
+          setAddressesLoadFailed(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAddressesLoadFailed(true);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Nếu không có state truyền từ C1, đọc orderId từ query param và gọi API lấy chi tiết đơn
   useEffect(() => {
@@ -113,6 +148,8 @@ export default function ReturnCreatePage() {
         }
 
         setOrder(fetchedOrder);
+        setPickupContactName((prev) => prev || fetchedOrder.shippingRecipientName || '');
+        setPickupPhone((prev) => prev || fetchedOrder.shippingPhone || '');
         const initSelected: Record<number, SelectedItemState> = {};
         (fetchedOrder.orderItems || []).forEach((item: OrderItemResponse) => {
           initSelected[item.id] = {
@@ -199,14 +236,27 @@ export default function ReturnCreatePage() {
       return;
     }
 
-    // 4. Kiểm tra tài khoản ngân hàng nếu có điền
+    // 4. Kiểm tra thông tin lấy hàng GHN (nếu có nhập)
+    const trimmedPickupName = pickupContactName.trim();
+    if (trimmedPickupName.length > 100) {
+      setFormError('Tên người liên hệ lấy hàng không được vượt quá 100 ký tự.');
+      return;
+    }
+
+    const trimmedPickupPhone = pickupPhone.trim();
+    if (trimmedPickupPhone !== '' && !isValidPickupPhone(trimmedPickupPhone)) {
+      setFormError('Số điện thoại lấy hàng không hợp lệ (bắt đầu bằng 0 hoặc +84, gồm 10–11 chữ số).');
+      return;
+    }
+
+    // 5. Kiểm tra tài khoản ngân hàng nếu có điền
     const trimmedAccount = accountNumber.trim();
     if (trimmedAccount !== '' && !isValidBankAccountNumber(trimmedAccount)) {
       setFormError('Số tài khoản ngân hàng không hợp lệ (phải gồm từ 6 đến 30 chữ số).');
       return;
     }
 
-    // 5. Dựng payload sạch qua helper (tự động lược bỏ trường ngân hàng rỗng)
+    // 6. Dựng payload sạch qua helper (tự động lược bỏ trường rỗng)
     const payload = buildCreateReturnPayload({
       orderId: order.id,
       reason,
@@ -215,6 +265,9 @@ export default function ReturnCreatePage() {
       bankName: bankName.trim(),
       accountNumber: trimmedAccount,
       accountHolderName: accountHolderName.trim(),
+      pickupAddressId: pickupAddressId || null,
+      pickupContactName: trimmedPickupName,
+      pickupPhone: trimmedPickupPhone,
     });
 
     setIsSubmitting(true);
@@ -460,11 +513,61 @@ export default function ReturnCreatePage() {
             />
           </div>
 
-          {/* KHỐI 4: THÔNG TIN TÀI KHOẢN NGÂN HÀNG NHẬN HOÀN TIỀN */}
+          {/* KHỐI 4: THÔNG TIN LẤY HÀNG CHIỀU HOÀN (GHN) */}
           <div className="bg-surface-body border border-line-light p-6 rounded-card flex flex-col gap-4">
             <div>
               <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-1">
-                4. Tài Khoản Ngân Hàng Nhận Hoàn Tiền (Tùy chọn)
+                4. Thông Tin Lấy Hàng (GHN)
+              </h2>
+              <p className="text-xs text-content-muted">
+                Chọn địa chỉ trong sổ địa chỉ để bưu tá GHN đến lấy hàng trả, hoặc bỏ trống để dùng địa chỉ giao hàng của đơn gốc
+              </p>
+            </div>
+
+            <div>
+              <Select
+                label="Địa chỉ lấy hàng (từ sổ địa chỉ)"
+                value={pickupAddressId}
+                onChange={(e) => setPickupAddressId(e.target.value)}
+                helperText={
+                  addressesLoadFailed
+                    ? 'Không tải được sổ địa chỉ; hệ thống sẽ tự lấy theo địa chỉ giao hàng của đơn gốc.'
+                    : undefined
+                }
+              >
+                <option value="">Dùng địa chỉ giao hàng của đơn gốc (mặc định)</option>
+                {addresses.map((addr) => (
+                  <option key={addr.id} value={String(addr.id)}>
+                    {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
+                    {addr.isDefault ? ' (Mặc định)' : ''}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Người liên hệ lấy hàng"
+                placeholder="VD: Nguyễn Văn A"
+                maxLength={100}
+                value={pickupContactName}
+                onChange={(e) => setPickupContactName(e.target.value)}
+              />
+              <Input
+                label="SĐT lấy hàng"
+                placeholder="VD: 0901234567"
+                maxLength={20}
+                value={pickupPhone}
+                onChange={(e) => setPickupPhone(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* KHỐI 5: THÔNG TIN TÀI KHOẢN NGÂN HÀNG NHẬN HOÀN TIỀN */}
+          <div className="bg-surface-body border border-line-light p-6 rounded-card flex flex-col gap-4">
+            <div>
+              <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-1">
+                5. Tài Khoản Ngân Hàng Nhận Hoàn Tiền (Tùy chọn)
               </h2>
               <p className="text-xs text-content-muted">
                 Bạn có thể bổ sung ngay bây giờ hoặc cập nhật sau khi yêu cầu được kiểm định

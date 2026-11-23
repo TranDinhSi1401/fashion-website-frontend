@@ -67,7 +67,8 @@ export function ReturnInspectModal({
 }: ReturnInspectModalProps) {
   const [items, setItems] = useState<ItemInspectFormState[]>([]);
   const [reclassifyToChangeOfMind, setReclassifyToChangeOfMind] = useState<boolean>(false);
-  const [returnShippingFee, setReturnShippingFee] = useState<number>(30000);
+  const [returnShippingFee, setReturnShippingFee] = useState<number>(0);
+  const [isFeeDirty, setIsFeeDirty] = useState<boolean>(false);
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -112,7 +113,8 @@ export function ReturnInspectModal({
     const initialItems = buildInitialItems();
     setItems(initialItems);
     setReclassifyToChangeOfMind(Boolean(returnRequest.proposedChangeOfMind));
-    setReturnShippingFee(returnRequest.returnShippingFee || 30000);
+    setReturnShippingFee(returnRequest.returnShippingFee ?? 0);
+    setIsFeeDirty(false);
     setRejectionReason(returnRequest.rejectionReason || '');
     setErrorMessage('');
     setIsSubmitting(false);
@@ -204,7 +206,8 @@ export function ReturnInspectModal({
           inspectionNote: it.inspectionNote.trim() || undefined,
         })),
         reclassifyToChangeOfMind: reclassifyToChangeOfMind ? true : undefined,
-        returnShippingFee: isShippingFeeEditable ? effectiveShippingFee : 0,
+        // Nếu không sửa phí GHN khi được phép thu phí đổi ý, gửi null để Backend giữ nguyên phí GHN đã tính ở bước Duyệt
+        returnShippingFee: !isShippingFeeEditable ? 0 : isFeeDirty ? effectiveShippingFee : null,
         rejectionReason:
           totalAcceptedQuantity === 0
             ? rejectionReason.trim()
@@ -331,7 +334,10 @@ export function ReturnInspectModal({
                 min={0}
                 step={1000}
                 value={effectiveShippingFee}
-                onChange={(e) => setReturnShippingFee(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                onChange={(e) => {
+                  setReturnShippingFee(Math.max(0, parseInt(e.target.value, 10) || 0));
+                  setIsFeeDirty(true);
+                }}
                 disabled={!isShippingFeeEditable || isSubmitting}
                 className="h-9 w-full rounded-sm border border-line bg-surface-body px-3 text-sm font-mono text-content-primary disabled:bg-surface-disabled disabled:text-content-disabled focus:border-line-focus focus:outline-none"
               />
@@ -339,6 +345,11 @@ export function ReturnInspectModal({
                 {isShippingFeeEditable ? '(Được chỉnh sửa)' : '(Bằng 0 do lỗi từ Shop)'}
               </span>
             </div>
+            {typeof returnRequest.returnShippingFee === 'number' && returnRequest.returnShippingFee > 0 && (
+              <p className="text-xs text-content-muted mt-1">
+                Phí GHN đã tính ở bước duyệt: <strong className="text-content-primary">{formatVND(returnRequest.returnShippingFee)}</strong>
+              </p>
+            )}
           </div>
         </div>
 
@@ -439,12 +450,15 @@ interface ItemRestockFormState {
   productName: string;
   variantInfo?: string;
   acceptedQuantity: number;
+  alreadyRestocked: number;
+  remainingQuantity: number;
   restockQuantity: number;
   note: string;
 }
 
 /**
  * Chức năng: Modal phân loại và nhập lại kho bán các sản phẩm đạt chuẩn chất lượng với bảng 920px (Bước 6).
+ * Hỗ trợ nhập cộng dồn nhiều đợt: mỗi đợt chỉ cho phép nhập tối đa phần số lượng còn lại.
  *
  * @param props Đầu vào: Thuộc tính điều khiển hiển thị và thông tin phiếu trả hàng.
  * @returns Đầu ra: Thẻ JSX Modal nhập kho.
@@ -461,17 +475,21 @@ export function ReturnRestockModal({
 
   useEffect(() => {
     if (isOpen) {
-      // Chỉ lấy các sản phẩm có acceptedQuantity > 0 để nhập lại kho bán
+      // Chỉ lấy các sản phẩm có acceptedQuantity > 0 để nhập lại kho bán theo số lượng còn lại
       const restockableItems: ItemRestockFormState[] = (returnRequest.items || [])
         .filter((it) => (it.acceptedQuantity ?? 0) > 0)
         .map((it) => {
           const maxAccepted = it.acceptedQuantity ?? 0;
+          const alreadyRestocked = Math.max(0, it.restockedQuantity ?? 0);
+          const remainingQuantity = Math.max(0, maxAccepted - alreadyRestocked);
           return {
             itemId: it.id,
             productName: it.productName,
             variantInfo: it.variantInfo,
             acceptedQuantity: maxAccepted,
-            restockQuantity: it.restockedQuantity ?? maxAccepted,
+            alreadyRestocked,
+            remainingQuantity,
+            restockQuantity: remainingQuantity,
             note: '',
           };
         });
@@ -482,13 +500,13 @@ export function ReturnRestockModal({
     }
   }, [isOpen, returnRequest]);
 
-  // Cập nhật số lượng nhập kho (bắt buộc 0 <= restockQuantity <= acceptedQuantity)
+  // Cập nhật số lượng nhập kho đợt này (bắt buộc 0 <= restockQuantity <= remainingQuantity)
   const handleRestockQtyChange = (itemId: number, rawVal: string) => {
     const num = parseInt(rawVal, 10);
     setItems((prev) =>
       prev.map((it) => {
         if (it.itemId === itemId) {
-          const safeVal = isNaN(num) ? 0 : Math.max(0, Math.min(it.acceptedQuantity, num));
+          const safeVal = isNaN(num) ? 0 : Math.max(0, Math.min(it.remainingQuantity, num));
           return { ...it, restockQuantity: safeVal };
         }
         return it;
@@ -502,16 +520,20 @@ export function ReturnRestockModal({
     );
   };
 
+  const hasRemainingItems = items.some((it) => it.remainingQuantity > 0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMessage('');
 
     try {
+      // Chỉ gửi các dòng còn số lượng cần nhập để tránh gửi vượt phần còn lại
+      const itemsToSubmit = items.filter((it) => it.remainingQuantity > 0);
       const payload: ReturnRequestRestockRequest = {
-        items: items.map((it) => ({
+        items: itemsToSubmit.map((it) => ({
           returnRequestItemId: it.itemId,
-          restockQuantity: it.restockQuantity,
+          restockQuantity: Math.max(0, Math.min(it.remainingQuantity, it.restockQuantity)),
           note: it.note.trim() || undefined,
         })),
       };
@@ -542,8 +564,8 @@ export function ReturnRestockModal({
               Nhập kho phiếu: <span className="font-mono">{returnRequest.returnCode}</span>
             </p>
             <p className="text-content-secondary">
-              Phân loại số lượng sản phẩm đủ chuẩn đóng gói lại để mở bán trên website. Số lượng
-              nhập kho không được vượt quá số lượng QC đã duyệt hoàn tiền.
+              Phân loại số lượng sản phẩm đủ chuẩn đóng gói lại để mở bán trên website. Hệ thống
+              hỗ trợ nhập cộng dồn nhiều đợt; số lượng nhập đợt này không vượt quá phần còn lại.
             </p>
           </div>
         </div>
@@ -559,51 +581,68 @@ export function ReturnRestockModal({
               <thead>
                 <tr className="bg-surface border-b border-line-light text-content-muted font-bold uppercase tracking-wider">
                   <th className="py-2.5 px-3">Sản phẩm</th>
-                  <th className="py-2.5 px-3 text-center w-28">SL QC Đã Duyệt</th>
-                  <th className="py-2.5 px-3 text-center w-32">SL Nhập Kho Bán</th>
+                  <th className="py-2.5 px-3 text-center w-24">SL QC Đã Duyệt</th>
+                  <th className="py-2.5 px-3 text-center w-20">Đã nhập</th>
+                  <th className="py-2.5 px-3 text-center w-20">Còn lại</th>
+                  <th className="py-2.5 px-3 text-center w-28">SL Nhập Đợt Này</th>
                   <th className="py-2.5 px-3">Ghi chú phân loại kho</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-light">
-                {items.map((it) => (
-                  <tr key={it.itemId} className="hover:bg-surface transition-colors">
-                    <td className="py-2.5 px-3">
-                      <p className="font-semibold text-content-primary text-sm line-clamp-1">
-                        {it.productName}
-                      </p>
-                      {it.variantInfo && (
-                        <p className="text-content-muted text-xs">{it.variantInfo}</p>
-                      )}
-                    </td>
+                {items.map((it) => {
+                  const isRowFullyRestocked = it.remainingQuantity === 0;
+                  return (
+                    <tr key={it.itemId} className="hover:bg-surface transition-colors">
+                      <td className="py-2.5 px-3">
+                        <p className="font-semibold text-content-primary text-sm line-clamp-1">
+                          {it.productName}
+                        </p>
+                        {it.variantInfo && (
+                          <p className="text-content-muted text-xs">{it.variantInfo}</p>
+                        )}
+                      </td>
 
-                    <td className="py-2.5 px-3 text-center font-bold text-sm text-content-primary">
-                      {it.acceptedQuantity}
-                    </td>
+                      <td className="py-2.5 px-3 text-center font-bold text-sm text-content-primary">
+                        {it.acceptedQuantity}
+                      </td>
 
-                    <td className="py-2.5 px-3 text-center">
-                      <input
-                        type="number"
-                        min={0}
-                        max={it.acceptedQuantity}
-                        value={it.restockQuantity}
-                        onChange={(e) => handleRestockQtyChange(it.itemId, e.target.value)}
-                        disabled={isSubmitting}
-                        className="w-16 h-8 text-center text-sm font-bold border border-line rounded-sm bg-surface-body text-content-primary focus:border-line-focus focus:outline-none"
-                      />
-                    </td>
+                      <td className="py-2.5 px-3 text-center font-mono text-sm text-content-secondary">
+                        {it.alreadyRestocked}
+                      </td>
 
-                    <td className="py-2.5 px-3">
-                      <input
-                        type="text"
-                        value={it.note}
-                        onChange={(e) => handleNoteChange(it.itemId, e.target.value)}
-                        placeholder="Ví dụ: Kệ A-12, còn nguyên túi zip, đã là phẳng..."
-                        disabled={isSubmitting}
-                        className="w-full h-8 px-2 text-xs border border-line rounded-sm bg-surface-body text-content-primary placeholder:text-content-muted focus:border-line-focus focus:outline-none"
-                      />
-                    </td>
-                  </tr>
-                ))}
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-sm text-content-primary">
+                        {it.remainingQuantity}
+                      </td>
+
+                      <td className="py-2.5 px-3 text-center">
+                        <input
+                          type="number"
+                          min={0}
+                          max={it.remainingQuantity}
+                          value={it.restockQuantity}
+                          onChange={(e) => handleRestockQtyChange(it.itemId, e.target.value)}
+                          disabled={isSubmitting || isRowFullyRestocked}
+                          className="w-16 h-8 text-center text-sm font-bold border border-line rounded-sm bg-surface-body text-content-primary disabled:bg-surface-disabled disabled:text-content-disabled focus:border-line-focus focus:outline-none"
+                        />
+                      </td>
+
+                      <td className="py-2.5 px-3">
+                        <input
+                          type="text"
+                          value={it.note}
+                          onChange={(e) => handleNoteChange(it.itemId, e.target.value)}
+                          placeholder={
+                            isRowFullyRestocked
+                              ? 'Đã nhập đủ số lượng QC duyệt'
+                              : 'Ví dụ: Kệ A-12, còn nguyên túi zip, đã là phẳng...'
+                          }
+                          disabled={isSubmitting || isRowFullyRestocked}
+                          className="w-full h-8 px-2 text-xs border border-line rounded-sm bg-surface-body text-content-primary placeholder:text-content-muted disabled:bg-surface-disabled disabled:text-content-disabled focus:border-line-focus focus:outline-none"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -624,7 +663,7 @@ export function ReturnRestockModal({
             type="submit"
             variant="primary"
             loading={isSubmitting}
-            disabled={items.length === 0}
+            disabled={items.length === 0 || !hasRemainingItems}
           >
             Xác Nhận Nhập Kho
           </Button>
