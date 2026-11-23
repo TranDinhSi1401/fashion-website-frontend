@@ -8,17 +8,22 @@
  */
 export type OrderStatus =
   | 'PENDING'
+  | 'PENDING_PAYMENT'
+  | 'PROCESSING'
   | 'CONFIRMED'
   | 'SHIPPING'
   | 'DELIVERED'
   | 'CANCELLED'
-  | 'RETURNED';
+  | 'SYSTEM_CANCELED'
+  | 'RETURNED'
+  | 'COMPLETED';
 
 /**
  * Trạng thái thanh toán của đơn hàng.
  */
 export type PaymentStatus =
   | 'PENDING'
+  | 'PENDING_COD'
   | 'PAID'
   | 'FAILED'
   | 'REFUNDED';
@@ -81,10 +86,22 @@ export interface OrderResponse {
   orderStatus: OrderStatus | string;
   /** Thời điểm đơn hàng được giao thành công tới tay khách (mốc tính hạn 7 ngày trả hàng) */
   deliveredAt?: string | null;
+  /** Thời điểm giao hàng dự kiến do đơn vị vận chuyển cung cấp */
+  expectedDeliveryTime?: string | null;
   /** Trạng thái thanh toán của đơn hàng */
   paymentStatus: PaymentStatus | string;
+  paymentMethodId?: number | null;
+  paymentMethodCode?: string | null;
+  paymentMethodName?: string | null;
+  paymentMethod?: {
+    id?: number;
+    code?: string;
+    name?: string;
+  } | null;
   /** Ghi chú đơn hàng của khách */
   notes?: string | null;
+  /** Mã vận đơn dùng để theo dõi đơn hàng */
+  trackingCode?: string | null;
   /** Thời điểm tạo đơn hàng (ISO 8601) */
   createdAt: string;
   /** Thời điểm cập nhật đơn hàng gần nhất (ISO 8601) */

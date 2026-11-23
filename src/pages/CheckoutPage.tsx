@@ -370,7 +370,7 @@ export default function CheckoutPage() {
         specialOfferId: selectedOfferId === '' ? null : selectedOfferId,
         notes: checkoutNotes.trim() || undefined,
       });
-      void refresh();
+      await refresh();
       if (isVnPay) {
         const paymentUrl = getPaymentRedirectUrl(response.data?.paymentUrl);
         if (!paymentUrl) {
