@@ -82,7 +82,7 @@ export default function ReturnDetailPage() {
         // Nếu phiếu đang chờ duyệt thì tra cứu thêm ngày giao hàng của đơn gốc để kiểm tra hạn sửa 7 ngày trên UI
         if (res.data.status === 'PENDING_APPROVAL' && res.data.orderId) {
           try {
-            const ord = await orderService.getOrderById(res.data.orderId);
+            const ord = await orderService.getMyOrderById(res.data.orderId);
             setOrderDeliveredAt(ord?.deliveredAt || null);
           } catch {
             setOrderDeliveredAt(null);

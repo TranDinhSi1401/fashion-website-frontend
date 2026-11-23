@@ -105,7 +105,7 @@ export default function ReturnCreatePage() {
     setOrderError('');
 
     orderService
-      .getOrderById(orderIdNum)
+      .getMyOrderById(orderIdNum)
       .then((fetchedOrder: OrderWithItems) => {
         if (!isOrderEligibleForReturn(fetchedOrder)) {
           setOrderError('Đơn hàng này không đủ điều kiện yêu cầu trả (phải ở trạng thái Đã giao và trong vòng 7 ngày).');
