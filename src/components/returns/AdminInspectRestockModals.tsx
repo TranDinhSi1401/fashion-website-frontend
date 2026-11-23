@@ -71,10 +71,12 @@ export function ReturnInspectModal({
   const [isFeeDirty, setIsFeeDirty] = useState<boolean>(false);
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [hasOrderDiscount, setHasOrderDiscount] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const isInitialChangeOfMind = returnRequest.reason === 'CHANGE_OF_MIND';
   const isShippingFeeEditable = reclassifyToChangeOfMind || isInitialChangeOfMind;
+  const ghnFee = Math.max(0, returnRequest.ghnShippingFee ?? returnRequest.returnShippingFee ?? 0);
 
   // Khởi tạo state khi mở modal và tự động tra cứu đơn giá gốc từ đơn hàng nếu phiếu chưa có itemRefundAmount
   useEffect(() => {
@@ -116,22 +118,35 @@ export function ReturnInspectModal({
     setReturnShippingFee(returnRequest.returnShippingFee ?? 0);
     setIsFeeDirty(false);
     setRejectionReason(returnRequest.rejectionReason || '');
+    setHasOrderDiscount(false);
     setErrorMessage('');
     setIsSubmitting(false);
 
-    // Nếu phiếu chưa có đơn giá (thường gặp trước bước QC đầu tiên), thử lấy đơn giá từ đơn hàng gốc
+    // Nếu phiếu chưa có đơn giá (thường gặp trước bước QC đầu tiên), thử lấy đơn giá từ đơn hàng gốc (kèm chia tỷ lệ voucher nếu có)
     const needsOrderLookup = initialItems.some((it) => it.unitRefundAmount === 0) && Boolean(returnRequest.orderId);
     if (needsOrderLookup) {
       orderService
         .getOrderById(returnRequest.orderId)
         .then((order) => {
           if (!isMounted || !order?.orderItems?.length) return;
+          const subtotal = order.subtotal || 0;
+          const discountAmount = order.discountAmount || 0;
+          const hasDiscount = subtotal > 0 && discountAmount > 0;
+          const discountFactor = hasDiscount
+            ? Math.max(0, subtotal - discountAmount) / subtotal
+            : 1;
+          setHasOrderDiscount(hasDiscount);
+
           const priceMap: Record<number, number> = {};
           order.orderItems.forEach((oi) => {
-            if (oi.unitPrice > 0) {
-              priceMap[oi.id] = oi.unitPrice;
-            } else if (oi.totalPrice > 0 && oi.quantity > 0) {
-              priceMap[oi.id] = Math.round(oi.totalPrice / oi.quantity);
+            const basePrice =
+              oi.unitPrice > 0
+                ? oi.unitPrice
+                : oi.totalPrice > 0 && oi.quantity > 0
+                ? oi.totalPrice / oi.quantity
+                : 0;
+            if (basePrice > 0) {
+              priceMap[oi.id] = Math.round(basePrice * discountFactor);
             }
           });
           setItems((prev) =>
@@ -182,7 +197,10 @@ export function ReturnInspectModal({
     0
   );
   const effectiveShippingFee = isShippingFeeEditable ? returnShippingFee : 0;
-  const calculatedNetRefund = Math.max(0, calculatedItemsRefund - effectiveShippingFee);
+  const rawNetRefund = calculatedItemsRefund - effectiveShippingFee;
+  const isNegativeOrZeroRefund =
+    totalAcceptedQuantity > 0 && effectiveShippingFee > 0 && rawNetRefund <= 0;
+  const calculatedNetRefund = Math.max(0, rawNetRefund);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -315,7 +333,13 @@ export function ReturnInspectModal({
               id="reclassify-change-of-mind"
               label="Khách đổi ý (chuyển sang thu phí vận chuyển gửi trả)"
               checked={reclassifyToChangeOfMind}
-              onChange={(e) => setReclassifyToChangeOfMind(e.target.checked)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setReclassifyToChangeOfMind(checked);
+                if (checked && !isFeeDirty && returnShippingFee === 0 && ghnFee > 0) {
+                  setReturnShippingFee(ghnFee);
+                }
+              }}
               disabled={isSubmitting}
             />
             <p className="text-xs text-content-muted mt-1.5 ml-6">
@@ -345,9 +369,9 @@ export function ReturnInspectModal({
                 {isShippingFeeEditable ? '(Được chỉnh sửa)' : '(Bằng 0 do lỗi từ Shop)'}
               </span>
             </div>
-            {typeof returnRequest.returnShippingFee === 'number' && returnRequest.returnShippingFee > 0 && (
+            {ghnFee > 0 && (
               <p className="text-xs text-content-muted mt-1">
-                Phí GHN đã tính ở bước duyệt: <strong className="text-content-primary">{formatVND(returnRequest.returnShippingFee)}</strong>
+                Phí GHN đã tính ở bước duyệt: <strong className="text-content-primary">{formatVND(ghnFee)}</strong>
               </p>
             )}
           </div>
@@ -412,6 +436,18 @@ export function ReturnInspectModal({
               </span>
             </div>
           </div>
+
+          {hasOrderDiscount && (
+            <p className="text-[11px] text-content-muted mt-2">
+              * Đã phân bổ tỷ lệ mã giảm giá toàn đơn từ đơn hàng gốc (số tiền chính thức chốt theo Backend sau khi lưu).
+            </p>
+          )}
+
+          {isNegativeOrZeroRefund && (
+            <p className="text-xs font-semibold text-status-error mt-2">
+              Cảnh báo: Phí vận chuyển khấu trừ đang lớn hơn hoặc bằng giá trị hàng hoàn. Hệ thống không cho phép tạo giao dịch hoàn tiền ≤ 0đ.
+            </p>
+          )}
         </div>
 
         {errorMessage && (

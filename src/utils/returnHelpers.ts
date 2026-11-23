@@ -642,10 +642,9 @@ export function canCustomerCancelReturn(ret?: {
 /**
  * Chức năng: Kiểm tra xem khách hàng có quyền chỉnh sửa thông tin yêu cầu trả hàng hay không (Modal C5a).
  * Điều kiện: Chỉ được sửa khi phiếu còn ở trạng thái PENDING_APPROVAL (chờ xét duyệt),
- * và nếu có thông tin ngày giao hàng deliveredAt thì vẫn phải còn trong hạn 7 ngày lịch.
+ * không khóa theo hạn 7 ngày sau giao hàng đối với phiếu đã gửi hợp lệ từ trước.
  *
- * @param ret   Đầu vào: Thông tin phiếu trả hàng chứa status và tùy chọn deliveredAt / orderDeliveredAt.
- * @param nowMs Đầu vào: Mốc thời gian hiện tại tính theo mili-giây (tùy chọn).
+ * @param ret   Đầu vào: Thông tin phiếu trả hàng chứa status.
  * @returns Đầu ra: true nếu được phép mở modal sửa; ngược lại false.
  */
 export function canCustomerEditReturn(
@@ -654,19 +653,12 @@ export function canCustomerEditReturn(
     deliveredAt?: string | null;
     orderDeliveredAt?: string | null;
   } | null,
-  nowMs?: number
+  _nowMs?: number
 ): boolean {
   if (!ret || !ret.status) {
     return false;
   }
-  if (ret.status !== 'PENDING_APPROVAL') {
-    return false;
-  }
-  const deliveredAt = ret.deliveredAt ?? ret.orderDeliveredAt;
-  if (deliveredAt) {
-    return isOrderEligibleForReturn({ orderStatus: 'DELIVERED', deliveredAt }, nowMs);
-  }
-  return true;
+  return ret.status === 'PENDING_APPROVAL';
 }
 
 /**
@@ -731,6 +723,7 @@ export type AdminActionType =
 export function getAdminAvailableActions(ret?: {
   status?: ReturnRequestStatus | string;
   handedOverAt?: string | null;
+  handoverDeadline?: string | null;
   inspectedAt?: string | null;
   restockedAt?: string | null;
   receivedAt?: string | null;
@@ -748,11 +741,18 @@ export function getAdminAvailableActions(ret?: {
     actions.push('approve');
   }
 
-  // 2. Từ chối yêu cầu: Cho phép ở PENDING_APPROVAL, INSPECTING, hoặc WAITING_CUSTOMER_FEEDBACK
+  // 2. Từ chối / Đóng yêu cầu: Cho phép ở PENDING_APPROVAL, INSPECTING, WAITING_CUSTOMER_FEEDBACK,
+  // hoặc đóng phiếu WAITING_FOR_RETURN_DELIVERY khi đã quá hạn 7 ngày bàn giao và chưa giao hàng cho shipper
+  const isHandoverExpired =
+    status === 'WAITING_FOR_RETURN_DELIVERY' &&
+    !ret.handedOverAt &&
+    ret.handoverDeadline != null &&
+    new Date(ret.handoverDeadline).getTime() < Date.now();
   if (
     status === 'PENDING_APPROVAL' ||
     status === 'INSPECTING' ||
-    status === 'WAITING_CUSTOMER_FEEDBACK'
+    status === 'WAITING_CUSTOMER_FEEDBACK' ||
+    isHandoverExpired
   ) {
     actions.push('reject');
   }
@@ -768,8 +768,8 @@ export function getAdminAvailableActions(ret?: {
     actions.push('receive');
   }
 
-  // 5. Kiểm định QC: Khi hàng đã về kho và đang trong trạng thái INSPECTING
-  if (status === 'INSPECTING') {
+  // 5. Kiểm định QC (hoặc điều chỉnh lại phương án sau khi khách bấm Không đồng ý ở WAITING_CUSTOMER_FEEDBACK)
+  if (status === 'INSPECTING' || status === 'WAITING_CUSTOMER_FEEDBACK') {
     actions.push('inspect');
   }
 
@@ -798,11 +798,12 @@ export function getAdminAvailableActions(ret?: {
     actions.push('overdueNote');
   }
 
-  // 9. Ghi nhật ký CSKH: Chưa đóng hồ sơ và (đang chờ khách phản hồi hoặc đã từ chối nhưng hàng đã về kho)
+  // 9. Ghi nhật ký CSKH: Chưa đóng hồ sơ và (đang chờ khách phản hồi, đã từ chối giữ hàng tại kho, hoặc đã hoàn tiền 1 phần còn hàng lưu kho)
   if (
     !ret.completedAt &&
     (status === 'WAITING_CUSTOMER_FEEDBACK' ||
-      (status === 'REJECTED' && ret.receivedAt != null))
+      (status === 'REJECTED' && ret.receivedAt != null) ||
+      status === 'REFUNDED')
   ) {
     actions.push('contactLog');
   }

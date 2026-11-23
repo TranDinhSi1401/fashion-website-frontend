@@ -195,6 +195,8 @@ export interface ReturnRequestResponse {
   itemsRefundAmount?: number | null;
   /** Phí vận chuyển gửi trả hàng do khách chịu (nếu đổi ý) (VND) */
   returnShippingFee?: number | null;
+  /** Cước vận chuyển thực tế từ GHN ở Bước 2 (VND) */
+  ghnShippingFee?: number | null;
   /** Số tiền thực tế hoàn về tài khoản cho khách (itemsRefundAmount - returnShippingFee) (VND) */
   refundAmount?: number | null;
   /** Tên ngân hàng nhận tiền hoàn */

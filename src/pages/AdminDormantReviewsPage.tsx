@@ -142,10 +142,10 @@ export default function AdminDormantReviewsPage() {
             Quy chế xử lý hàng tồn lưu kho chờ khách phản hồi quá 30 ngày
           </p>
           <p className="text-content-secondary">
-            Theo chính sách bảo hộ và lưu kho: Sau 30 ngày kể từ khi kho có kết quả kiểm định QC mà
-            khách hàng không xác nhận phương án hoặc bổ sung số tài khoản ngân hàng, Quản trị viên
-            (ROLE_ADMIN) có toàn quyền quyết định: chuyển hoàn tiền tự động theo số tài khoản cũ,
-            niêm phong tiêu hủy hoặc thanh lý nhập kho bảo lưu giá trị.
+            Theo chính sách bảo vệ tài sản khách hàng: Mốc 30 ngày chỉ là mốc nhắc Quản trị viên
+            (ROLE_ADMIN) rà soát hồ sơ lưu kho riêng, chủ động chỉ đạo liên hệ lại khách hàng và
+            ghi nhận vào nhật ký CSKH. Tuyệt đối không tự động hủy yêu cầu, không tự ý hoàn tiền
+            khi khách chưa xác nhận và không tịch thu, tiêu hủy hay bán thanh lý tài sản của khách.
           </p>
         </div>
       </div>

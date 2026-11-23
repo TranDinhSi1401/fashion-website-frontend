@@ -31,13 +31,14 @@ import Button from '../components/ui/Button';
 import OrderReviewModal from '../components/product/OrderReviewModal';
 import { cn } from '../utils/cn';
 
-type CustomerOrderFilter = 'ALL' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED';
+type CustomerOrderFilter = 'ALL' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'RETURNED';
 
 const CUSTOMER_ORDER_FILTERS: { value: CustomerOrderFilter; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
   { value: 'PROCESSING', label: 'Đang xử lý' },
   { value: 'SHIPPING', label: 'Đang giao' },
   { value: 'DELIVERED', label: 'Giao thành công' },
+  { value: 'RETURNED', label: 'Đã trả hàng' },
 ];
 
 function groupReviewableItemsByOrder(
@@ -177,7 +178,8 @@ export default function CustomerOrdersTab() {
     (order) =>
       order.orderStatus === 'PROCESSING' ||
       order.orderStatus === 'SHIPPING' ||
-      order.orderStatus === 'DELIVERED'
+      order.orderStatus === 'DELIVERED' ||
+      order.orderStatus === 'RETURNED'
   );
   const filteredOrders =
     activeFilter === 'ALL'

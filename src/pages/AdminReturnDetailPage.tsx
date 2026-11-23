@@ -296,6 +296,15 @@ export default function AdminReturnDetailPage() {
           </span>
         </div>
 
+        {returnRequest.status === 'WAITING_CUSTOMER_FEEDBACK' &&
+          returnRequest.customerConfirmedPlan === false && (
+            <div className="mb-3 rounded-sm border border-status-warning bg-surface px-3 py-2 text-xs text-content-primary">
+              Khách hàng đã bấm <strong>Không đồng ý phương án</strong>
+              {returnRequest.customerNote ? ` ("${returnRequest.customerNote}")` : ''}. Quản lý có thể trao đổi và bấm{' '}
+              <strong>Kiểm định QC</strong> để điều chỉnh lại phương án xử lý.
+            </div>
+          )}
+
         {availableActions.length === 0 ? (
           <p className="text-xs text-content-muted italic">
             Hồ sơ đã đóng hoặc hiện không có tác vụ nào khả dụng tại bước này.
@@ -561,6 +570,22 @@ export default function AdminReturnDetailPage() {
                 <span>Thời điểm duyệt:</span>
                 <span className="text-content-primary font-mono">
                   {returnRequest.approvedAt ? formatDateTime(returnRequest.approvedAt) : '—'}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Hạn bàn giao:</span>
+                <span className="text-content-primary font-mono">
+                  {returnRequest.handoverDeadline ? formatDateTime(returnRequest.handoverDeadline) : '—'}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Đã nhắc bàn giao:</span>
+                <span className="text-content-primary font-mono">
+                  {returnRequest.handoverReminderSentAt
+                    ? formatDateTime(returnRequest.handoverReminderSentAt)
+                    : 'Chưa gửi'}
                 </span>
               </div>
 

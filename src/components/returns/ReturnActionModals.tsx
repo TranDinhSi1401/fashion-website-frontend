@@ -32,6 +32,7 @@ import {
 } from '../../utils/returnHelpers';
 import { returnService } from '../../services/returnService';
 import { userService } from '../../services/userService';
+import { orderService } from '../../services/orderService';
 import type { UserAddressResponse } from '../../types/user';
 import type {
   ReturnRequestResponse,
@@ -80,6 +81,9 @@ export function ReturnEditModal({
 
   // Thông tin lấy hàng chiều hoàn (GHN)
   const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
+  const [orderItemMeta, setOrderItemMeta] = useState<
+    Record<number, { maxQuantity: number; unitPrice: number }>
+  >({});
   const [pickupAddressId, setPickupAddressId] = useState<string>('');
   const [pickupContactName, setPickupContactName] = useState<string>(
     returnRequest.pickupContactName || ''
@@ -122,6 +126,25 @@ export function ReturnEditModal({
       .catch(() => {
         // Bỏ qua lỗi tải sổ địa chỉ; vẫn cho phép giữ địa chỉ hiện tại hoặc nhập liên hệ
       });
+
+    if (returnRequest.orderId) {
+      orderService
+        .getOrderById(returnRequest.orderId)
+        .then((order) => {
+          if (!isMounted || !order?.orderItems?.length) return;
+          const metaMap: Record<number, { maxQuantity: number; unitPrice: number }> = {};
+          order.orderItems.forEach((oi) => {
+            metaMap[oi.id] = {
+              maxQuantity: Math.max(1, oi.quantity || 1),
+              unitPrice: oi.unitPrice || 0,
+            };
+          });
+          setOrderItemMeta(metaMap);
+        })
+        .catch(() => {
+          // Bỏ qua lỗi tải đơn hàng gốc; vẫn giữ fallback từ dữ liệu phiếu hiện tại
+        });
+    }
 
     return () => {
       isMounted = false;
@@ -281,36 +304,46 @@ export function ReturnEditModal({
             Sản phẩm yêu cầu trả
           </label>
           <div className="flex flex-col gap-2.5 border border-line-light rounded-sm p-3 bg-surface">
-            {(returnRequest.items || []).map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-4 border-b border-line-light pb-2.5 last:border-b-0 last:pb-0"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-content-primary truncate">
-                    {item.productName}
+            {(returnRequest.items || []).map((item) => {
+              const meta = orderItemMeta[item.orderItemId];
+              const displayPrice =
+                item.itemRefundAmount != null && item.itemRefundAmount > 0
+                  ? item.itemRefundAmount
+                  : meta?.unitPrice || 0;
+              const maxQty = Math.max(item.quantity || 1, meta?.maxQuantity || item.quantity || 1);
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-4 border-b border-line-light pb-2.5 last:border-b-0 last:pb-0"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-content-primary truncate">
+                      {item.productName}
+                    </div>
+                    <div className="text-xs text-content-muted">{item.variantInfo || 'Tiêu chuẩn'}</div>
+                    <div className="text-xs text-content-secondary mt-0.5">
+                      Giá:{' '}
+                      {displayPrice > 0 ? formatVND(displayPrice) : 'Theo đơn hàng gốc'}
+                    </div>
                   </div>
-                  <div className="text-xs text-content-muted">{item.variantInfo || 'Tiêu chuẩn'}</div>
-                  <div className="text-xs text-content-secondary mt-0.5">
-                    Giá: {formatVND(item.itemRefundAmount || 0)}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-content-muted">Số lượng:</span>
+                    <QuantityStepper
+                      min={1}
+                      max={maxQty}
+                      value={itemQuantities[item.orderItemId] || item.quantity}
+                      onChange={(val) =>
+                        setItemQuantities((prev) => ({
+                          ...prev,
+                          [item.orderItemId]: val,
+                        }))
+                      }
+                    />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-content-muted">Số lượng:</span>
-                  <QuantityStepper
-                    min={1}
-                    max={item.quantity || 1}
-                    value={itemQuantities[item.orderItemId] || item.quantity}
-                    onChange={(val) =>
-                      setItemQuantities((prev) => ({
-                        ...prev,
-                        [item.orderItemId]: val,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

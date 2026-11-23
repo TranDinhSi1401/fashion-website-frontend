@@ -216,11 +216,23 @@ describe('Tier 1: Feature Coverage', () => {
     assert.ok(actionsB4.includes('inspect'));
     assert.ok(actionsB4.includes('reject'));
 
+    // Chờ khách phản hồi (WAITING_CUSTOMER_FEEDBACK) -> cho phép điều chỉnh inspect khi khách từ chối phương án
+    const actionsFeedback = getAdminAvailableActions({ status: 'WAITING_CUSTOMER_FEEDBACK' });
+    assert.ok(actionsFeedback.includes('inspect'));
+
+    // Đóng phiếu quá hạn 7 ngày bàn giao khi chưa giao shipper -> có action reject
+    const actionsExpiredHandover = getAdminAvailableActions({
+      status: 'WAITING_FOR_RETURN_DELIVERY',
+      handedOverAt: null,
+      handoverDeadline: '2020-01-01T00:00:00Z',
+    });
+    assert.ok(actionsExpiredHandover.includes('reject'));
+
     // Bước 5: WAITING_REFUND -> refund
     const actionsB5 = getAdminAvailableActions({ status: 'WAITING_REFUND' });
     assert.ok(actionsB5.includes('refund'));
 
-    // Bước 6: Nhập kho (restock) khi đã inspect và chưa restock
+    // Bước 6: Nhập kho (restock) và ghi nhật ký CSKH cho phiếu REFUNDED chưa đóng (completedAt == null)
     const actionsRestock = getAdminAvailableActions({
       status: 'REFUNDED',
       inspectedAt: '2026-11-15T08:00:00Z',
@@ -228,6 +240,7 @@ describe('Tier 1: Feature Coverage', () => {
       completedAt: null,
     });
     assert.ok(actionsRestock.includes('restock'));
+    assert.ok(actionsRestock.includes('contactLog'));
     assert.ok(actionsRestock.includes('complete')); // REFUNDED chưa completed -> có complete action
   });
 });
@@ -587,7 +600,7 @@ describe('Tier 4: Real-World Scenarios', () => {
     assert.equal(normalizeReturnReason('invalid_value'), 'CHANGE_OF_MIND');
     assert.equal(getReturnReasonLabel('DEFECTIVE'), 'Sản phẩm bị lỗi sản xuất');
 
-    // 3. Khóa nút chỉnh sửa khi quá hạn 7 ngày kể từ ngày giao hàng
+    // 3. Khóa nút chỉnh sửa khi không còn ở PENDING_APPROVAL; giữ mở khi vẫn PENDING_APPROVAL kể cả quá 7 ngày sau giao
     const now = 1700000000000;
     const within7Days = new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString();
     const expired8Days = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString();
@@ -597,6 +610,10 @@ describe('Tier 4: Real-World Scenarios', () => {
     );
     assert.equal(
       canCustomerEditReturn({ status: 'PENDING_APPROVAL', deliveredAt: expired8Days }, now),
+      true
+    );
+    assert.equal(
+      canCustomerEditReturn({ status: 'WAITING_FOR_RETURN_DELIVERY', deliveredAt: within7Days }, now),
       false
     );
   });
