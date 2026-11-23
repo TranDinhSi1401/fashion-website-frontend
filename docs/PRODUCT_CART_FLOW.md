@@ -45,3 +45,11 @@ Giữ `.env` cục bộ theo `.env.example`; không commit hoặc push thông ti
 ## Bổ sung giao diện giỏ hàng
 
 Giỏ nhanh dùng native dialog để đứng trên các widget AI/chat, khóa focus và cuộn nền khi mở. Trên điện thoại giỏ chiếm đủ chiều ngang, vùng danh sách cuộn riêng và footer giữ nút Xem giỏ hàng/Thanh toán trong khung. Trang `/cart` được căn giữa theo container có khoảng đệm responsive; AI/chat được ẩn trên `/cart` và `/checkout` để không che thao tác mua hàng.
+
+## Giá khuyến mãi trong giỏ hàng
+
+- Mỗi dòng trả thêm `originalPrice` là giá gốc; `unitPrice` là giá sau ưu đãi PRODUCT tự động hợp lệ của đúng biến thể. `subtotal` và `totalPrice` tính theo giá sau giảm.
+- Backend dùng chung quy tắc ProductPricingService, không cộng dồn các ưu đãi PRODUCT; loại ưu đãi có điều kiện giỏ hàng và kiểm tra lại hiệu lực ở mỗi lần lấy/cập nhật giỏ.
+- Frontend hiển thị giá gốc gạch ngang và giá sau giảm ở giỏ nhanh, giỏ desktop và mobile. Sản phẩm không giảm chỉ hiện một giá.
+- Khi đặt hàng, chụp giá giỏ trước khi trừ tồn kho; OrderItem giữ cả originalPrice/unitPrice. Tổng đơn, giao dịch và số tiền giảm truyền sang GHN COD dùng cùng giá sau ưu đãi, tránh thu lại giá gốc.
+- Trang giỏ bỏ thanh bước 1–2–3 và dùng góc vuông. Chi tiết sản phẩm không còn liên kết giỏ hàng trùng với menu.

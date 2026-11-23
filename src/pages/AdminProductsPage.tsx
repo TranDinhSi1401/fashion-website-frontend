@@ -13,7 +13,6 @@ import { Button, Checkbox, Input, Modal, Select } from '../components/ui';
 import MoneyInput from '../components/ui/MoneyInput';
 import ProductPrice from '../components/product/ProductPrice';
 import { extractErrorMessage, extractProductImage } from '../utils/format';
-import styles from './AdminPages.module.css';
 import ui from './AdminProductsPage.module.css';
 import editorStyles from './ProductEditor.module.css';
 
@@ -238,7 +237,7 @@ export default function AdminProductsPage() {
     <div className="container py-8 sm:py-10">
     <AdminNav title="Quản lý sản phẩm" subtitle="Sắp xếp danh mục, cập nhật sản phẩm và theo dõi tồn kho."
       actions={<><Button size="sm" icon={RefreshCw} variant="outline" onClick={() => setReload(r => r + 1)}>Làm mới</Button>
-        {(isAdmin || isStaff) && <Button size="sm" icon={Plus} className={ui.addButton} onClick={() => openForm()} disabled={!categories.some(c => c.isActive)}>Thêm sản phẩm</Button>}</>} />
+        {(isAdmin || isStaff) && <Button size="sm" icon={Plus} onClick={() => openForm()} disabled={!categories.some(c => c.isActive)}>Thêm sản phẩm</Button>}</>} />
 
     <section className={ui.workspace} aria-labelledby="product-list-heading">
       <div className={ui.listHeading}>
@@ -269,7 +268,7 @@ export default function AdminProductsPage() {
           <div><button type="button" className={ui.resetButton} onClick={resetFilters}><X size={14} />Xóa bộ lọc</button><Button type="submit" size="sm" icon={Search}>Tìm kiếm</Button></div>
         </div>
       </form>
-      {notice.text && <p role="status" className={notice.error ? styles.alertError : styles.alertSuccess}>{notice.text}</p>}
+      {notice.text && <p role="status" className={notice.error ? ui.alertError : ui.alertSuccess}>{notice.text}</p>}
       <div className={ui.tableWrap} aria-busy={loading}>
         <table className={ui.table}><thead><tr>
           {['Sản phẩm', 'Danh mục', 'Giá bán', 'Tồn kho', 'Trạng thái', 'Thao tác'].map(h => <th key={h}>{h}</th>)}
@@ -310,7 +309,7 @@ export default function AdminProductsPage() {
         <p>{categories.find(c => c.id === detail.categoryId)?.name} · {detail.isActive ? 'Hoạt động' : 'Đang ẩn'} · {detail.slug}</p>
         <ProductPrice price={detail.basePrice} offer={detail.bestOffer} />
         <p className="whitespace-pre-line">{detail.description || 'Chưa có mô tả'}</p>
-        <div className="flex gap-3 flex-wrap">{detail.productImages?.map(img => <figure key={img.id}><img src={img.imageUrl} alt={detail.name} className="w-28 h-28 object-cover" /><figcaption>{img.isMain ? 'Ảnh chính' : 'Ảnh phụ'}{img.variantId ? ` · Biến thể #${img.variantId}` : ''}</figcaption></figure>)}</div>
+        <div className="flex gap-3 flex-wrap">{detail.productImages?.map(img => <figure key={img.id}><img src={img.imageUrl} alt={detail.name} className="w-28 aspect-[3/4] object-cover" loading="lazy" /><figcaption>{img.isMain ? 'Ảnh chính' : 'Ảnh phụ'}{img.variantId ? ` · Biến thể #${img.variantId}` : ''}</figcaption></figure>)}</div>
         <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{['SKU', 'Màu', 'Size', 'Giá', 'Tồn kho', 'Trạng thái'].map(h => <th key={h} className="p-2">{h}</th>)}</tr></thead>
           <tbody>{detail.variants?.map(v => <tr key={v.id}><td className="p-2">{v.sku || v.id}</td><td className="p-2">{v.color}</td><td className="p-2">{v.size}</td><td className="p-2"><ProductPrice price={v.price} offer={v.bestOffer} /></td><td className="p-2">{v.stockQuantity}</td><td className="p-2">{v.isActive ? 'Hoạt động' : 'Đang ẩn'}</td></tr>)}</tbody></table></div>
       </div>}
@@ -320,7 +319,7 @@ export default function AdminProductsPage() {
       {formLoading && <p role="status">Đang tải đầy đủ thông tin sản phẩm…</p>}
       <form onSubmit={submit} className={editorStyles.form}><fieldset disabled={saving || uploading || formLoading} className={editorStyles.formContent}>
         {variantTarget && !formLoading && <div role="status" className={editorStyles.targetNotice}><strong>{variantTarget.focus === 'stock' ? 'Bổ sung hàng' : 'Tạm ẩn biến thể'}</strong><span>{variants.find(v => v.id === variantTarget.id)?.color} / {variants.find(v => v.id === variantTarget.id)?.size} · {variantTarget.focus === 'stock' ? 'Nhập tồn kho mới rồi lưu thay đổi.' : 'Bỏ chọn “Biến thể đang bán” rồi lưu thay đổi.'}</span></div>}
-        {formError && <p role="alert" className={styles.alertError}>{formError}</p>}
+        {formError && <p role="alert" className={ui.alertError}>{formError}</p>}
         <section className={editorStyles.section}>
         <div className={editorStyles.sectionHeading}><span>01</span><div><h3>Thông tin cơ bản</h3><p>Tên, giá và danh mục hiển thị trên cửa hàng.</p></div></div>
         <div className={editorStyles.basicGrid}>
@@ -378,7 +377,7 @@ export default function AdminProductsPage() {
             <label className="block text-sm">Hoặc tải ảnh JPEG/PNG/WebP, tối đa 5MB<input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={e => { void upload(e.target.files?.[0], i); e.target.value = ''; }} /></label>
             <Select label="Áp dụng ảnh cho" value={img.variantIndex ?? ''} onChange={e => setImages(old => old.map((x, n) => n === i ? { ...x, variantIndex: e.target.value === '' ? undefined : Number(e.target.value) } : x))}
               options={[{ value: '', label: 'Toàn sản phẩm' }, ...variants.map((v, n) => ({ value: n, label: `${n + 1}. ${v.color} / ${v.size}` }))]} />
-            {img.imageUrl && <img src={img.imageUrl} alt={`Ảnh ${i + 1}`} className="w-24 h-24 object-cover" />}
+            {img.imageUrl && <img src={img.imageUrl} alt={`Ảnh ${i + 1}`} className="w-24 aspect-[3/4] object-cover" loading="lazy" />}
             <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" disabled={i === 0} onClick={() => setImages(old => { const next = [...old]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; return next; })}>↑ Lên</Button>
             <Button size="sm" variant="secondary" disabled={i === images.length - 1} onClick={() => setImages(old => { const next = [...old]; [next[i + 1], next[i]] = [next[i], next[i + 1]]; return next; })}>↓ Xuống</Button>

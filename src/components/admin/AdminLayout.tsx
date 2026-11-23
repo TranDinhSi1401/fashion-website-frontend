@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, Tag, Users, MessageSquare, BellRing, Store, ArrowUpRight, ShieldCheck, Menu, ChevronDown } from 'lucide-react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Package, ShoppingCart, Tag, Users, MessageSquare, BellRing, UserRound, ShieldCheck, Menu, ChevronDown, LogOut } from 'lucide-react';
 import ProtectedRoute from '../common/ProtectedRoute';
+import { useAuth } from '../../context/AuthContext';
+import Modal from '../ui/Modal';
 import styles from './AdminLayout.module.css';
 
 const modules = [
@@ -17,6 +19,17 @@ const modules = [
 export default function AdminLayout() {
   const { pathname } = useLocation();
   const [expanded, setExpanded] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const { user, logout } = useAuth();
+  const [showAccount, setShowAccount] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   return <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
     <div className={styles.layout}>
@@ -30,11 +43,34 @@ export default function AdminLayout() {
               const active = pathname === to || pathname.startsWith(to + '/');
               return <Link key={to} to={to} onClick={() => setExpanded(false)} aria-current={active ? 'page' : undefined} className={`${styles.navLink} ${active ? styles.active : ''}`}><Icon size={18} /><span>{label}</span></Link>;
             })}
-            <Link to="/" className={styles.backLink}><Store size={17} /><span>Về cửa hàng</span><ArrowUpRight size={15} /></Link>
+            <button type="button" className={styles.accountButton} onClick={() => { setShowAccount(true); setExpanded(false); }}>
+              <UserRound size={17} /><span>Thông tin tài khoản</span>
+            </button>
           </nav>
+          <button type="button" className={styles.logoutButton} disabled={loggingOut} onClick={() => void handleLogout()}>
+            <LogOut size={17} /><span>{loggingOut ? 'Đang đăng xuất…' : 'Đăng xuất'}</span>
+          </button>
         </div>
       </aside>
       <div className={styles.content}><Outlet /></div>
+      <Modal isOpen={showAccount} onClose={() => setShowAccount(false)} title="Thông tin tài khoản" maxWidth="560px">
+        {user ? (
+          <dl className={styles.accountDetails}>
+            {[
+              ['Tên đăng nhập', user.username],
+              ['Họ và tên', user.fullname],
+              ['Vai trò', user.role?.replace(/^ROLE_/, '') === 'ADMIN' ? 'Quản trị viên' : 'Nhân viên'],
+              ['Email', user.email],
+              ['Số điện thoại', user.phone],
+              ['Ngày sinh', user.dateOfBirth ? user.dateOfBirth.slice(0, 10).split('-').reverse().join('/') : null],
+              ['Giới tính', user.gender === 'MALE' ? 'Nam' : user.gender === 'FEMALE' ? 'Nữ' : user.gender === 'OTHER' ? 'Khác' : null],
+              ['Địa chỉ', user.address],
+            ].map(([label, value]) => (
+              <div key={label}><dt>{label}</dt><dd>{value || 'Chưa cập nhật'}</dd></div>
+            ))}
+          </dl>
+        ) : <p className="text-sm text-content-secondary">Chưa tải được thông tin tài khoản.</p>}
+      </Modal>
     </div>
   </ProtectedRoute>;
 }

@@ -7,6 +7,7 @@ import { useCart } from '../../context/CartContext';
 import { cn } from '../../utils/cn';
 import { formatCurrencyVND } from '../../utils/format';
 import styles from './MiniCartDrawer.module.css';
+import CartItemPrice from '../cart/CartItemPrice';
 
 export interface MiniCartDrawerProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ function CartItemImage({ src, alt }: { src?: string | null; alt: string }) {
   const [imgError, setImgError] = useState(false);
 
   return (
-    <div className="relative aspect-square w-20 sm:w-22 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50 transition-transform duration-200 hover:scale-[1.03]">
+    <div className="relative aspect-square w-20 sm:w-22 shrink-0 overflow-hidden rounded-none border border-gray-100 bg-gray-50 transition-transform duration-200 hover:scale-[1.03]">
       {src && !imgError ? (
         <img
           src={src}
@@ -120,7 +121,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
             type="button"
             onClick={onClose}
             aria-label="Đóng giỏ hàng"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900"
+            className="flex h-8 w-8 items-center justify-center rounded-none bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900"
           >
             <X size={18} />
           </button>
@@ -129,7 +130,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
         {/* Danh Sách Sản Phẩm Cuộn Độc Lập */}
         <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 sm:px-6 py-4', styles.productList)}>
           {(actionError || error) && (
-            <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+            <div className="mb-4 flex items-start gap-2.5 rounded-none border border-red-200 bg-red-50 p-3 text-xs text-red-700">
               <AlertCircle size={16} className="shrink-0 text-red-600 mt-0.5" />
               <span>{actionError || error}</span>
             </div>
@@ -137,7 +138,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
 
           {!isAuthenticated ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-8 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+              <div className="flex h-16 w-16 items-center justify-center rounded-none bg-gray-100 text-gray-400">
                 <ShoppingBag size={28} />
               </div>
               <h3 className="text-base font-bold text-gray-900">Vui lòng đăng nhập</h3>
@@ -147,14 +148,14 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
               <button
                 type="button"
                 onClick={() => handleNavigate('/login')}
-                className="mt-2 flex h-10 items-center justify-center rounded-lg bg-black px-6 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-zinc-800"
+                className="mt-2 flex h-10 items-center justify-center rounded-none bg-black px-6 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-zinc-800"
               >
                 Đăng nhập ngay
               </button>
             </div>
           ) : !isCustomer ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-8 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+              <div className="flex h-16 w-16 items-center justify-center rounded-none bg-gray-100 text-gray-400">
                 <ShoppingBag size={28} />
               </div>
               <h3 className="text-base font-bold text-gray-900">Tài khoản quản trị / Nhân viên</h3>
@@ -164,14 +165,14 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
               <button
                 type="button"
                 onClick={() => handleNavigate('/')}
-                className="mt-2 flex h-10 items-center justify-center rounded-lg border border-gray-900 bg-white px-6 text-xs font-bold uppercase tracking-wider text-gray-900 transition-colors hover:bg-gray-50"
+                className="mt-2 flex h-10 items-center justify-center rounded-none border border-gray-900 bg-white px-6 text-xs font-bold uppercase tracking-wider text-gray-900 transition-colors hover:bg-gray-50"
               >
                 Về trang chủ
               </button>
             </div>
           ) : items.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-8 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+              <div className="flex h-16 w-16 items-center justify-center rounded-none bg-gray-100 text-gray-400">
                 <ShoppingBag size={28} />
               </div>
               <h3 className="text-base font-bold text-gray-900">Giỏ hàng của bạn đang trống</h3>
@@ -181,7 +182,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
               <button
                 type="button"
                 onClick={() => handleNavigate('/products')}
-                className="mt-2 flex h-10 items-center justify-center rounded-lg bg-black px-6 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-zinc-800"
+                className="mt-2 flex h-10 items-center justify-center rounded-none bg-black px-6 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-zinc-800"
               >
                 Khám phá sản phẩm
               </button>
@@ -230,6 +231,8 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
                           .join(' / ') || 'Tiêu chuẩn'}
                       </p>
 
+                      <div className="mt-2 text-sm"><CartItemPrice item={item} /></div>
+
                       {/* Trạng thái tồn kho nếu có */}
                       {!item.available ? (
                         <span className="mt-1 inline-block text-[11px] font-medium text-red-600">
@@ -244,7 +247,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
 
                     {/* Bộ tăng giảm số lượng & Thành tiền */}
                     <div className="mt-3 flex items-center justify-between gap-2">
-                      <div className="inline-flex h-8 items-center rounded-lg border border-gray-200 bg-white">
+                      <div className="inline-flex h-8 items-center rounded-none border border-gray-200 bg-white">
                         <button
                           type="button"
                           aria-label="Giảm số lượng"
@@ -301,7 +304,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
               <button
                 type="button"
                 onClick={() => handleNavigate('/cart')}
-                className="flex h-11 sm:h-12 items-center justify-center rounded-xl border border-gray-900 bg-white px-3 text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 transition-all hover:bg-gray-50 active:scale-[0.99]"
+                className="flex h-11 sm:h-12 items-center justify-center rounded-none border border-gray-900 bg-white px-3 text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900 transition-all hover:bg-gray-50 active:scale-[0.99]"
               >
                 Giỏ hàng
               </button>
@@ -309,7 +312,7 @@ export default function MiniCartDrawer({ isOpen, onClose }: MiniCartDrawerProps)
                 type="button"
                 disabled={busy || items.length === 0}
                 onClick={() => handleNavigate('/checkout')}
-                className="flex h-11 sm:h-12 items-center justify-center rounded-xl bg-black px-3 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow-sm transition-all hover:bg-zinc-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+                className="flex h-11 sm:h-12 items-center justify-center rounded-none bg-black px-3 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow-sm transition-all hover:bg-zinc-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
               >
                 Thanh toán ngay
               </button>

@@ -60,3 +60,34 @@
   background-color: var(--bg-body);
   transform: scale(1.05);
 }
+
+.newBadge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  isolation: isolate;
+  color: var(--text-inverse);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  letter-spacing: var(--tracking-wide);
+}
+
+.newBadge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-accent-red);
+  clip-path: polygon(50.00% 0.00%, 60.09% 12.33%, 75.00% 6.70%, 77.58% 22.42%, 93.30% 25.00%, 87.67% 39.91%, 100.00% 50.00%, 87.67% 60.09%, 93.30% 75.00%, 77.58% 77.58%, 75.00% 93.30%, 60.09% 87.67%, 50.00% 100.00%, 39.91% 87.67%, 25.00% 93.30%, 22.42% 77.58%, 6.70% 75.00%, 12.33% 60.09%, 0.00% 50.00%, 12.33% 39.91%, 6.70% 25.00%, 22.42% 22.42%, 25.00% 6.70%, 39.91% 12.33%);
+  transform: rotate(-10deg);
+}
+
+.newBadge > span { transform: rotate(-10deg); }
+
+@media (max-width: 640px) {
+  .newBadge { width: 46px; height: 46px; font-size: 11px; }
+}
