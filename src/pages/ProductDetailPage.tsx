@@ -619,12 +619,6 @@ export default function ProductDetailPage() {
               Thử đồ AI ✨
             </Button>
 
-            <Link
-              to="/cart"
-              className="text-sm font-medium text-content-secondary underline underline-offset-4 hover:text-content-primary ml-auto sm:ml-0"
-            >
-              Xem giỏ hàng
-            </Link>
           </div>
 
           {isAuthenticated && !isCustomer && (
@@ -634,10 +628,7 @@ export default function ProductDetailPage() {
           )}
           {notice && (
             <p role="status" className="text-sm font-medium text-status-success">
-              {notice}{' '}
-              <Link to="/cart" className="underline underline-offset-4">
-                Đến giỏ hàng
-              </Link>
+              {notice}
             </p>
           )}
           {actionError && (

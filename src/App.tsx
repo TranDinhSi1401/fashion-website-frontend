@@ -35,12 +35,12 @@ export default function App() {
   const { pathname } = useLocation();
   const purchasing = pathname === '/cart' || pathname === '/checkout';
   const isAuthPage = pathname === '/login' || pathname === '/register' || pathname === '/forgot-password';
-  const isAdminPage = pathname.startsWith('/admin');
+  const isAdminPage = pathname === '/admin' || pathname.startsWith('/admin/');
   const hideFloatingWidgets = purchasing || isAuthPage || isAdminPage;
   return (
     <div className="relative flex min-h-screen flex-col">
       <ScrollManager />
-      <Header />
+      {!isAdminPage && <Header />}
 
       <main className="flex-1">
         <Routes>
@@ -219,7 +219,7 @@ export default function App() {
         </Routes>
       </main>
 
-      <Footer />
+      {!isAdminPage && <Footer />}
 
       {/* Floating AI Stylist Advisor Widget & Realtime Customer Support Chat Widget */}
       {!hideFloatingWidgets && (

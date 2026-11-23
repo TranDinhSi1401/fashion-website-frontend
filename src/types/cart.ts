@@ -6,6 +6,7 @@ export interface CartItem {
   sku?: string;
   color: string;
   size: string;
+  originalPrice?: number;
   unitPrice: number;
   quantity: number;
   subtotal: number;
