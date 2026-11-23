@@ -60,7 +60,7 @@ export function formatDateVN(dateStr?: string | null): string {
 }
 
 /**
- * Validate Date of Birth (must be in the past, age between 10 and 110)
+ * Validate Date of Birth (must be in the past, age between 16 and 110)
  * Returns error message string if invalid, or null if valid.
  */
 export function validateDateOfBirth(dateStr?: string | null, required = false): string | null {
@@ -96,8 +96,8 @@ export function validateDateOfBirth(dateStr?: string | null, required = false): 
     age--;
   }
 
-  if (age < 10) {
-    return 'Người dùng phải đủ từ 10 tuổi trở lên';
+  if (age < 16) {
+    return 'Người dùng phải đủ từ 16 tuổi trở lên';
   }
   if (age > 110) {
     return 'Ngày sinh không hợp lệ (không được vượt quá 110 tuổi)';

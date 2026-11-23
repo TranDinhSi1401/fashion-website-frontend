@@ -81,11 +81,7 @@ export default function App() {
           />
           <Route
             path="/account/preferences"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/account/profile" replace />}
           />
           <Route
             path="/account/orders"
