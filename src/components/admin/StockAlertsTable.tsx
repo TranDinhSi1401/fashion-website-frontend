@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, EyeOff, ArrowUpRight } from 'lucide-re
 import { dashboardService, type StockAlertPage, type StockAlert } from '../../services/dashboardService';
 import { extractErrorMessage } from '../../utils/format';
 import styles from '../../pages/AdminDashboardPage.module.css';
+import { Select } from '../ui';
 
 const number = (value: number) => value.toLocaleString('vi-VN');
 const editLink = (item: StockAlert, focus: 'stock' | 'status') =>
@@ -53,7 +54,7 @@ export default function StockAlertsTable({ threshold }: { threshold: number }) {
       <div className={styles.alertPagination}>
         <span>{number(first)}–{number(last)} / <strong>{number(total)}</strong> biến thể</span>
         <div className={styles.alertPageControls}>
-          <label>Mỗi trang<select aria-label="Số biến thể mỗi trang" value={pageSize} disabled={busy} onChange={e => { setLoading(true); setError(''); setPageSize(Number(e.target.value)); setPage(0); }}>{[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}</select></label>
+          <Select className={styles.alertPageSize} label="Mỗi trang" aria-label="Số biến thể mỗi trang" value={pageSize} disabled={busy} onChange={e => { setLoading(true); setError(''); setPageSize(Number(e.target.value)); setPage(0); }} options={[10, 20, 50].map(size => ({ value: size, label: String(size) }))} />
           <div><button type="button" aria-label="Trang cảnh báo trước" disabled={busy || page === 0} onClick={() => changePage(page - 1)}><ChevronLeft size={16} /></button><span>Trang {page + 1} / {totalPages}</span><button type="button" aria-label="Trang cảnh báo sau" disabled={busy || page + 1 >= totalPages} onClick={() => changePage(page + 1)}><ChevronRight size={16} /></button></div>
         </div>
       </div>

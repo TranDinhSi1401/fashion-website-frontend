@@ -1,9 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUp, ArrowDown, Minus, Package, Layers, Sparkles, RefreshCw, AlertTriangle, ShoppingBag, CalendarDays, ChevronRight, ImageOff } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Package, Layers, Sparkles, RefreshCw, AlertTriangle, ShoppingBag, CalendarDays, ChevronRight, ImageOff, CheckCircle2 } from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
 import StockAlertsTable from '../components/admin/StockAlertsTable';
-import { Button } from '../components/ui';
+import { Button, Input } from '../components/ui';
 import { dashboardService, type ProductStatistics } from '../services/dashboardService';
 import { extractErrorMessage } from '../utils/format';
 import styles from './AdminDashboardPage.module.css';
@@ -40,6 +40,27 @@ export default function AdminDashboardPage() {
   const [draftRange, setDraftRange] = useState(() => ({ from: daysBefore(todayDate(), 29), to: todayDate() }));
   const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
   const [rangeError, setRangeError] = useState('');
+  const [showRange, setShowRange] = useState(false);
+  const rangeControl = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showRange) return;
+    const outside = (event: PointerEvent) => {
+      if (!rangeControl.current?.contains(event.target as Node)) setShowRange(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowRange(false);
+        rangeControl.current?.querySelector('button')?.focus({ preventScroll: true });
+      }
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [showRange]);
   const [topLimit, setTopLimit] = useState(5);
   const [draftTop, setDraftTop] = useState('5');
   const [topError, setTopError] = useState('');
@@ -60,7 +81,7 @@ export default function AdminDashboardPage() {
 
   const refresh = () => { setLoading(true); setError(''); setReload(v => v + 1); };
   const changePeriod = (value: number) => {
-    setRangeMode('preset'); setRangeError('');
+    setRangeMode('preset'); setRangeError(''); setShowRange(false);
     if (value !== days || appliedRange) { setLoading(true); setError(''); setDays(value); setAppliedRange(null); }
   };
   const applyRange = (event: FormEvent) => {
@@ -69,7 +90,8 @@ export default function AdminDashboardPage() {
     if (draftRange.from < '1000-01-01') { setRangeError('Ngày bắt đầu phải từ năm 1000.'); return; }
     if (draftRange.from > draftRange.to) { setRangeError('Từ ngày phải trước hoặc bằng đến ngày.'); return; }
     if (draftRange.to > today) { setRangeError('Không chọn ngày trong tương lai.'); return; }
-    setRangeError('');
+    setRangeError(''); setRangeMode('custom'); setShowRange(false);
+    rangeControl.current?.querySelector('button')?.focus({ preventScroll: true });
     if (appliedRange?.from !== draftRange.from || appliedRange?.to !== draftRange.to) {
       setLoading(true); setError(''); setAppliedRange({ ...draftRange });
     }
@@ -82,27 +104,44 @@ export default function AdminDashboardPage() {
     if (value !== topLimit) { setLoading(true); setError(''); setTopLimit(value); }
   };
   const insight = data?.insights;
-  const largestCategory = Math.max(1, ...(data?.categories.map(c => c.productCount) ?? []));
+  const priorities = data && insight ? [
+    { id: 'out-of-stock', count: data.outOfStockProducts, unit: 'sản phẩm', title: 'Hết hàng', description: 'Bổ sung tồn kho hoặc tạm ẩn sản phẩm chưa thể giao.', href: '/admin/products?isActive=true&inStock=false', action: 'Xem sản phẩm hết hàng' },
+    { id: 'low-stock', count: data.lowStockVariants, unit: 'biến thể', title: 'Tồn kho thấp', description: `Kiểm tra các SKU còn không quá ${data.lowStockThreshold} đơn vị để chủ động nhập thêm.`, href: '#stock-alerts', action: 'Xem cảnh báo tồn kho' },
+    { id: 'missing-variants', count: insight.productsWithoutVariants, unit: 'sản phẩm', title: 'Thiếu biến thể đang bán', description: 'Thêm hoặc bật biến thể màu, size để khách có thể chọn mua.', href: '/admin/products?isActive=true', action: 'Mở sản phẩm đang bật' },
+    { id: 'missing-images', count: insight.productsMissingImages, unit: 'sản phẩm', title: 'Thiếu ảnh sản phẩm', description: 'Bổ sung ảnh cho sản phẩm đang bật để khách xem trước khi mua.', href: '/admin/products?isActive=true', action: 'Mở sản phẩm đang bật' },
+  ].filter(item => item.count > 0) : [];
 
-  return <div className="container py-8 sm:py-10">
+  return <div className={`${styles.page} container py-8 sm:py-10`}>
     <AdminNav title="Dashboard" subtitle="Nhìn rõ nhịp bán hàng, sức khỏe danh mục và việc cần ưu tiên."
       actions={<Button variant="outline" size="sm" icon={RefreshCw} disabled={loading} onClick={refresh}>Làm mới</Button>} />
-    <section aria-labelledby="product-statistics-heading" aria-busy={loading} className={styles.dashboard}>
-      <div className={styles.heading}>
-        <div><p className={styles.eyebrow}>HIỂU DANH MỤC CỦA BẠN</p><h2 id="product-statistics-heading">Thống kê sản phẩm</h2></div>
-        <div className={styles.periods} role="group" aria-label="Kỳ thống kê">{[7, 30, 90].map(value => <button key={value} type="button" aria-pressed={rangeMode === 'preset' && days === value} onClick={() => changePeriod(value)}>{value} ngày</button>)}<button type="button" aria-pressed={rangeMode === 'custom'} aria-expanded={rangeMode === 'custom'} aria-controls="custom-statistics-range" onClick={() => { setRangeMode('custom'); setRangeError(''); }}><CalendarDays size={14} />Tùy chọn</button></div>
-      </div>
-      {rangeMode === 'custom' && <form id="custom-statistics-range" className={styles.rangeForm} onSubmit={applyRange} noValidate>
-        <label>Từ ngày<input type="date" aria-label="Thống kê từ ngày" value={draftRange.from} min="1000-01-01" max={draftRange.to && draftRange.to < today ? draftRange.to : today} required onChange={e => { setDraftRange(old => ({ ...old, from: e.target.value })); setRangeError(''); }} /></label>
-        <span className={styles.dateSeparator}>→</span>
-        <label>Đến ngày<input type="date" aria-label="Thống kê đến ngày" value={draftRange.to} min={draftRange.from || '1000-01-01'} max={today} required onChange={e => { setDraftRange(old => ({ ...old, to: e.target.value })); setRangeError(''); }} /></label>
-        <button type="submit" disabled={loading}>Áp dụng</button>
+    <section aria-label="Tổng quan sản phẩm" aria-busy={loading} className={styles.dashboard}>
+      <div className={styles.toolbar}>
+        {!loading && !error && data && insight && (
+        <div className={styles.periodNote}><span><strong>{date(insight.fromDate || insight.periodStart)} – {date(insight.toDate || insight.periodEnd)}</strong> so với {date(insight.previousPeriodStart)} – {date(new Date(new Date(insight.periodStart).getTime() - 1).toISOString())} · cùng độ dài</span><span>Cập nhật {new Date(data.generatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span></div>
+        )}
+        <div className={styles.periods} role="group" aria-label="Kỳ thống kê">
+          {[7, 30, 90].map(value => <Button key={value} type="button" size="sm" variant={rangeMode === 'preset' && days === value ? 'primary' : 'secondary'} aria-pressed={rangeMode === 'preset' && days === value} onClick={() => changePeriod(value)}>{value} ngày</Button>)}
+          <div className={styles.rangeControl} ref={rangeControl}>
+            <Button type="button" size="sm" icon={CalendarDays} variant={rangeMode === 'custom' ? 'primary' : 'secondary'} aria-pressed={rangeMode === 'custom'} aria-expanded={showRange} aria-haspopup="dialog" aria-controls="custom-statistics-range" onClick={() => {
+              if (!showRange) {
+                setDraftRange(appliedRange ?? { from: daysBefore(today, days - 1), to: today });
+                setRangeError('');
+              }
+              setShowRange(value => !value);
+            }}>Tùy chọn</Button>
+      {showRange && <form id="custom-statistics-range" className={styles.rangeForm} onSubmit={applyRange} role="dialog" aria-label="Chọn khoảng thời gian" noValidate>
+        <Input className={styles.rangeField} label="Từ ngày" type="date" aria-label="Thống kê từ ngày" value={draftRange.from} min="1000-01-01" max={draftRange.to && draftRange.to < today ? draftRange.to : today} required onChange={e => { setDraftRange(old => ({ ...old, from: e.target.value })); setRangeError(''); }} />
+        <Input className={styles.rangeField} label="Đến ngày" type="date" aria-label="Thống kê đến ngày" value={draftRange.to} min={draftRange.from || '1000-01-01'} max={today} required onChange={e => { setDraftRange(old => ({ ...old, to: e.target.value })); setRangeError(''); }} />
+        <Button type="submit" disabled={loading}>Áp dụng</Button>
         {rangeError && <p role="alert" className={styles.filterError}>{rangeError}</p>}
       </form>}
+          </div>
+        </div>
+      </div>
+
       {loading && <p role="status" className={styles.message}>Đang tổng hợp số liệu...</p>}
       {error && <div role="alert" className={styles.error}>{error} <button onClick={refresh}>Thử lại</button></div>}
       {!loading && !error && data && insight && <>
-        <div className={styles.periodNote}><span><strong>{date(insight.fromDate || insight.periodStart)} – {date(insight.toDate || insight.periodEnd)}</strong> so với {date(insight.previousPeriodStart)} – {date(new Date(new Date(insight.periodStart).getTime() - 1).toISOString())} · cùng độ dài</span><span>Cập nhật {new Date(data.generatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span></div>
         <div className={styles.cards}>
           <article className={styles.card}><div className={styles.cardLabel}><span>Danh mục hiện tại</span><Package size={18} /></div><strong>{number(data.totalProducts)}</strong><p>{number(data.activeProducts)} đang bật · {number(data.inactiveProducts)} đang ẩn</p><div className={styles.cardFooter}><span>{ratio(data.activeProducts, data.totalProducts)}% sản phẩm đang bật</span></div></article>
           <article className={styles.card}><div className={styles.cardLabel}><span>Sản phẩm tạo mới</span><Sparkles size={18} /></div><strong>{number(insight.newProducts)}</strong><p>{insight.customRange ? 'Trong khoảng ngày đã chọn' : `Trong ${insight.periodDays} ngày đã chọn`}</p><div className={styles.cardFooter}><Trend current={insight.newProducts} previous={insight.previousNewProducts} /><small>Kỳ trước: {number(insight.previousNewProducts)}</small></div></article>
@@ -119,17 +158,24 @@ export default function AdminDashboardPage() {
 
         <div className={styles.grid}>
           <section className={styles.panel} aria-labelledby="best-sellers-heading">
-            <div className={styles.panelHeading}><div><h3 id="best-sellers-heading">Sản phẩm dẫn đầu trong kỳ</h3><p>Xếp theo số lượng giao thành công.</p></div><form className={styles.topForm} onSubmit={applyTop} noValidate><label>Top<input type="number" aria-label="Số sản phẩm dẫn đầu" min="1" max="100" step="1" required value={draftTop} onChange={e => { setDraftTop(e.target.value); setTopError(''); }} aria-invalid={Boolean(topError)} aria-describedby="top-limit-help" /></label><button type="submit">Xem</button><small id="top-limit-help">1–100</small>{topError && <p role="alert" className={styles.filterError}>{topError}</p>}</form></div>
-            {insight.bestSellers.length === 0 ? <div className={styles.message}><ShoppingBag size={25} /><p>Chưa có sản phẩm giao thành công trong kỳ này.</p><small>Thử chọn khoảng thời gian dài hơn để xem thêm dữ liệu.</small></div> : <div className={styles.bestSellers}>{insight.bestSellers.map((product, index) => <article key={product.productId} className={styles.bestSeller}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.bestSellerInfo}><Link to={productLink(product.productName)}>{product.productName}</Link><span>Kỳ trước: {number(product.previousUnits)} đơn vị</span><div className={styles.track}><div style={{ width: `${product.units / insight.bestSellers[0].units * 100}%` }} /></div></div><div className={styles.bestSellerValue}><strong>{number(product.units)} <small>đv</small></strong><Trend current={product.units} previous={product.previousUnits} /></div></article>)}</div>}
-            {insight.bestSellers.length > 0 && <p className={styles.resultCount}>{insight.bestSellers.length} / {insight.topLimit} sản phẩm yêu cầu</p>}
-            <p className={styles.footnote}>Theo ngày giao thực tế; không tính đơn hủy hoặc đã chuyển sang trạng thái trả hàng. Số lượng chưa trừ trả từng phần.</p>
+            <div className={styles.panelHeading}><div><h3 id="best-sellers-heading">Sản phẩm bán chạy</h3><p>Theo số lượng đã giao.</p></div><form className={styles.topForm} onSubmit={applyTop} noValidate><label className={styles.topLabel} htmlFor="dashboard-top-limit">Top</label><Input id="dashboard-top-limit" className={styles.topField} type="number" aria-label="Số sản phẩm dẫn đầu" min="1" max="100" step="1" required value={draftTop} onChange={e => { setDraftTop(e.target.value); setTopError(''); }} title="Nhập từ 1 đến 100 sản phẩm" error={topError} /><Button type="submit" size="sm" disabled={loading}>Xem</Button></form></div>
+            {insight.bestSellers.length === 0 ? <div className={styles.salesEmpty}><ShoppingBag size={22} aria-hidden="true" /><div><p>Chưa có sản phẩm giao thành công.</p><small>Thử chọn khoảng thời gian dài hơn.</small></div></div> : <div className={styles.bestSellers}>{insight.bestSellers.map((product, index) => <article key={product.productId} className={styles.bestSeller}><span className={styles.rank}>{String(index + 1).padStart(2, '0')}</span><div className={styles.bestSellerInfo}><Link to={productLink(product.productName)}>{product.productName}</Link><span>Kỳ trước: {number(product.previousUnits)} đơn vị</span><div className={styles.track}><div style={{ width: `${product.units / insight.bestSellers[0].units * 100}%` }} /></div></div><div className={styles.bestSellerValue}><strong>{number(product.units)} <small>đv</small></strong><Trend current={product.units} previous={product.previousUnits} /></div></article>)}</div>}
+            <details className={styles.salesNote}><summary>Cách tính số lượng bán</summary><p>Theo ngày giao thực tế; không tính đơn hủy hoặc đã chuyển sang trạng thái trả hàng. Số lượng chưa trừ trả từng phần.</p></details>
           </section>
-          <section className={styles.panel} aria-labelledby="category-heading">
-            <div className={styles.panelHeading}><div><h3 id="category-heading">Cơ cấu danh mục hiện tại</h3><p>Gồm sản phẩm đang bật và đang ẩn.</p></div><span className={styles.tag}>{number(data.categories.length)} nhóm</span></div>
-            {data.categories.length === 0 ? <p className={styles.message}>Chưa có sản phẩm để thống kê.</p> : <>
-              <p className={styles.categoryInsight}><strong>{data.categories[0].categoryName}</strong> đang chiếm tỷ trọng lớn nhất: {ratio(data.categories[0].productCount, data.totalProducts)}% danh mục.</p>
-              <div className={styles.categories}>{data.categories.map(category => <div key={category.categoryId ?? 'uncategorized'}><div className={styles.categoryLabel}><span>{category.categoryName}</span><strong>{number(category.productCount)} <small>· {ratio(category.productCount, data.totalProducts)}%</small></strong></div><div className={styles.track}><div style={{ width: `${category.productCount / largestCategory * 100}%` }} /></div></div>)}</div>
-            </>}
+          <section className={styles.panel} aria-labelledby="priorities-heading">
+            <div className={styles.panelHeading}>
+              <div><h3 id="priorities-heading">Việc cần xử lý</h3><p>Theo trạng thái hiện tại.</p></div>
+            </div>
+            {priorities.length === 0 ? (
+              <div className={styles.allClear} role="status"><CheckCircle2 size={20} aria-hidden="true" /><span>Không có cảnh báo cần xử lý.</span></div>
+            ) : (
+              <ul className={styles.priorities}>
+                {priorities.map(({ id, count, unit, title, description, href, action }) => {
+                  const content = <><span className={styles.priorityName}>{title}</span><span className={styles.priorityCount}>{number(count)} <small>{unit}</small></span><ChevronRight size={16} aria-hidden="true" /></>;
+                  return <li key={id}>{href.startsWith('#') ? <a className={styles.priorityLink} href={href} aria-label={`${action}, ${number(count)} ${unit}`} title={description}>{content}</a> : <Link className={styles.priorityLink} to={href} aria-label={`${action}, ${number(count)} ${unit}`} title={description}>{content}</Link>}</li>;
+                })}
+              </ul>
+            )}
           </section>
         </div>
 

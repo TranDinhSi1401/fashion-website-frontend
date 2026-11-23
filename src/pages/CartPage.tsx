@@ -24,6 +24,7 @@ import BackButton from '../components/common/BackButton';
 import { Button, Modal, QuantityStepper, Badge } from '../components/ui';
 import { cn } from '../utils/cn';
 import styles from './CartPage.module.css';
+import CartItemPrice from '../components/cart/CartItemPrice';
 
 // Mốc miễn phí giao hàng toàn quốc: 500.000 VNĐ
 const FREE_SHIPPING_THRESHOLD = 500000;
@@ -32,7 +33,7 @@ function CartImage({ url, name }: { url?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
 
   return (
-    <div className="relative aspect-[3/4] w-20 sm:w-24 md:w-28 shrink-0 overflow-hidden rounded-md border border-line-light bg-surface transition-transform duration-300 hover:scale-[1.02]">
+    <div className="relative aspect-[3/4] w-20 sm:w-24 md:w-28 shrink-0 overflow-hidden rounded-none border border-line-light bg-surface transition-transform duration-300 hover:scale-[1.02]">
       {url && !failed ? (
         <img
           src={url}
@@ -117,40 +118,14 @@ export default function CartPage() {
         <BackButton />
       </div>
 
-      {/* 2. Stepper Thanh Tiến Trình Mua Hàng */}
-      <div className="my-6 hidden sm:flex items-center justify-center">
-        <div className="flex items-center gap-3 text-xs md:text-sm font-semibold tracking-wider">
-          <div className="flex items-center gap-2 text-content-primary">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-dark text-content-inverse text-xs font-bold ring-2 ring-accent-gold/40">
-              1
-            </span>
-            <span className="uppercase text-accent-gold">Giỏ Hàng</span>
-          </div>
-          <div className="h-[2px] w-12 bg-accent-gold/50" />
-          <div className="flex items-center gap-2 text-content-muted">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface text-content-muted text-xs">
-              2
-            </span>
-            <span className="uppercase">Thanh Toán</span>
-          </div>
-          <div className="h-[2px] w-12 bg-line-light" />
-          <div className="flex items-center gap-2 text-content-muted">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface text-content-muted text-xs">
-              3
-            </span>
-            <span className="uppercase">Hoàn Tất</span>
-          </div>
-        </div>
-      </div>
-
       {/* 3. Header Tiêu Đề */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-line-light pb-4">
+      <div className="mt-6 mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-line-light pb-4">
         <div className="flex items-center gap-3">
           <h1 className="text-xl md:text-2xl font-extrabold uppercase tracking-tight text-content-primary">
             Giỏ hàng của bạn
           </h1>
           {cart && cart.items.length > 0 && (
-            <span className="inline-flex items-center justify-center rounded-full bg-surface-elevated px-2.5 py-0.5 text-xs font-bold text-accent-gold border border-accent-gold/30">
+            <span className="inline-flex items-center justify-center rounded-none bg-surface-elevated px-2.5 py-0.5 text-xs font-bold text-accent-gold border border-accent-gold/30">
               {cart.totalQuantity} món
             </span>
           )}
@@ -187,14 +162,14 @@ export default function CartPage() {
 
       {/* 4. Thông báo / Alerts */}
       {notice && (
-        <div className="mb-6 flex items-center gap-2.5 rounded-sm border border-emerald-200 bg-emerald-50/80 p-3.5 text-sm font-medium text-emerald-800 animate-fade-in">
+        <div className="mb-6 flex items-center gap-2.5 rounded-none border border-emerald-200 bg-emerald-50/80 p-3.5 text-sm font-medium text-emerald-800 animate-fade-in">
           <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
           <span>{notice}</span>
         </div>
       )}
 
       {(error || actionError) && (
-        <div className="mb-6 flex items-start gap-2.5 rounded-sm border border-red-200 bg-red-50/80 p-3.5 text-sm font-medium text-red-800 animate-fade-in">
+        <div className="mb-6 flex items-start gap-2.5 rounded-none border border-red-200 bg-red-50/80 p-3.5 text-sm font-medium text-red-800 animate-fade-in">
           <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
           <span>{actionError || error}</span>
         </div>
@@ -215,8 +190,8 @@ export default function CartPage() {
 
       {/* 5. Giao diện Giỏ Hàng Trống (Empty State) */}
       {cart && cart.items.length === 0 && !loading && (
-        <section className="mx-auto my-8 max-w-lg rounded-xl border border-line-light bg-surface-body p-8 sm:p-12 text-center shadow-xs">
-          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-surface ring-8 ring-surface-elevated text-accent-gold">
+        <section className="mx-auto my-8 max-w-lg rounded-none border border-line-light bg-surface-body p-8 sm:p-12 text-center shadow-xs">
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-none bg-surface ring-8 ring-surface-elevated text-accent-gold">
             <ShoppingBag size={38} />
           </div>
           <h2 className="text-lg sm:text-xl font-bold uppercase tracking-wide text-content-primary mb-2">
@@ -239,7 +214,7 @@ export default function CartPage() {
           {/* CỘT TRÁI: DANH SÁCH SẢN PHẨM */}
           <section className="min-w-0 flex flex-col gap-5" aria-label="Sản phẩm trong giỏ hàng">
             {/* Thanh tiến độ Free Shipping */}
-            <div className="rounded-lg border border-line-light bg-surface p-4 shadow-2xs">
+            <div className="rounded-none border border-line-light bg-surface p-4 shadow-2xs">
               <div className="flex items-center justify-between gap-3 text-xs md:text-sm font-semibold mb-2">
                 <div className="flex items-center gap-2">
                   <Truck size={17} className={freeShippingProgress >= 100 ? 'text-emerald-600' : 'text-accent-gold'} />
@@ -255,10 +230,10 @@ export default function CartPage() {
                 </div>
                 <span className="text-xs text-content-muted font-bold">{freeShippingProgress}%</span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-surface-elevated border border-line-light">
+              <div className="h-2 w-full overflow-hidden rounded-none bg-surface-elevated border border-line-light">
                 <div
                   className={cn(
-                    'h-full transition-all duration-500 rounded-full',
+                    'h-full transition-all duration-500 rounded-none',
                     freeShippingProgress >= 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-amber-400 to-accent-gold'
                   )}
                   style={{ width: `${freeShippingProgress}%` }}
@@ -267,7 +242,7 @@ export default function CartPage() {
             </div>
 
             {/* Bảng Danh Sách Sản Phẩm */}
-            <div className="rounded-lg border border-line-light bg-surface-body overflow-hidden shadow-2xs">
+            <div className="rounded-none border border-line-light bg-surface-body overflow-hidden shadow-2xs">
               {/* Header Bảng Desktop */}
               <div className="hidden md:grid grid-cols-[100px_minmax(0,1fr)_120px_130px_120px_40px] items-center gap-4 bg-surface px-6 py-3.5 border-b border-line-light text-[0.72rem] font-bold uppercase tracking-wider text-content-muted">
                 <span>Hình ảnh</span>
@@ -303,12 +278,12 @@ export default function CartPage() {
                         {/* Chips biến thể */}
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           {item.color && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-surface border border-line-light text-content-primary">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-medium bg-surface border border-line-light text-content-primary">
                               Màu: <strong>{item.color}</strong>
                             </span>
                           )}
                           {item.size && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-surface border border-line-light text-content-primary">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-none text-xs font-semibold bg-surface border border-line-light text-content-primary">
                               Size: <strong>{item.size}</strong>
                             </span>
                           )}
@@ -318,18 +293,18 @@ export default function CartPage() {
                         <div className="flex md:hidden items-center gap-2 mt-1">
                           <span className="text-xs text-content-muted">Đơn giá:</span>
                           <span className="text-xs font-semibold text-content-secondary">
-                            {formatCurrencyVND(item.unitPrice)}
+                            <CartItemPrice item={item} />
                           </span>
                         </div>
 
                         {/* Trạng thái tồn kho */}
                         <div className="mt-1">
                           {!item.available ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-status-error bg-status-error/10 px-2 py-0.5 rounded">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-status-error bg-status-error/10 px-2 py-0.5 rounded-none">
                               <AlertCircle size={12} /> Tạm hết hàng hoặc ngừng bán
                             </span>
                           ) : item.quantity > item.stockQuantity ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-none border border-amber-200">
                               <Info size={12} /> Chỉ còn {item.stockQuantity} sản phẩm trong kho
                             </span>
                           ) : item.stockQuantity <= 5 ? (
@@ -370,7 +345,7 @@ export default function CartPage() {
                             disabled={busy || loading}
                             aria-label={`Xóa ${item.productName}`}
                             onClick={() => setItemToDelete({ id: item.id, name: item.productName })}
-                            className="p-1.5 text-content-muted hover:text-status-error hover:bg-status-error/10 rounded transition-colors"
+                            className="p-1.5 text-content-muted hover:text-status-error hover:bg-status-error/10 rounded-none transition-colors"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -379,7 +354,7 @@ export default function CartPage() {
 
                       {/* Cột 3: Đơn giá (Desktop) */}
                       <div className="hidden md:block text-center font-semibold text-sm text-content-secondary">
-                        {formatCurrencyVND(item.unitPrice)}
+                        <CartItemPrice item={item} />
                       </div>
 
                       {/* Cột 4: Số lượng (Desktop) */}
@@ -410,7 +385,7 @@ export default function CartPage() {
                           disabled={busy || loading}
                           aria-label={`Xóa ${item.productName}`}
                           onClick={() => setItemToDelete({ id: item.id, name: item.productName })}
-                          className="flex h-8 w-8 items-center justify-center rounded text-content-muted transition-colors hover:bg-status-error/10 hover:text-status-error disabled:cursor-not-allowed"
+                          className="flex h-8 w-8 items-center justify-center rounded-none text-content-muted transition-colors hover:bg-status-error/10 hover:text-status-error disabled:cursor-not-allowed"
                           title="Xóa sản phẩm"
                         >
                           <Trash2 size={16} />
@@ -441,7 +416,7 @@ export default function CartPage() {
           {/* CỘT PHẢI: TỔNG KẾT ĐƠN HÀNG & THANH TOÁN (STICKY ASIDE) */}
           <aside
             aria-label="Tổng giỏ hàng"
-            className="flex flex-col gap-5 rounded-lg border border-line-light bg-surface-body p-6 shadow-sm lg:sticky lg:top-24"
+            className="flex flex-col gap-5 rounded-none border border-line-light bg-surface-body p-6 shadow-sm lg:sticky lg:top-24"
           >
             <div className="flex items-center justify-between border-b border-line-light pb-3">
               <h2 className="text-sm font-extrabold uppercase tracking-wider text-content-primary">
@@ -475,7 +450,7 @@ export default function CartPage() {
             </div>
 
             {/* Khối Voucher & Ưu Đãi */}
-            <div className="rounded-md border border-line-light bg-surface p-3.5">
+            <div className="rounded-none border border-line-light bg-surface p-3.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-content-primary">
                   <Tag size={15} className="text-accent-gold" />
@@ -501,7 +476,7 @@ export default function CartPage() {
                       <div
                         key={offer.id}
                         className={cn(
-                          'p-2.5 rounded border text-xs transition-colors flex items-start justify-between gap-2',
+                          'p-2.5 rounded-none border text-xs transition-colors flex items-start justify-between gap-2',
                           isEligible
                             ? 'border-emerald-200 bg-emerald-50/50 text-emerald-900'
                             : 'border-line-light bg-surface-elevated text-content-muted'
@@ -548,7 +523,7 @@ export default function CartPage() {
 
             {/* Cảnh báo nếu có sản phẩm không hợp lệ */}
             {hasInvalidItems && (
-              <div className="rounded border border-red-200 bg-red-50 p-2.5 text-xs text-red-800">
+              <div className="rounded-none border border-red-200 bg-red-50 p-2.5 text-xs text-red-800">
                 <AlertCircle size={14} className="inline mr-1 text-red-600" />
                 Một số sản phẩm trong giỏ không còn đủ hàng hoặc đã hết. Vui lòng điều chỉnh trước khi thanh toán.
               </div>
@@ -618,6 +593,7 @@ export default function CartPage() {
           if (!busy) setItemToDelete(null);
         }}
         title="Xác nhận xóa sản phẩm"
+        className={styles.squareModal}
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-content-secondary leading-relaxed">
@@ -650,6 +626,7 @@ export default function CartPage() {
           if (!busy) setConfirmClear(false);
         }}
         title="Xóa toàn bộ giỏ hàng"
+        className={styles.squareModal}
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm text-content-secondary leading-relaxed">

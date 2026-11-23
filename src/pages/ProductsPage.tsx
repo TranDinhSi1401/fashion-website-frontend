@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { Search } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { ProductFilters, ProductResponse } from '../types/product';
@@ -14,7 +14,6 @@ import {
   paginateCatalog,
   parsePrice,
   resolveCategories,
-  searchColors,
 } from '../utils/catalog';
 import { GROUP_LABELS, groupCategoryIds, isCatalogGroup } from '../utils/categoryNavigation';
 import MoneyInput from '../components/ui/MoneyInput';
@@ -25,7 +24,6 @@ import {
   Checkbox,
   FilterGroup,
   FilterSidebar,
-  Input,
   Pagination,
   ProductCard,
   Select,
@@ -99,7 +97,6 @@ export default function ProductsPage() {
     () => initialCache?.catalog || []
   );
   const [isLoading, setIsLoading] = useState(() => !initialCache);
-  const [colorSearch, setColorSearch] = useState('');
   const [metadataError, setMetadataError] = useState('');
   const [retry, setRetry] = useState(0);
   const [offerTime, setOfferTime] = useState(Date.now);
@@ -107,13 +104,25 @@ export default function ProductsPage() {
     const timer = window.setInterval(() => setOfferTime(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+  const [showFilters, setShowFilters] = useState(false);
+  const filterDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = filterDialog.current;
+    if (!showFilters || !dialog) return;
+    dialog.showModal();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showFilters]);
   const priceForm = useRef<HTMLFormElement>(null);
-  const searchForm = useRef<HTMLFormElement>(null);
   const resultsRef = useRef<HTMLElement>(null);
 
   const updateFilters = (changes: Record<string, string>) => {
     const pending: Record<string, string> = {};
-    for (const form of [priceForm.current, searchForm.current]) {
+    for (const form of [priceForm.current]) {
       if (form) {
         new FormData(form).forEach((value, key) => {
           pending[key] = String(value);
@@ -267,7 +276,7 @@ export default function ProductsPage() {
   const colors = [
     ...new Set(variants.map((variant) => variant.color.trim()).filter(Boolean)),
   ].sort((a, b) => a.localeCompare(b, 'vi'));
-  const visibleColors = searchColors([...new Set([...colors, ...selection.colors])], colorSearch);
+  const visibleColors = [...new Set([...colors, ...selection.colors])];
   const availableFacets = facets.filter((category) =>
     (!isCatalogGroup(selection.group) || groupCategoryIds(selection.group, categories).includes(category.id)) && catalog.some((product) => product.categoryId === category.id)
   );
@@ -458,18 +467,6 @@ export default function ProductsPage() {
       defaultOpen: true,
       content: (
         <>
-          <label htmlFor="catalog-color-search" className="sr-only">
-            Tìm màu sắc
-          </label>
-          <Input
-            id="catalog-color-search"
-            type="search"
-            value={colorSearch}
-            onChange={(event) => setColorSearch(event.target.value)}
-            placeholder="Tìm màu: đen, trắng, xanh…"
-            aria-controls="catalog-color-choices"
-            className="mb-3"
-          />
           <div
             id="catalog-color-choices"
             className="flex max-h-60 flex-col gap-3 overflow-y-auto px-1"
@@ -483,11 +480,6 @@ export default function ProductsPage() {
               />
             ))}
           </div>
-          {!!colors.length && !visibleColors.length && (
-            <p role="status" className="mt-3 text-sm text-content-secondary">
-              Không tìm thấy màu phù hợp.
-            </p>
-          )}
           {!colors.length && (
             <p className="mt-3 text-sm text-content-secondary">Chưa có màu sắc còn hàng.</p>
           )}
@@ -521,69 +513,39 @@ export default function ProductsPage() {
           }
         />
 
-        <div className="grid grid-cols-1 items-start gap-9 pb-20 pt-4 md:grid-cols-[260px_minmax(0,1fr)]">
-          <div aria-label="Bộ lọc sản phẩm" className="md:border-r md:border-line-light md:pr-5">
-            <div className="flex items-center justify-between gap-2 pb-2">
-              <h2 className="text-base font-bold uppercase tracking-wide text-content-primary">
-                Bộ lọc
-              </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSearchParams({}, { state: { keepScroll: true } })}
-                disabled={!searchParams.size}
-              >
-                Xóa lọc
-              </Button>
-            </div>
-            <p className="mb-4 text-xs leading-relaxed text-content-secondary">
-              Có thể chọn nhiều mục trong mỗi nhóm.
-            </p>
-
-            <form
-              ref={searchForm}
-              key={`search-${searchParams.get('search') || ''}`}
-              onSubmit={(event) => {
-                event.preventDefault();
-                updateFilters({
-                  search: String(new FormData(event.currentTarget).get('search') || '').trim(),
-                });
-              }}
-              role="search"
-              aria-label="Tìm trong kết quả sản phẩm"
-              className={styles.refineSearch}
-            >
-              <label htmlFor="catalog-search" className={styles.refineLabel}>
-                Tìm trong kết quả
-              </label>
-              <div className={styles.refineField}>
-                <input
-                  id="catalog-search"
-                  name="search"
-                  type="search"
-                  defaultValue={searchParams.get('search') || ''}
-                  placeholder="Nhập tên sản phẩm…"
-                  aria-describedby="catalog-search-hint"
-                  className={styles.refineInput}
-                />
-                <button
-                  type="submit"
-                  aria-label="Tìm trong kết quả"
-                  title="Tìm trong kết quả"
-                  className={styles.refineSubmit}
-                >
-                  <Search size={16} aria-hidden="true" />
+        <div className="pb-20 pt-4">
+          <dialog
+            ref={filterDialog}
+            id="catalog-filter-drawer"
+            aria-labelledby="catalog-filter-title"
+            className={styles.filterDrawer}
+            onCancel={(event) => { event.preventDefault(); setShowFilters(false); }}
+            onClose={() => setShowFilters(false)}
+            onClick={(event) => { if (event.target === event.currentTarget) setShowFilters(false); }}
+          >
+            <div className={styles.filterPanel}>
+              <div className={styles.filterHeader}>
+                <h2 id="catalog-filter-title" className="text-base font-bold uppercase tracking-wide">Bộ lọc sản phẩm</h2>
+                <button type="button" onClick={() => setShowFilters(false)} aria-label="Đóng bộ lọc" className={styles.closeFilters}>
+                  <X size={20} />
                 </button>
               </div>
-              <p id="catalog-search-hint" className={styles.refineHint}>
-                Thu hẹp danh sách theo các bộ lọc đã chọn.
-              </p>
-            </form>
-
-            <div className="pt-4">
-              <FilterSidebar groups={filterGroups} />
+              <div className={styles.filterBody}>
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <p className="text-xs text-content-secondary">Có thể chọn nhiều mục trong mỗi nhóm.</p>
+                  <Button variant="ghost" size="sm" onClick={() => setSearchParams({}, { state: { keepScroll: true } })} disabled={!searchParams.size}>
+                    Xóa lọc
+                  </Button>
+                </div>
+                <FilterSidebar groups={filterGroups} className="max-w-none" />
+              </div>
+              <div className={styles.filterFooter}>
+                <Button variant="primary" className="w-full" onClick={() => { priceForm.current?.requestSubmit(); setShowFilters(false); }}>
+                  Xem kết quả
+                </Button>
+              </div>
             </div>
-          </div>
+          </dialog>
 
           <section
             ref={resultsRef}
@@ -612,6 +574,10 @@ export default function ProductsPage() {
             )}
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-line-light pb-4 text-sm">
+              <div className="flex flex-wrap items-center gap-4">
+                <Button variant="secondary" icon={SlidersHorizontal} onClick={() => setShowFilters(true)} aria-haspopup="dialog" aria-controls="catalog-filter-drawer" aria-expanded={showFilters}>
+                  Bộ lọc{activeFilters.length > 0 ? ` (${activeFilters.length})` : ''}
+                </Button>
               <p role="status" className="text-content-secondary">
                 {isLoading
                   ? 'Đang tải sản phẩm…'
@@ -621,6 +587,7 @@ export default function ProductsPage() {
                       ? `Hiển thị ${pagination.from}–${pagination.to} / ${products.length} sản phẩm`
                       : '0 sản phẩm'}
               </p>
+              </div>
 
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2.5">

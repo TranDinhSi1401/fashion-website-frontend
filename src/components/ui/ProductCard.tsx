@@ -126,7 +126,11 @@ export default function ProductCard({
 
         {resolvedBadges.length > 0 && (
           <div className="pointer-events-none absolute left-2 top-2 sm:left-2.5 sm:top-2.5 z-[2] flex flex-col items-start gap-1">
-            {resolvedBadges.map((badge) => (
+            {resolvedBadges.map((badge) => badge === 'new' ? (
+              <span key={badge} className={styles.newBadge} aria-label="Sản phẩm mới">
+                <span>NEW</span>
+              </span>
+            ) : (
               <Badge key={badge} variant={badge} className="text-[10px] sm:text-xs px-1.5 py-0.5 sm:px-2">
                 {BADGE_LABEL_MAP[badge]}
               </Badge>
