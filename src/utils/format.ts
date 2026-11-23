@@ -137,6 +137,18 @@ export const ERROR_CODE_TRANSLATIONS: Record<string, string> = {
   'error.address_not_found': 'Không tìm thấy địa chỉ giao hàng.',
   'error.user_address_not_found': 'Không tìm thấy địa chỉ giao hàng.',
   'error.email_send_failed': 'Không thể gửi email. Vui lòng thử lại sau ít phút.',
+  'Phone must be a valid 10-digit Vietnamese phone number': 'Số điện thoại không đúng chuẩn 10 số Việt Nam (bắt đầu bằng 0 hoặc +84)',
+  'Phone must be less than 20 characters': 'Số điện thoại không được vượt quá 20 ký tự.',
+  'Phone number cannot be blank': 'Số điện thoại không được để trống.',
+  'Invalid email format': 'Email không đúng định dạng (ví dụ: user@example.com).',
+  'Email must be less than 100 characters': 'Email không được vượt quá 100 ký tự.',
+  'Email cannot be blank': 'Vui lòng nhập địa chỉ email.',
+  'Fullname must be less than 100 characters': 'Họ và tên không được vượt quá 100 ký tự.',
+  'Fullname cannot be blank': 'Vui lòng nhập họ và tên.',
+  'Password must be between 6 and 100 characters': 'Mật khẩu phải có độ dài từ 6 đến 100 ký tự.',
+  'Password cannot be blank': 'Vui lòng nhập mật khẩu.',
+  'Username must be between 3 and 50 characters': 'Tên đăng nhập phải có từ 3 đến 50 ký tự.',
+  'Username cannot be blank': 'Vui lòng nhập tên đăng nhập.',
 };
 
 /**
@@ -147,6 +159,14 @@ export function translateErrorMessage(msg: any): string {
   const trimmed = msg.trim();
   if (ERROR_CODE_TRANSLATIONS[trimmed]) {
     return ERROR_CODE_TRANSLATIONS[trimmed];
+  }
+  // Nếu có prefix trường như "phone: Phone must be..."
+  const colonIndex = trimmed.indexOf(': ');
+  if (colonIndex > 0) {
+    const rawValMsg = trimmed.slice(colonIndex + 2).trim();
+    if (ERROR_CODE_TRANSLATIONS[rawValMsg]) {
+      return ERROR_CODE_TRANSLATIONS[rawValMsg];
+    }
   }
   // Nếu chuỗi có tiền tố error. nhưng chưa có trong từ điển
   if (trimmed.startsWith('error.')) {
