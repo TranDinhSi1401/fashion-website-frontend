@@ -28,8 +28,10 @@ import { isOrderEligibleForReturn, formatVND, formatDateTime } from '../utils/re
 import { isOrderEligibleForReview } from '../utils/reviewHelpers';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
+import Modal from '../components/ui/Modal';
 import OrderReviewModal from '../components/product/OrderReviewModal';
 import { cn } from '../utils/cn';
+import { extractErrorMessage } from '../utils/format';
 
 type CustomerOrderFilter = 'ALL' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'RETURNED';
 
@@ -54,6 +56,16 @@ function groupReviewableItemsByOrder(
   return grouped;
 }
 
+function isCodOrder(order: OrderWithItems) {
+  const methodCode = order.paymentMethodCode || order.paymentMethod?.code || '';
+  const methodName = order.paymentMethodName || order.paymentMethod?.name || '';
+  return (
+    order.paymentStatus === 'PENDING_COD' ||
+    /cod/i.test(methodCode) ||
+    /cod|tiền mặt|cash/i.test(methodName)
+  );
+}
+
 /**
  * Chức năng: Hiển thị danh sách các đơn hàng đã mua của khách hàng, điều kiện đổi trả
  * và thao tác đánh giá sản phẩm cho từng dòng sản phẩm thuộc đơn hàng đã giao thành công.
@@ -70,6 +82,25 @@ export default function CustomerOrdersTab() {
 
   const [activeReviewItem, setActiveReviewItem] = useState<ReviewableOrderItemResponse | null>(null);
   const [reviewFeedback, setReviewFeedback] = useState<string>('');
+  const [cancelTarget, setCancelTarget] = useState<OrderWithItems | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelFeedback, setCancelFeedback] = useState('');
+  const [cancelFeedbackError, setCancelFeedbackError] = useState(false);
+  const [detailTarget, setDetailTarget] = useState<OrderWithItems | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  const handleOpenOrderDetail = async (order: OrderWithItems) => {
+    setDetailTarget(order);
+    setIsDetailLoading(true);
+    try {
+      const detail = await orderService.getOrderById(order.id);
+      setDetailTarget(detail);
+    } catch {
+      // Giữ dữ liệu đơn hàng đã tải trong danh sách nếu API chi tiết không khả dụng.
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
 
   const loadReviewableItems = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -131,6 +162,32 @@ export default function CustomerOrdersTab() {
   const handleReviewSuccess = async (message: string) => {
     setReviewFeedback(message);
     await loadReviewableItems();
+  };
+
+  const handleConfirmCancelOrder = async () => {
+    if (!cancelTarget) return;
+
+    setIsCancelling(true);
+    setCancelFeedback('');
+    setCancelFeedbackError(false);
+    try {
+      await orderService.updateOrderStatus(cancelTarget.id, 'CANCELLED');
+      setOrders((current) =>
+        current.map((order) =>
+          order.id === cancelTarget.id
+            ? { ...order, orderStatus: 'CANCELLED', paymentStatus: 'FAILED' }
+            : order
+        )
+      );
+      setCancelTarget(null);
+      setCancelFeedback('Đơn hàng COD đã được hủy thành công.');
+    } catch (error) {
+      setCancelFeedbackError(true);
+      setCancelFeedback(extractErrorMessage(error, 'Không thể hủy đơn hàng.'));
+      setCancelTarget(null);
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   // Trạng thái đang tải dữ liệu
@@ -223,6 +280,28 @@ export default function CustomerOrdersTab() {
         </div>
       )}
 
+      {cancelFeedback && (
+        <div
+          role="status"
+          className={cn(
+            'flex items-center justify-between gap-3 border bg-surface px-4 py-3 text-xs font-medium',
+            cancelFeedbackError
+              ? 'border-status-error text-status-error'
+              : 'border-status-success text-status-success'
+          )}
+        >
+          <span>{cancelFeedback}</span>
+          <button
+            type="button"
+            onClick={() => setCancelFeedback('')}
+            aria-label="Đóng thông báo"
+            className="text-content-muted hover:text-content-primary"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
       <div
         role="group"
         aria-label="Lọc đơn hàng theo trạng thái"
@@ -265,6 +344,21 @@ export default function CustomerOrdersTab() {
               <div
                 key={order.id}
                 className="overflow-hidden rounded-card border border-line-light bg-surface-body transition-shadow hover:shadow-dropdown"
+                role="button"
+                tabIndex={0}
+                aria-label={`Xem chi tiết đơn hàng ${order.orderCode || order.id}`}
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest('button, a, input, select, textarea')) {
+                    return;
+                  }
+                  void handleOpenOrderDetail(order);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    void handleOpenOrderDetail(order);
+                  }
+                }}
               >
                 {/* Header thẻ đơn hàng */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-light bg-surface px-5 py-3.5">
@@ -476,20 +570,18 @@ export default function CustomerOrdersTab() {
 
                 {/* Footer thẻ đơn hàng: Tổng tiền & Nút tác vụ trả hàng */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-light bg-surface px-5 py-3.5">
-                  <div className="text-xs text-content-secondary">
-                    {order.deliveredAt ? (
-                      <span className="flex items-center gap-1.5">
-                        <Truck size={14} className="shrink-0 text-status-success" />
-                        <span>Ngày nhận hàng: {formatDateTime(order.deliveredAt)}</span>
+                  {(order.orderStatus === 'DELIVERED' ? order.deliveredAt : order.expectedDeliveryTime) && (
+                    <span className="flex items-center gap-1.5 text-xs text-content-secondary">
+                      <Truck size={14} className="shrink-0 text-status-success" />
+                      <span>
+                        {order.orderStatus === 'DELIVERED'
+                          ? `Ngày giao: ${formatDateTime(order.deliveredAt)}`
+                          : `Ngày giao dự kiến: ${formatDateTime(order.expectedDeliveryTime)}`}
                       </span>
-                    ) : order.orderStatus === 'CANCELLED' ? (
-                      <span>Đơn hàng đã hủy</span>
-                    ) : (
-                      <span>Đơn hàng chưa hoàn tất giao nhận</span>
-                    )}
-                  </div>
+                    </span>
+                  )}
 
-                  <div className="flex items-center gap-4">
+                  <div className="ml-auto flex flex-wrap items-center justify-end gap-4">
                     <div className="text-right">
                       <span className="mr-1.5 text-xs text-content-muted">Tổng thanh toán:</span>
                       <strong className="text-base text-content-primary">
@@ -498,6 +590,19 @@ export default function CustomerOrdersTab() {
                     </div>
 
                     {/* Nút yêu cầu trả hàng được kích hoạt dựa trên hạn 7 ngày */}
+                    {order.orderStatus === 'PROCESSING' && isCodOrder(order) && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setCancelFeedback('');
+                          setCancelTarget(order);
+                        }}
+                        className="border-status-error text-status-error"
+                      >
+                        Hủy Đơn Hàng
+                      </Button>
+                    )}
                     {isDelivered ? (
                       eligibleForReturn ? (
                         <Button
@@ -515,11 +620,7 @@ export default function CustomerOrdersTab() {
                           Đã quá hạn 7 ngày trả hàng
                         </span>
                       )
-                    ) : (
-                      <span className="text-xs italic text-content-muted">
-                        Chỉ trả hàng sau khi đã nhận
-                      </span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -528,7 +629,199 @@ export default function CustomerOrdersTab() {
         )}
       </div>
 
+      {/* Modal xem chi tiết đơn hàng */}
+      <Modal
+        isOpen={detailTarget !== null}
+        onClose={() => setDetailTarget(null)}
+        title={detailTarget ? `Chi tiết đơn hàng ${detailTarget.orderCode || detailTarget.id}` : 'Chi tiết đơn hàng'}
+        maxWidth="960px"
+      >
+        {detailTarget && (
+          <div className="space-y-5 text-sm">
+            {isDetailLoading && (
+              <p className="text-xs text-content-muted">Đang cập nhật dữ liệu đơn hàng...</p>
+            )}
+            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs text-content-muted">Mã đơn hàng</dt>
+                <dd className="font-semibold text-content-primary">
+                  {detailTarget.orderCode || `#${detailTarget.id}`}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-content-muted">Mã vận đơn</dt>
+                <dd className="font-semibold text-content-primary">
+                  {detailTarget.trackingCode?.trim() || 'Chưa có mã vận đơn'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-content-muted">Ngày đặt</dt>
+                <dd className="text-content-primary">{formatDateTime(detailTarget.createdAt)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-content-muted">Trạng thái thanh toán</dt>
+                <dd className="text-content-primary">
+                  {detailTarget.paymentStatus === 'PAID'
+                    ? 'Đã thanh toán'
+                    : detailTarget.paymentStatus === 'PENDING_COD'
+                    ? 'Chờ thu COD'
+                    : detailTarget.paymentStatus === 'PENDING'
+                    ? 'Chờ thanh toán'
+                    : detailTarget.paymentStatus}
+                </dd>
+              </div>
+              {detailTarget.shippingRecipientName && (
+                <div>
+                  <dt className="text-xs text-content-muted">Người nhận</dt>
+                  <dd className="text-content-primary">{detailTarget.shippingRecipientName}</dd>
+                </div>
+              )}
+              {detailTarget.shippingPhone && (
+                <div>
+                  <dt className="text-xs text-content-muted">Số điện thoại</dt>
+                  <dd className="text-content-primary">{detailTarget.shippingPhone}</dd>
+                </div>
+              )}
+              {detailTarget.shippingAddress && (
+                <div className="sm:col-span-2">
+                  <dt className="text-xs text-content-muted">Địa chỉ giao hàng</dt>
+                  <dd className="text-content-primary">{detailTarget.shippingAddress}</dd>
+                </div>
+              )}
+              {(detailTarget.orderStatus === 'DELIVERED'
+                ? detailTarget.deliveredAt
+                : detailTarget.expectedDeliveryTime) && (
+                <div>
+                  <dt className="text-xs text-content-muted">
+                    {detailTarget.orderStatus === 'DELIVERED'
+                      ? 'Ngày giao hàng thành công'
+                      : 'Ngày giao hàng dự kiến'}
+                  </dt>
+                  <dd className={detailTarget.orderStatus === 'DELIVERED' ? 'font-semibold text-status-success' : 'text-content-primary'}>
+                    {formatDateTime(
+                      detailTarget.orderStatus === 'DELIVERED'
+                        ? detailTarget.deliveredAt
+                        : detailTarget.expectedDeliveryTime
+                    )}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            <div className="overflow-x-auto border border-line-light">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-surface text-content-secondary">
+                  <tr>
+                    <th className="p-3">Sản phẩm</th>
+                    <th className="p-3">Phân loại</th>
+                    <th className="p-3 text-right">Số lượng</th>
+                    <th className="p-3 text-right">Đơn giá</th>
+                    <th className="p-3 text-right">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detailTarget.orderItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-5 text-center text-content-muted">
+                        Đơn hàng không có thông tin sản phẩm.
+                      </td>
+                    </tr>
+                  ) : (
+                    detailTarget.orderItems.map((item) => (
+                      <tr key={item.id} className="border-t border-line-light">
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.productName}
+                                className="h-14 w-14 shrink-0 object-cover"
+                              />
+                            ) : (
+                              <div className="grid h-14 w-14 shrink-0 place-items-center bg-surface text-content-muted">
+                                <Package size={18} />
+                              </div>
+                            )}
+                            <span className="font-medium text-content-primary">
+                              {item.productName}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-content-secondary">{item.variantInfo || '—'}</td>
+                        <td className="p-3 text-right">{item.quantity}</td>
+                        <td className="p-3 text-right">{formatVND(item.unitPrice)}</td>
+                        <td className="p-3 text-right font-semibold">{formatVND(item.totalPrice)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="ml-auto max-w-sm space-y-2 border-t border-line-light pt-4 text-right text-sm">
+              <p className="flex justify-between gap-4">
+                <span className="text-content-secondary">Tạm tính</span>
+                <strong>{formatVND(detailTarget.subtotal)}</strong>
+              </p>
+              <p className="flex justify-between gap-4">
+                <span className="text-content-secondary">Phí vận chuyển</span>
+                <strong>{formatVND(detailTarget.shippingFee)}</strong>
+              </p>
+              <p className="flex justify-between gap-4">
+                <span className="text-content-secondary">Giảm giá</span>
+                <strong>{formatVND(detailTarget.discountAmount || 0)}</strong>
+              </p>
+              <p className="flex justify-between gap-4 border-t border-line-light pt-2 text-base">
+                <span className="font-semibold">Tổng thanh toán</span>
+                <strong className="text-content-primary">{formatVND(detailTarget.totalAmount)}</strong>
+              </p>
+            </div>
+
+            {detailTarget.notes && (
+              <p className="border-t border-line-light pt-4 text-content-secondary">
+                <strong className="text-content-primary">Ghi chú:</strong> {detailTarget.notes}
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
+
       {/* Modal tạo / xem & sửa / xóa đánh giá sản phẩm trong đơn hàng */}
+      <Modal
+        isOpen={cancelTarget !== null}
+        onClose={() => {
+          if (!isCancelling) setCancelTarget(null);
+        }}
+        title="Xác nhận hủy đơn hàng"
+        maxWidth="460px"
+      >
+        <div className="space-y-5">
+          <p className="text-sm text-content-secondary">
+            Bạn có chắc chắn muốn hủy đơn hàng{' '}
+            <strong className="text-content-primary">
+              #{cancelTarget?.orderCode || cancelTarget?.id}
+            </strong>{' '}
+            không? Số lượng sản phẩm sẽ được hoàn lại vào kho.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              disabled={isCancelling}
+              onClick={() => setCancelTarget(null)}
+            >
+              Không, giữ đơn
+            </Button>
+            <Button
+              variant="primary"
+              loading={isCancelling}
+              onClick={() => void handleConfirmCancelOrder()}
+            >
+              Xác nhận hủy
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <OrderReviewModal
         isOpen={Boolean(activeReviewItem)}
         item={activeReviewItem}

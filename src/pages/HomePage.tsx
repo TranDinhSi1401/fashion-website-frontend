@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -6,11 +6,10 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Mail,
   RotateCcw,
   Sparkles,
   ShieldCheck,
-  Truck,
+  Percent,
 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductResponse } from '../types/product';
@@ -123,13 +122,13 @@ const VALUE_PROMISES = [
     desc: 'Thiết kế & sợi sinh thái tuyển chọn độc quyền',
   },
   {
-    icon: Truck,
-    title: 'Miễn Phí Giao Hàng',
-    desc: 'Cho mọi đơn hàng toàn quốc từ 500.000₫',
+    icon: Percent,
+    title: 'Giảm giá 50.000đ',
+    desc: 'Cho mọi đơn hàng từ 500.000₫',
   },
   {
     icon: RotateCcw,
-    title: '30 Ngày Đổi Trả',
+    title: '15 Ngày Đổi Trả',
     desc: 'Đổi tận nơi linh hoạt, không thủ tục rườm rà',
   },
   {
@@ -267,8 +266,6 @@ const FALLBACK_SHOWCASE_PRODUCTS: ProductResponse[] = [
 export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState<number>(0);
   const [products, setProducts] = useState<ProductResponse[]>([]);
-  const [emailSubscribed, setEmailSubscribed] = useState<boolean>(false);
-  const [emailInput, setEmailInput] = useState<string>('');
 
   useEffect(() => {
     let isMounted = true;
@@ -316,14 +313,6 @@ export default function HomePage() {
   const bestSellers = [...products]
     .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
     .slice(0, 4);
-
-  const handleSubscribe = (e: FormEvent) => {
-    e.preventDefault();
-    if (emailInput.trim()) {
-      setEmailSubscribed(true);
-      setEmailInput('');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-surface-body text-content-primary">
@@ -630,65 +619,6 @@ export default function HomePage() {
             {bestSellers.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 7. VIP CLUB & NEWSLETTER */}
-      <section className={cn('bg-surface-dark py-16 text-content-inverse', styles.vipSection)}>
-        <div className="mx-auto max-w-container px-6">
-          <div className="mx-auto max-w-[680px] text-center">
-            <div
-              className={cn(
-                'mb-5 inline-flex h-[52px] w-[52px] items-center justify-center rounded-full',
-                styles.goldIconCircle
-              )}
-            >
-              <Mail size={24} />
-            </div>
-
-            <h3 className="mb-3 text-xl font-bold uppercase tracking-wider text-content-inverse">
-              GIA NHẬP FASHION WEBSITE VIP CLUB
-            </h3>
-
-            <p className="mb-7 text-base leading-relaxed text-content-disabled">
-              Nhận thông báo sớm nhất về các đợt phát hành bộ sưu tập giới hạn, quyền tham gia sự
-              kiện thời trang riêng và tặng ngay voucher{' '}
-              <strong className="text-accent-gold">10% OFF</strong> cho đơn hàng đầu tiên.
-            </p>
-
-            {emailSubscribed ? (
-              <div className={cn('px-6 py-4 text-base font-semibold', styles.vipSuccess)}>
-                Cảm ơn bạn đã đăng ký! Mã voucher ưu đãi 10% đã được gửi đến email của bạn.
-              </div>
-            ) : (
-              <form
-                onSubmit={handleSubscribe}
-                className="mx-auto flex max-w-[520px]"
-              >
-                <input
-                  type="email"
-                  required
-                  placeholder="Nhập địa chỉ email của bạn..."
-                  aria-label="Email đăng ký VIP Club"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  className={cn(
-                    'h-btn-lg flex-1 rounded-input px-4 text-base text-content-inverse placeholder:text-content-muted focus:outline-none',
-                    styles.vipInput
-                  )}
-                />
-                <button
-                  type="submit"
-                  className={cn(
-                    'h-btn-lg shrink-0 rounded-btn px-7 text-base font-bold uppercase tracking-wide',
-                    styles.goldCta
-                  )}
-                >
-                  Đăng Ký
-                </button>
-              </form>
-            )}
           </div>
         </div>
       </section>

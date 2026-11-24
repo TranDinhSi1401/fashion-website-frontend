@@ -35,6 +35,15 @@
 .logoutButton:hover { background: rgba(208, 2, 27, .08); border-color: var(--border-error); }
 .logoutButton:disabled { opacity: .6; cursor: wait; }
 
+.statisticsMenu { display: flex; flex-direction: column; }
+.statisticsToggle { width: 100%; border: 0; background: transparent; cursor: pointer; }
+.statisticsToggle > span { flex: 1; text-align: left; }
+.statisticsToggle svg:last-child { transition: transform .15s; }
+.chevronOpen { transform: rotate(180deg); }
+.statisticsLinks { display: grid; gap: 3px; margin: 2px 0 6px 20px; padding-left: 10px; border-left: 1px solid #eceef1; }
+.statisticsLinks a { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 7px; color: #78818f; font-size: 11px; }
+.statisticsLinks a:hover, .statisticsLinks a.subActive { color: #a7803e; background: #faf4e8; }
+
 .accountDetails { display: grid; gap: 16px; }
 .accountDetails > div { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-light); font-size: 14px; }
 .accountDetails dt { color: var(--text-muted); }

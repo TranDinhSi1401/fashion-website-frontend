@@ -30,6 +30,8 @@ import AdminReturnsPage from './pages/AdminReturnsPage';
 import AdminReturnDetailPage from './pages/AdminReturnDetailPage';
 import AdminDormantReviewsPage from './pages/AdminDormantReviewsPage';
 import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
+import AdminOrderStatisticsPage from './pages/AdminOrderStatisticsPage';
+import AdminStatisticsPlaceholderPage from './pages/AdminStatisticsPlaceholderPage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -133,6 +135,30 @@ export default function App() {
                 element={
                 <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
                     <AdminOrdersPage />
+                </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/admin/statistics/orders"
+                element={
+                <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                    <AdminOrderStatisticsPage />
+                </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/admin/statistics/products"
+                element={
+                <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                    <AdminStatisticsPlaceholderPage title="Thống kê sản phẩm" />
+                </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/admin/statistics/returns"
+                element={
+                <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                    <AdminStatisticsPlaceholderPage title="Thống kê phiếu trả" />
                 </ProtectedRoute>
                 }
             />

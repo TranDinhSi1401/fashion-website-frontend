@@ -1,0 +1,52 @@
+.page:global(.container) { max-width: var(--container-max-width); }
+.toolbar { position: relative; display: grid; grid-template-columns: minmax(360px, 520px) 180px auto; align-items: end; gap: 12px; margin-bottom: 24px; }
+.dateFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.filterError { grid-column: 1 / -1; margin: 0; color: var(--status-error); font-size: var(--fs-xs); }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card, .chartPanel, .panel { min-width: 0; border: 1px solid var(--border-light); border-radius: var(--radius-card); background: var(--bg-elevated); }
+.card { padding: 22px; }
+.featured { background: var(--bg-dark); color: var(--text-inverse); border-color: var(--bg-dark); }
+.cardLabel { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.cardLabel svg { color: var(--color-accent-gold); }
+.card > strong { display: block; margin: 18px 0 8px; font-size: var(--fs-xl); line-height: 1.2; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.card p { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
+.featured p { color: var(--text-disabled); }
+.chartPanel { padding: 24px; margin-bottom: 24px; }
+.panelHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.panelHeading h2 { margin: 0 0 6px; font-size: var(--fs-base); text-transform: uppercase; letter-spacing: var(--tracking-wider); }
+.panelHeading p { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
+.periodLabel { border: 1px solid var(--border-light); background: var(--bg-surface); padding: 7px 10px; color: var(--text-secondary); font-size: var(--fs-xs); }
+.chartWrap { width: 100%; overflow-x: auto; }
+.chartWrap svg { width: 100%; min-width: 700px; height: 280px; }
+.gridLine { stroke: var(--border-light); stroke-width: 1; }
+.chartArea { fill: rgba(172, 134, 72, .12); }
+.chartLine { fill: none; stroke: var(--color-accent-gold); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.chartPoint { fill: var(--bg-elevated); stroke: var(--color-accent-gold); stroke-width: 3; }
+.axisLabel { fill: var(--text-muted); font-size: 10px; }
+.detailsGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 24px; }
+.panel { padding: 24px; }
+.statusList { display: grid; gap: 14px; }
+.statusRow { display: grid; grid-template-columns: minmax(120px, 1fr) 70px; gap: 8px 12px; align-items: center; font-size: var(--fs-sm); }
+.statusRow strong { text-align: right; font-variant-numeric: tabular-nums; }
+.track { grid-column: 1 / -1; height: 5px; background: var(--bg-surface); overflow: hidden; }
+.track > div { height: 100%; background: var(--color-accent-gold); }
+.paymentColumns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.paymentColumns h3 { margin: 0 0 10px; color: var(--text-secondary); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: var(--tracking-wider); }
+.metricRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; border-bottom: 1px solid var(--border-light); font-size: var(--fs-sm); }
+.metricRow span { color: var(--text-secondary); }
+.metricRow strong { font-variant-numeric: tabular-nums; }
+.message { padding: 32px 12px; text-align: center; color: var(--text-secondary); }
+.error { margin-bottom: 20px; padding: 16px; border-left: 3px solid var(--status-error); background: rgba(208, 2, 27, .08); color: var(--status-error); }
+@media (max-width: 1100px) {
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .toolbar { grid-template-columns: minmax(0, 1fr) 180px auto; }
+  .detailsGrid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .toolbar { grid-template-columns: minmax(0, 1fr); }
+  .toolbar > button { justify-self: start; }
+  .cards { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .card, .chartPanel, .panel { padding: 16px; }
+  .paymentColumns { grid-template-columns: minmax(0, 1fr); }
+  .dateFields { grid-template-columns: minmax(0, 1fr); }
+}

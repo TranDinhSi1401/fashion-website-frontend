@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, Tag, Users, MessageSquare, BellRing, UserRound, ShieldCheck, Menu, ChevronDown, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Tag, Users, MessageSquare, BellRing, UserRound, ShieldCheck, Menu, ChevronDown, LogOut, ChartNoAxesCombined, ClipboardCheck, RotateCcw } from 'lucide-react';
 import ProtectedRoute from '../common/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../ui/Modal';
@@ -19,6 +19,7 @@ const modules = [
 export default function AdminLayout() {
   const { pathname } = useLocation();
   const [expanded, setExpanded] = useState(false);
+  const [statisticsExpanded, setStatisticsExpanded] = useState(pathname.startsWith('/admin/statistics'));
   const [loggingOut, setLoggingOut] = useState(false);
   const { user, logout } = useAuth();
   const [showAccount, setShowAccount] = useState(false);
@@ -43,6 +44,18 @@ export default function AdminLayout() {
               const active = pathname === to || pathname.startsWith(to + '/');
               return <Link key={to} to={to} onClick={() => setExpanded(false)} aria-current={active ? 'page' : undefined} className={`${styles.navLink} ${active ? styles.active : ''}`}><Icon size={18} /><span>{label}</span></Link>;
             })}
+            <div className={styles.statisticsMenu}>
+              <button type="button" className={`${styles.navLink} ${styles.statisticsToggle} ${pathname.startsWith('/admin/statistics') ? styles.active : ''}`} aria-expanded={statisticsExpanded} onClick={() => setStatisticsExpanded(value => !value)}>
+                <ChartNoAxesCombined size={18} /><span>Thống kê</span><ChevronDown size={15} className={statisticsExpanded ? styles.chevronOpen : ''} />
+              </button>
+              {statisticsExpanded && (
+                <div className={styles.statisticsLinks}>
+                  <Link to="/admin/statistics/orders" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/orders' ? 'page' : undefined} className={pathname === '/admin/statistics/orders' ? styles.subActive : ''}><ShoppingCart size={16} /><span>Thống kê đơn hàng</span></Link>
+                  <Link to="/admin/statistics/products" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/products' ? 'page' : undefined}><ClipboardCheck size={16} /><span>Thống kê sản phẩm</span></Link>
+                  <Link to="/admin/statistics/returns" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/returns' ? 'page' : undefined}><RotateCcw size={16} /><span>Thống kê phiếu trả</span></Link>
+                </div>
+              )}
+            </div>
             <button type="button" className={styles.accountButton} onClick={() => { setShowAccount(true); setExpanded(false); }}>
               <UserRound size={17} /><span>Thông tin tài khoản</span>
             </button>

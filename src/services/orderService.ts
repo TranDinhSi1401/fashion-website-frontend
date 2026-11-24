@@ -40,9 +40,19 @@ export interface OrderResponse {
   totalAmount: number;
   orderStatus: OrderStatus;
   deliveredAt?: string | null;
+  expectedDeliveryTime?: string | null;
   paymentStatus: string;
+  paymentMethodId?: number | null;
+  paymentMethodCode?: string | null;
+  paymentMethodName?: string | null;
+  paymentMethod?: {
+    id?: number;
+    code?: string;
+    name?: string;
+  } | null;
   paymentUrl?: string | null;
   notes?: string | null;
+  trackingCode?: string | null;
   createdAt: string;
   updatedAt: string;
   orderItems?: ReturnOrderItemResponse[];
@@ -72,6 +82,56 @@ export interface OrderCreationRequest {
   paymentMethodId: number;
   specialOfferId: number | null;
   notes?: string;
+}
+
+export interface OrderOverviewStatistics {
+  totalOrders: number;
+  totalRevenue: number;
+  completedOrders: number;
+  processingOrders: number;
+  cancelledOrders: number;
+}
+
+export interface RevenueStatisticsPoint {
+  label: string;
+  revenue: number;
+  orderCount: number;
+}
+
+export interface RevenueStatistics {
+  period: 'day' | 'month' | 'year';
+  from: string;
+  to: string;
+  totalRevenue: number;
+  totalOrders: number;
+  points: RevenueStatisticsPoint[];
+}
+
+export interface OrderStatusStatistics {
+  totalOrders: number;
+  counts: Record<'PENDING_PAYMENT' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED' | 'RETURNED', number>;
+}
+
+export interface PaymentStatistics {
+  totalOrders: number;
+  paymentStatuses: Record<'PENDING' | 'PENDING_COD' | 'PAID' | 'FAILED' | 'REFUNDED', number>;
+  paymentMethods: Record<string, number>;
+}
+
+export interface CancellationStatistics {
+  totalOrders: number;
+  cancelledOrders: number;
+  cancellationRate: number;
+}
+
+export interface AverageOrderValueStatistics {
+  eligibleOrders: number;
+  averageOrderValue: number;
+}
+
+export interface OrderStatisticsRange {
+  from?: string;
+  to?: string;
 }
 
 export const orderService = {
@@ -137,6 +197,36 @@ export const orderService = {
       status,
     });
     return res.data;
+  },
+
+  async getOrderOverviewStatistics(range: OrderStatisticsRange = {}, signal?: AbortSignal): Promise<OrderOverviewStatistics> {
+    const res = await apiClient.get<ApiResponse<OrderOverviewStatistics>>('/orders/statistics/overview', { params: range, signal });
+    return res.data.data;
+  },
+
+  async getOrderRevenueStatistics(period: 'day' | 'month' | 'year', range: OrderStatisticsRange = {}, signal?: AbortSignal): Promise<RevenueStatistics> {
+    const res = await apiClient.get<ApiResponse<RevenueStatistics>>('/orders/statistics/revenue', { params: { period, ...range }, signal });
+    return res.data.data;
+  },
+
+  async getOrderStatusStatistics(range: OrderStatisticsRange = {}, signal?: AbortSignal): Promise<OrderStatusStatistics> {
+    const res = await apiClient.get<ApiResponse<OrderStatusStatistics>>('/orders/statistics/status', { params: range, signal });
+    return res.data.data;
+  },
+
+  async getPaymentStatistics(range: OrderStatisticsRange = {}, signal?: AbortSignal): Promise<PaymentStatistics> {
+    const res = await apiClient.get<ApiResponse<PaymentStatistics>>('/orders/statistics/payment-status', { params: range, signal });
+    return res.data.data;
+  },
+
+  async getCancellationStatistics(range: OrderStatisticsRange = {}, signal?: AbortSignal): Promise<CancellationStatistics> {
+    const res = await apiClient.get<ApiResponse<CancellationStatistics>>('/orders/statistics/cancellation-rate', { params: range, signal });
+    return res.data.data;
+  },
+
+  async getAverageOrderValueStatistics(range: OrderStatisticsRange = {}, signal?: AbortSignal): Promise<AverageOrderValueStatistics> {
+    const res = await apiClient.get<ApiResponse<AverageOrderValueStatistics>>('/orders/statistics/average-order-value', { params: range, signal });
+    return res.data.data;
   },
 };
 
