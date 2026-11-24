@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bell, CheckCheck, Package, Tag, RotateCcw, Info } from 'lucide-react';
-import { notificationService } from '../../services/notificationService';
-import { useStompSubscription } from '../../ws/useStompSubscription';
 import { useWsStatus } from '../../ws/WebSocketProvider';
-import { NotificationResponse, NotificationType } from '../../types/realtime';
+import { NotificationType } from '../../types/realtime';
+import { useNotifications } from '../../context/NotificationContext';
 import { IconButton } from '../ui';
 import { cn } from '../../utils/cn';
 
@@ -34,57 +33,9 @@ function formatNotificationTime(iso?: string): string {
 
 export default function NotificationBell() {
   const status = useWsStatus();
-  const [items, setItems] = useState<NotificationResponse[]>([]);
-  const [unread, setUnread] = useState<number>(0);
+  const { items, unread, loading, markRead, markAll } = useNotifications();
   const [open, setOpen] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [listRes, countRes] = await Promise.all([
-        notificationService.getMyNotifications(0, 20),
-        notificationService.getUnreadCount(),
-      ]);
-      if (listRes?.data?.content) {
-        setItems(listRes.data.content);
-      }
-      if (typeof countRes?.data?.count === 'number') {
-        setUnread(countRes.data.count);
-      }
-    } catch (err) {
-      console.warn('Could not load notifications:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Tải lần đầu và tải lại mỗi khi (re)connect để không sót thông báo lúc mất mạng
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    if (status === 'CONNECTED') {
-      void load();
-    }
-  }, [status, load]);
-
-  useStompSubscription<NotificationResponse>(
-    '/user/queue/notifications',
-    useCallback((n) => {
-      let isNew = false;
-      setItems((prev) => {
-        if (prev.some((x) => x.id === n.id)) return prev;
-        isNew = true;
-        return [n, ...prev];
-      });
-      if (isNew && !n.seen) {
-        setUnread((c) => c + 1);
-      }
-    }, [])
-  );
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -102,29 +53,6 @@ export default function NotificationBell() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
-
-  const markRead = async (n: NotificationResponse) => {
-    if (!n.seen) {
-      try {
-        await notificationService.markAsRead(n.id);
-        setItems((p) => p.map((x) => (x.id === n.id ? { ...x, seen: true } : x)));
-        setUnread((c) => Math.max(0, c - 1));
-      } catch (err) {
-        console.warn('Could not mark notification as read:', err);
-      }
-    }
-  };
-
-  const markAll = async () => {
-    if (unread === 0) return;
-    try {
-      await notificationService.markAllAsRead();
-      setItems((p) => p.map((x) => ({ ...x, seen: true })));
-      setUnread(0);
-    } catch (err) {
-      console.warn('Could not mark all notifications as read:', err);
-    }
-  };
 
   return (
     <div className="relative" ref={containerRef}>
@@ -167,7 +95,7 @@ export default function NotificationBell() {
             {unread > 0 && (
               <button
                 type="button"
-                onClick={markAll}
+                onClick={() => void markAll()}
                 className="flex items-center gap-1 text-[0.72rem] font-semibold text-accent-gold hover:underline"
               >
                 <CheckCheck size={13} />

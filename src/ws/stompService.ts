@@ -1,4 +1,5 @@
 import { Client, StompSubscription } from '@stomp/stompjs';
+import { API_BASE_URL } from '../services/apiClient';
 import { WsConnectionStatus } from '../types/realtime';
 
 interface SubscriptionEntry {
@@ -8,20 +9,23 @@ interface SubscriptionEntry {
 }
 
 function resolveBrokerUrl(): string {
-  const configured = (import.meta.env.VITE_WS_URL || '/api/v1/ws').trim();
-  if (configured.startsWith('ws://') || configured.startsWith('wss://')) {
-    // Nếu đang truy cập qua HTTPS (ví dụ ngrok) mà cấu hình寫 ws://localhost, tự chuyển sang cùng host để tránh lỗi Mixed Content
-    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && configured.includes('localhost')) {
-      return `wss://${window.location.host}/api/v1/ws`;
+  const configured = import.meta.env.VITE_WS_URL?.trim();
+  if (typeof window === 'undefined') return configured || 'ws://localhost:8080/api/v1/ws';
+
+  const apiUrl = new URL(API_BASE_URL, window.location.origin);
+  const brokerUrl = configured
+    ? new URL(configured, apiUrl.origin)
+    : new URL(`${apiUrl.pathname.replace(/\/$/, '')}/ws`, apiUrl.origin);
+
+  if (brokerUrl.protocol === 'http:') brokerUrl.protocol = 'ws:';
+  if (brokerUrl.protocol === 'https:') brokerUrl.protocol = 'wss:';
+  if (window.location.protocol === 'https:' && brokerUrl.protocol === 'ws:') {
+    brokerUrl.protocol = 'wss:';
+    if (brokerUrl.hostname === 'localhost' || brokerUrl.hostname === '127.0.0.1') {
+      brokerUrl.host = window.location.host;
     }
-    return configured;
   }
-  if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const path = configured.startsWith('/') ? configured : `/${configured}`;
-    return `${protocol}//${window.location.host}${path}`;
-  }
-  return 'ws://localhost:8081/api/v1/ws';
+  return brokerUrl.toString();
 }
 
 class StompService {
