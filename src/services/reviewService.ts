@@ -186,7 +186,8 @@ export const reviewService = {
   async generateAdminAiSummary(prompt: string): Promise<string> {
     const res = await apiClient.post<ApiResponse<string>>(
       '/product-reviews/admin/ai-summary',
-      { prompt }
+      { prompt },
+      { timeout: 60000 }
     );
     return res.data?.data || '';
   },

@@ -12,11 +12,13 @@ import {
   RefreshCw,
   Search,
   Tag,
+  Ticket,
   Trash2,
 } from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
 import PromotionFormModal from '../components/admin/PromotionFormModal';
 import ProductPickerModal from '../components/admin/ProductPickerModal';
+import VoucherManagementTab from '../components/admin/VoucherManagementTab';
 import { Badge, Button, Input, Modal, Pagination, Select } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useDebounce } from '../hooks/useDebounce';
@@ -70,8 +72,8 @@ function computeOfferLifecycle(offer: SpecialOfferResponse): {
 export default function AdminPromotionsPage() {
   const { isAdmin, isStaff } = useAuth();
 
-  // Hai tab quản lý riêng biệt: Khuyến mãi HÓA ĐƠN ('ORDER') & Khuyến mãi SẢN PHẨM ('PRODUCT')
-  const [activeTab, setActiveTab] = useState<OfferType>('ORDER');
+  // Ba tab quản lý: Khuyến mãi HÓA ĐƠN ('ORDER'), Khuyến mãi SẢN PHẨM ('PRODUCT'), MÃ GIẢM GIÁ ('VOUCHER')
+  const [activeTab, setActiveTab] = useState<OfferType | 'VOUCHER'>('ORDER');
 
   // Bộ lọc & tìm kiếm (có debounce 300ms)
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -117,6 +119,7 @@ export default function AdminPromotionsPage() {
 
   const fetchOffersPage = useCallback(
     async (signal?: AbortSignal) => {
+      if (activeTab === 'VOUCHER') return;
       setIsLoading(true);
       try {
         const res = await promotionService.getOffersPage(
@@ -305,25 +308,11 @@ export default function AdminPromotionsPage() {
       <div className="container">
         {/* Thanh điều hướng Quản trị chung */}
         <AdminNav
-          title="Quản Lý Chương Trình Khuyến Mãi"
-          subtitle="Thiết lập ưu đãi giảm giá cho Hóa đơn và Sản phẩm, kiểm soát thời hạn hiệu lực và phạm vi sản phẩm áp dụng."
-          actions={
-            <>
-              <Button variant="secondary" onClick={() => fetchOffersPage()} icon={RefreshCw}>
-                Làm Mới
-              </Button>
-              {(isAdmin || isStaff) && (
-                <Button variant="primary" onClick={handleOpenCreateModal} icon={Plus}>
-                  {activeTab === 'ORDER'
-                    ? 'Thêm Khuyến Mãi Hóa Đơn'
-                    : 'Thêm Khuyến Mãi Sản Phẩm'}
-                </Button>
-              )}
-            </>
-          }
+          title="Quản Lý Chương Trình Khuyến Mãi &amp; Voucher"
+          subtitle="Thiết lập ưu đãi giảm giá cho Hóa đơn, Sản phẩm và các Mã giảm giá Voucher nhập tay khi thanh toán."
         />
 
-        {/* Hai Tab chuyển đổi: Khuyến mãi HÓA ĐƠN vs Khuyến mãi SẢN PHẨM */}
+        {/* Ba Tab chuyển đổi: Khuyến mãi HÓA ĐƠN vs Khuyến mãi SẢN PHẨM vs MÃ GIẢM GIÁ (VOUCHER) */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-line-light">
           <div className="flex items-center gap-2">
             <button
@@ -353,30 +342,60 @@ export default function AdminPromotionsPage() {
               <Tag size={16} />
               <span>Khuyến Mãi Sản Phẩm</span>
             </button>
-          </div>
 
-          <div className="text-xs text-content-secondary py-2">
-            Đang xem:{' '}
-            <strong className="text-content-primary uppercase">
-              {activeTab === 'ORDER'
-                ? 'Danh sách khuyến mãi áp dụng trên tổng hóa đơn'
-                : 'Danh sách khuyến mãi giảm giá trực tiếp trên sản phẩm'}
-            </strong>
+            <button
+              type="button"
+              onClick={() => setActiveTab('VOUCHER')}
+              className={cn(
+                'inline-flex items-center gap-2.5 px-5 py-3 text-sm font-bold uppercase tracking-wide border-b-2 -mb-[1px] transition-colors',
+                activeTab === 'VOUCHER'
+                  ? 'border-primary bg-primary text-content-inverse'
+                  : 'border-transparent bg-surface text-content-secondary hover:text-content-primary'
+              )}
+            >
+              <Ticket size={16} />
+              <span>Mã Giảm Giá (Voucher)</span>
+            </button>
           </div>
         </div>
 
+        {activeTab === 'VOUCHER' ? (
+          <VoucherManagementTab />
+        ) : (
+          <>
+
         {/* Khối Tìm kiếm & Bộ lọc tiêu chí */}
-        <div className="mb-6 p-4 border border-line-light bg-surface">
-          <div className="flex items-center justify-between mb-3">
+        <div className="mb-6 p-4 border border-line-light bg-surface min-h-[110px]">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-content-primary">
               <Filter size={14} />
               <span>Tìm Kiếm &amp; Bộ Lọc Khuyến Mãi</span>
             </div>
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={handleResetFilters}>
-                Xóa bộ lọc
+            <div className="flex items-center gap-2">
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={handleResetFilters}>
+                  Xóa bộ lọc
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void fetchOffersPage()}
+                icon={RefreshCw}
+              >
+                Làm Mới
               </Button>
-            )}
+              {(isAdmin || isStaff) && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleOpenCreateModal}
+                  icon={Plus}
+                >
+                  {activeTab === 'ORDER' ? 'Thêm Khuyến Mãi Hóa Đơn' : 'Thêm Khuyến Mãi Sản Phẩm'}
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
@@ -475,7 +494,7 @@ export default function AdminPromotionsPage() {
         </div>
 
         {/* Bảng danh sách khuyến mãi */}
-        <div className="overflow-x-auto border border-line-light bg-surface-body">
+        <div className="overflow-x-auto border border-line-light bg-surface-body min-h-[380px]">
           <table className="w-full border-collapse text-left text-[0.85rem]">
             <thead>
               <tr className="bg-surface border-b border-line-light uppercase tracking-[0.05em] text-[0.75rem] font-bold text-content-secondary">
@@ -644,25 +663,30 @@ export default function AdminPromotionsPage() {
         </div>
 
         {/* Phân trang chuẩn UI Design System */}
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => setCurrentPage(page)}
-          scrollTargetTop={0}
-        />
+        <div className="min-h-[50px] mt-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => setCurrentPage(page)}
+          />
+        </div>
+        </>
+      )}
       </div>
 
       {/* Modal Thêm mới / Cập nhật khuyến mãi */}
-      <PromotionFormModal
-        isOpen={isFormModalOpen}
-        onClose={() => setIsFormModalOpen(false)}
-        offerType={activeTab}
-        editingOffer={editingOffer}
-        onSaved={(msg) => {
-          setNotification({ type: 'success', message: msg });
-          fetchOffersPage();
-        }}
-      />
+      {activeTab !== 'VOUCHER' && (
+        <PromotionFormModal
+          isOpen={isFormModalOpen}
+          onClose={() => setIsFormModalOpen(false)}
+          offerType={activeTab}
+          editingOffer={editingOffer}
+          onSaved={(msg) => {
+            setNotification({ type: 'success', message: msg });
+            fetchOffersPage();
+          }}
+        />
+      )}
 
       {/* Modal Chọn & Đồng bộ nhanh sản phẩm / biến thể áp dụng cho 1 khuyến mãi SẢN PHẨM */}
       <ProductPickerModal

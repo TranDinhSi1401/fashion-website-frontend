@@ -612,36 +612,72 @@ export default function AdminOrdersPage() {
                       </td>
                     </tr>
                   ) : (
-                    selectedOrder.orderItems?.map((item) => (
-                      <tr key={item.id} className="border-t border-line-light">
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.productName}
-                                className="h-14 w-14 shrink-0 rounded-sm border border-line-light object-cover"
-                              />
-                            ) : (
-                              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-line-light bg-surface text-content-muted">
-                                <Package size={18} />
+                    selectedOrder.orderItems?.map((item) => {
+                      const qty = Math.max(1, Number(item.quantity || 1));
+                      const unit = Number(item.unitPrice || 0);
+                      const origUnit =
+                        item.originalPrice && Number(item.originalPrice) > unit
+                          ? Number(item.originalPrice)
+                          : unit;
+                      const origTotal = origUnit * qty;
+                      const lineTotal = Number(item.totalPrice || unit * qty);
+                      const orderSub = Number(selectedOrder.subtotal || lineTotal || 0);
+                      const orderDisc = Number(selectedOrder.discountAmount || 0);
+                      const allocatedDisc =
+                        orderDisc > 0 && orderSub > 0
+                          ? Math.round((lineTotal / orderSub) * orderDisc)
+                          : 0;
+                      const finalTotal = Math.max(0, lineTotal - allocatedDisc);
+                      const finalUnit = Math.round(finalTotal / qty);
+                      const hasDisc = origTotal > finalTotal;
+
+                      return (
+                        <tr key={item.id} className="border-t border-line-light">
+                          <td className="p-3">
+                            <div className="flex items-center gap-3">
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.productName}
+                                  className="h-14 w-14 shrink-0 rounded-sm border border-line-light object-cover"
+                                />
+                              ) : (
+                                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-sm border border-line-light bg-surface text-content-muted">
+                                  <Package size={18} />
+                                </div>
+                              )}
+                              <span className="font-medium text-content-primary">
+                                {item.productName}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-content-secondary">
+                            {item.variantInfo || '—'}
+                          </td>
+                          <td className="p-3 text-right">{item.quantity}</td>
+                          <td className="p-3 text-right">
+                            {hasDisc && (
+                              <div className="text-[11px] text-content-muted line-through">
+                                {formatCurrencyVND(origUnit)}
                               </div>
                             )}
-                            <span className="font-medium text-content-primary">
-                              {item.productName}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-content-secondary">
-                          {item.variantInfo || '—'}
-                        </td>
-                        <td className="p-3 text-right">{item.quantity}</td>
-                        <td className="p-3 text-right">{formatCurrencyVND(item.unitPrice)}</td>
-                        <td className="p-3 text-right font-semibold">
-                          {formatCurrencyVND(item.totalPrice)}
-                        </td>
-                      </tr>
-                    ))
+                            <div className="font-medium text-content-primary">
+                              {formatCurrencyVND(finalUnit)}
+                            </div>
+                          </td>
+                          <td className="p-3 text-right font-semibold">
+                            {hasDisc && (
+                              <div className="text-[11px] font-normal text-content-muted line-through">
+                                {formatCurrencyVND(origTotal)}
+                              </div>
+                            )}
+                            <div className="font-bold text-content-primary">
+                              {formatCurrencyVND(finalTotal)}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -649,22 +685,48 @@ export default function AdminOrdersPage() {
 
             <div className="ml-auto max-w-sm space-y-2 border-t border-line-light pt-4 text-right text-sm">
               <p className="flex justify-between gap-4">
-                <span className="text-content-secondary">Tạm tính</span>
+                <span className="text-content-secondary">Tạm tính (Giá gốc)</span>
                 <strong>{formatCurrencyVND(selectedOrder.subtotal)}</strong>
               </p>
+              {Number(selectedOrder.discountAmount || 0) > 0 && (
+                <>
+                  <p className="flex justify-between gap-4 text-status-success">
+                    <span>Giảm giá (Voucher / Khuyến mãi)</span>
+                    <strong>−{formatCurrencyVND(selectedOrder.discountAmount)}</strong>
+                  </p>
+                  <p className="flex justify-between gap-4">
+                    <span className="text-content-secondary">Tiền hàng sau giảm</span>
+                    <strong>
+                      {formatCurrencyVND(
+                        Math.max(
+                          0,
+                          Number(selectedOrder.subtotal || 0) -
+                            Number(selectedOrder.discountAmount || 0)
+                        )
+                      )}
+                    </strong>
+                  </p>
+                </>
+              )}
               <p className="flex justify-between gap-4">
                 <span className="text-content-secondary">Phí vận chuyển</span>
                 <strong>{formatCurrencyVND(selectedOrder.shippingFee)}</strong>
               </p>
-              <p className="flex justify-between gap-4">
-                <span className="text-content-secondary">Giảm giá</span>
-                <strong>{formatCurrencyVND(selectedOrder.discountAmount)}</strong>
-              </p>
               <p className="flex justify-between gap-4 border-t border-line-light pt-2 text-base">
                 <span className="font-semibold">Tổng thanh toán</span>
-                <strong className="text-content-primary">
-                  {formatCurrencyVND(selectedOrder.totalAmount)}
-                </strong>
+                <span className="flex items-center gap-2">
+                  {Number(selectedOrder.discountAmount || 0) > 0 && (
+                    <span className="text-xs font-normal text-content-muted line-through">
+                      {formatCurrencyVND(
+                        Number(selectedOrder.subtotal || 0) +
+                          Number(selectedOrder.shippingFee || 0)
+                      )}
+                    </span>
+                  )}
+                  <strong className="text-accent-red">
+                    {formatCurrencyVND(selectedOrder.totalAmount)}
+                  </strong>
+                </span>
               </p>
             </div>
 

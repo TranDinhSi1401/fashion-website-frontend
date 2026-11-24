@@ -81,6 +81,7 @@ export interface OrderCreationRequest {
   userAddressId: number;
   paymentMethodId: number;
   specialOfferId: number | null;
+  voucherCode?: string;
   notes?: string;
 }
 

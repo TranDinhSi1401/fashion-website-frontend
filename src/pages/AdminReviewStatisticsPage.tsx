@@ -204,21 +204,26 @@ export default function AdminReviewStatisticsPage() {
     setAiLoading(true);
 
     try {
-      // 1. Tiền xử lý dữ liệu trước khi gửi cho AI để tiết kiệm tối đa Token
+      // 1. Tiền xử lý dữ liệu trước khi gửi cho AI để tiết kiệm tối đa Token và tăng tốc độ phản hồi
+      const truncateComment = (text?: string | null) => {
+        const clean = (text || '').trim().replace(/\s+/g, ' ');
+        return clean.length > 160 ? clean.slice(0, 160) + '…' : clean;
+      };
+
       const negativeReviews = targetReviews
         .filter((r) => r.rating <= 2 && r.comment?.trim())
-        .map((r) => `- [${r.rating}★] ${r.comment?.trim()}`)
-        .slice(0, 40); // Lấy tối đa 40 phản hồi tiêu cực nhất
+        .map((r) => `- [${r.rating}★] ${truncateComment(r.comment)}`)
+        .slice(0, 15);
 
       const neutralReviews = targetReviews
         .filter((r) => r.rating === 3 && r.comment?.trim())
-        .map((r) => `- [3★] ${r.comment?.trim()}`)
-        .slice(0, 20);
+        .map((r) => `- [3★] ${truncateComment(r.comment)}`)
+        .slice(0, 10);
 
       const positiveReviews = targetReviews
         .filter((r) => r.rating >= 4 && r.comment?.trim())
-        .map((r) => `- [${r.rating}★] ${r.comment?.trim()}`)
-        .slice(0, 40); // Lấy tối đa 40 phản hồi tích cực nhất
+        .map((r) => `- [${r.rating}★] ${truncateComment(r.comment)}`)
+        .slice(0, 15);
 
       const prompt = `Bạn là Trợ lý Quản lý Chất lượng và Dịch vụ Khách hàng của Fashion Website.
 Dưới đây là thống kê tổng hợp đánh giá sản phẩm của cửa hàng từ ngày ${range.from} đến ngày ${range.to}:
