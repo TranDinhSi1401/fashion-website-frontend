@@ -65,6 +65,87 @@ function isCodOrder(order: OrderWithItems) {
   );
 }
 
+function computeOrderItemPricing(
+  order: OrderWithItems,
+  item: {
+    quantity: number;
+    unitPrice: number;
+    totalPrice?: number;
+    originalPrice?: number;
+  }
+) {
+  const qty = Math.max(1, Number(item.quantity || 1));
+  const unitPrice = Number(item.unitPrice || 0);
+  const originalUnitPrice =
+    item.originalPrice && Number(item.originalPrice) > unitPrice
+      ? Number(item.originalPrice)
+      : unitPrice;
+  const originalTotalPrice = originalUnitPrice * qty;
+  const lineTotalAfterProductOffer = Number(item.totalPrice || unitPrice * qty);
+
+  const orderSubtotal = Number(order.subtotal || lineTotalAfterProductOffer || 0);
+  const orderDiscount = Number(order.discountAmount || 0);
+
+  // Phân bổ tiền giảm giá voucher/hóa đơn theo tỷ lệ giá trị dòng sản phẩm
+  const allocatedOrderDiscount =
+    orderDiscount > 0 && orderSubtotal > 0
+      ? Math.round((lineTotalAfterProductOffer / orderSubtotal) * orderDiscount)
+      : 0;
+
+  const finalTotalPrice = Math.max(0, lineTotalAfterProductOffer - allocatedOrderDiscount);
+  const finalUnitPrice = Math.round(finalTotalPrice / qty);
+  const totalDiscountOnItem = Math.max(0, originalTotalPrice - finalTotalPrice);
+
+  return {
+    qty,
+    originalUnitPrice,
+    originalTotalPrice,
+    lineTotalAfterProductOffer,
+    allocatedOrderDiscount,
+    finalUnitPrice,
+    finalTotalPrice,
+    totalDiscountOnItem,
+    hasDiscount: totalDiscountOnItem > 0,
+  };
+}
+
+function computeOrderSummaryPricing(order: OrderWithItems) {
+  const items = order.orderItems || [];
+  const rawOriginalSubtotal = items.reduce((sum, it) => {
+    const qty = Math.max(1, Number(it.quantity || 1));
+    const unit = Number(it.unitPrice || 0);
+    const origUnit =
+      it.originalPrice && Number(it.originalPrice) > unit ? Number(it.originalPrice) : unit;
+    return sum + origUnit * qty;
+  }, 0);
+
+  const subtotalAfterProductOffer = Number(order.subtotal || rawOriginalSubtotal || 0);
+  const originalSubtotal = Math.max(rawOriginalSubtotal, subtotalAfterProductOffer);
+  const productDiscountAmount = Math.max(0, originalSubtotal - subtotalAfterProductOffer);
+  const orderDiscountAmount = Number(order.discountAmount || 0);
+  const totalDiscountAmount = productDiscountAmount + orderDiscountAmount;
+  const discountedItemsSubtotal = Math.max(0, subtotalAfterProductOffer - orderDiscountAmount);
+  const shippingFee = Number(order.shippingFee || 0);
+  const originalTotalWithShip = originalSubtotal + shippingFee;
+  const finalTotalAmount =
+    order.totalAmount !== undefined && order.totalAmount !== null
+      ? Number(order.totalAmount)
+      : Math.max(0, discountedItemsSubtotal + shippingFee);
+
+  return {
+    originalSubtotal,
+    subtotalAfterProductOffer,
+    productDiscountAmount,
+    orderDiscountAmount,
+    totalDiscountAmount,
+    discountedItemsSubtotal,
+    shippingFee,
+    originalTotalWithShip,
+    finalTotalAmount,
+    hasDiscount: totalDiscountAmount > 0,
+  };
+}
+
 /**
  * Chức năng: Hiển thị danh sách các đơn hàng đã mua của khách hàng, điều kiện đổi trả
  * và thao tác đánh giá sản phẩm cho từng dòng sản phẩm thuộc đơn hàng đã giao thành công.
@@ -438,9 +519,29 @@ export default function CustomerOrdersTab() {
                               <div className="mt-0.5 text-xs text-content-muted">
                                 {revItem.variantInfo || 'Phân loại tiêu chuẩn'}
                               </div>
-                              <div className="mt-1 text-xs text-content-secondary">
-                                SL: {revItem.quantity} x {formatVND(revItem.unitPrice)}
-                              </div>
+                              {(() => {
+                                const itemPrice = computeOrderItemPricing(order, revItem);
+                                return (
+                                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-content-secondary">
+                                    <span>
+                                      SL: {revItem.quantity} x{' '}
+                                      <strong className="font-semibold text-content-primary">
+                                        {formatVND(itemPrice.finalUnitPrice)}
+                                      </strong>
+                                    </span>
+                                    {itemPrice.hasDiscount && (
+                                      <>
+                                        <span className="text-content-muted line-through">
+                                          {formatVND(itemPrice.originalUnitPrice)}
+                                        </span>
+                                        <span className="rounded bg-status-success/15 px-1.5 py-0.5 text-[10px] font-semibold text-status-success">
+                                          −{formatVND(itemPrice.totalDiscountOnItem)}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })()}
 
                               {/* Tóm tắt đánh giá đã gửi (nếu có) */}
                               {revItem.reviewed && existingReview && (
@@ -476,11 +577,21 @@ export default function CustomerOrdersTab() {
 
                           {/* Giá dòng sản phẩm & nút Đánh giá / Xem & Sửa */}
                           <div className="flex shrink-0 flex-row items-center justify-between gap-3 sm:flex-col sm:items-end">
-                            <div className="text-sm font-bold text-content-primary">
-                              {formatVND(
-                                revItem.totalPrice || revItem.unitPrice * revItem.quantity
-                              )}
-                            </div>
+                            {(() => {
+                              const itemPrice = computeOrderItemPricing(order, revItem);
+                              return (
+                                <div className="text-right">
+                                  {itemPrice.hasDiscount && (
+                                    <div className="text-xs text-content-muted line-through">
+                                      {formatVND(itemPrice.originalTotalPrice)}
+                                    </div>
+                                  )}
+                                  <div className="text-sm font-bold text-content-primary">
+                                    {formatVND(itemPrice.finalTotalPrice)}
+                                  </div>
+                                </div>
+                              );
+                            })()}
 
                             <div className="flex flex-wrap items-center gap-2">
                               {revItem.reviewed ? (
@@ -520,43 +631,66 @@ export default function CustomerOrdersTab() {
                       );
                     })
                   ) : (
-                    (order.orderItems || []).map((item: OrderItemResponse) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between gap-4 border-b border-line-light pb-3 last:border-b-0 last:pb-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          {item.imageUrl ? (
-                            <img
-                              src={item.imageUrl}
-                              alt={item.productName}
-                              className="h-14 w-14 shrink-0 rounded-sm border border-line-light object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-sm bg-surface text-content-muted">
-                              <Package size={20} />
-                            </div>
-                          )}
-                          <div>
-                            <div className="line-clamp-1 text-sm font-semibold text-content-primary">
-                              {item.productName}
-                            </div>
-                            <div className="mt-0.5 text-xs text-content-muted">
-                              {item.variantInfo || 'Phân loại tiêu chuẩn'}
-                            </div>
-                            <div className="mt-1 text-xs text-content-secondary">
-                              SL: {item.quantity} x {formatVND(item.unitPrice)}
+                    (order.orderItems || []).map((item: OrderItemResponse) => {
+                      const itemPrice = computeOrderItemPricing(order, item);
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between gap-4 border-b border-line-light pb-3 last:border-b-0 last:pb-0"
+                        >
+                          <div className="flex items-center gap-3">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.productName}
+                                className="h-14 w-14 shrink-0 rounded-sm border border-line-light object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-sm bg-surface text-content-muted">
+                                <Package size={20} />
+                              </div>
+                            )}
+                            <div>
+                              <div className="line-clamp-1 text-sm font-semibold text-content-primary">
+                                {item.productName}
+                              </div>
+                              <div className="mt-0.5 text-xs text-content-muted">
+                                {item.variantInfo || 'Phân loại tiêu chuẩn'}
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-content-secondary">
+                                <span>
+                                  SL: {item.quantity} x{' '}
+                                  <strong className="font-semibold text-content-primary">
+                                    {formatVND(itemPrice.finalUnitPrice)}
+                                  </strong>
+                                </span>
+                                {itemPrice.hasDiscount && (
+                                  <>
+                                    <span className="text-content-muted line-through">
+                                      {formatVND(itemPrice.originalUnitPrice)}
+                                    </span>
+                                    <span className="rounded bg-status-success/15 px-1.5 py-0.5 text-[10px] font-semibold text-status-success">
+                                      Đã giảm −{formatVND(itemPrice.totalDiscountOnItem)}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="shrink-0 text-right">
-                          <div className="text-sm font-bold text-content-primary">
-                            {formatVND(item.totalPrice || item.unitPrice * item.quantity)}
+                          <div className="shrink-0 text-right">
+                            {itemPrice.hasDiscount && (
+                              <div className="text-xs text-content-muted line-through">
+                                {formatVND(itemPrice.originalTotalPrice)}
+                              </div>
+                            )}
+                            <div className="text-sm font-bold text-content-primary">
+                              {formatVND(itemPrice.finalTotalPrice)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
@@ -574,12 +708,47 @@ export default function CustomerOrdersTab() {
                   )}
 
                   <div className="ml-auto flex flex-wrap items-center justify-end gap-4">
-                    <div className="text-right">
-                      <span className="mr-1.5 text-xs text-content-muted">Tổng thanh toán:</span>
-                      <strong className="text-base text-content-primary">
-                        {formatVND(order.totalAmount || order.subtotal)}
-                      </strong>
-                    </div>
+                    {(() => {
+                      const summary = computeOrderSummaryPricing(order);
+                      return (
+                        <div className="text-right">
+                          {summary.hasDiscount && (
+                            <div className="mb-0.5 flex flex-wrap items-center justify-end gap-2 text-xs">
+                              <span className="text-content-muted">
+                                Tiền hàng gốc:{' '}
+                                <span className="line-through">
+                                  {formatVND(summary.originalSubtotal)}
+                                </span>
+                              </span>
+                              <span className="font-semibold text-status-success">
+                                • Giảm giá: −{formatVND(summary.totalDiscountAmount)}
+                              </span>
+                              <span className="text-content-secondary">
+                                • Còn: <strong>{formatVND(summary.discountedItemsSubtotal)}</strong>
+                              </span>
+                              {summary.shippingFee > 0 && (
+                                <span className="text-content-muted">
+                                  (+Ship {formatVND(summary.shippingFee)})
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-xs text-content-muted">
+                              Tổng thanh toán (đã gồm ship):
+                            </span>
+                            {summary.hasDiscount && (
+                              <span className="text-xs text-content-muted line-through">
+                                {formatVND(summary.originalTotalWithShip)}
+                              </span>
+                            )}
+                            <strong className="text-base font-bold text-accent-red">
+                              {formatVND(summary.finalTotalAmount)}
+                            </strong>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Nút yêu cầu trả hàng được kích hoạt dựa trên hạn 7 ngày */}
                     {order.orderStatus === 'PROCESSING' && isCodOrder(order) && (
@@ -719,55 +888,98 @@ export default function CustomerOrdersTab() {
                       </td>
                     </tr>
                   ) : (
-                    detailTarget.orderItems.map((item) => (
-                      <tr key={item.id} className="border-t border-line-light">
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.productName}
-                                className="h-14 w-14 shrink-0 object-cover"
-                              />
-                            ) : (
-                              <div className="grid h-14 w-14 shrink-0 place-items-center bg-surface text-content-muted">
-                                <Package size={18} />
+                    detailTarget.orderItems.map((item) => {
+                      const itemPrice = computeOrderItemPricing(detailTarget, item);
+                      return (
+                        <tr key={item.id} className="border-t border-line-light">
+                          <td className="p-3">
+                            <div className="flex items-center gap-3">
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.productName}
+                                  className="h-14 w-14 shrink-0 object-cover"
+                                />
+                              ) : (
+                                <div className="grid h-14 w-14 shrink-0 place-items-center bg-surface text-content-muted">
+                                  <Package size={18} />
+                                </div>
+                              )}
+                              <span className="font-medium text-content-primary">
+                                {item.productName}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-content-secondary">{item.variantInfo || '—'}</td>
+                          <td className="p-3 text-right">{item.quantity}</td>
+                          <td className="p-3 text-right">
+                            {itemPrice.hasDiscount && (
+                              <div className="text-[11px] text-content-muted line-through">
+                                {formatVND(itemPrice.originalUnitPrice)}
                               </div>
                             )}
-                            <span className="font-medium text-content-primary">
-                              {item.productName}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-content-secondary">{item.variantInfo || '—'}</td>
-                        <td className="p-3 text-right">{item.quantity}</td>
-                        <td className="p-3 text-right">{formatVND(item.unitPrice)}</td>
-                        <td className="p-3 text-right font-semibold">{formatVND(item.totalPrice)}</td>
-                      </tr>
-                    ))
+                            <div className="font-medium text-content-primary">
+                              {formatVND(itemPrice.finalUnitPrice)}
+                            </div>
+                          </td>
+                          <td className="p-3 text-right font-semibold">
+                            {itemPrice.hasDiscount && (
+                              <div className="text-[11px] font-normal text-content-muted line-through">
+                                {formatVND(itemPrice.originalTotalPrice)}
+                              </div>
+                            )}
+                            <div className="font-bold text-content-primary">
+                              {formatVND(itemPrice.finalTotalPrice)}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
 
-            <div className="ml-auto max-w-sm space-y-2 border-t border-line-light pt-4 text-right text-sm">
-              <p className="flex justify-between gap-4">
-                <span className="text-content-secondary">Tạm tính</span>
-                <strong>{formatVND(detailTarget.subtotal)}</strong>
-              </p>
-              <p className="flex justify-between gap-4">
-                <span className="text-content-secondary">Phí vận chuyển</span>
-                <strong>{formatVND(detailTarget.shippingFee)}</strong>
-              </p>
-              <p className="flex justify-between gap-4">
-                <span className="text-content-secondary">Giảm giá</span>
-                <strong>{formatVND(detailTarget.discountAmount || 0)}</strong>
-              </p>
-              <p className="flex justify-between gap-4 border-t border-line-light pt-2 text-base">
-                <span className="font-semibold">Tổng thanh toán</span>
-                <strong className="text-content-primary">{formatVND(detailTarget.totalAmount)}</strong>
-              </p>
-            </div>
+            {(() => {
+              const summary = computeOrderSummaryPricing(detailTarget);
+              return (
+                <div className="ml-auto max-w-sm space-y-2 border-t border-line-light pt-4 text-right text-sm">
+                  <p className="flex justify-between gap-4">
+                    <span className="text-content-secondary">Tạm tính (Giá gốc)</span>
+                    <strong>{formatVND(summary.originalSubtotal)}</strong>
+                  </p>
+                  {summary.hasDiscount && (
+                    <>
+                      <p className="flex justify-between gap-4 text-status-success">
+                        <span>Giảm giá (Voucher / Khuyến mãi)</span>
+                        <strong>−{formatVND(summary.totalDiscountAmount)}</strong>
+                      </p>
+                      <p className="flex justify-between gap-4">
+                        <span className="text-content-secondary">Tiền hàng sau giảm</span>
+                        <strong>{formatVND(summary.discountedItemsSubtotal)}</strong>
+                      </p>
+                    </>
+                  )}
+                  <p className="flex justify-between gap-4">
+                    <span className="text-content-secondary">Phí vận chuyển</span>
+                    <strong>{formatVND(summary.shippingFee)}</strong>
+                  </p>
+                  <p className="flex justify-between gap-4 border-t border-line-light pt-2 text-base">
+                    <span className="font-semibold">Tổng thanh toán</span>
+                    <span className="flex items-center gap-2">
+                      {summary.hasDiscount && (
+                        <span className="text-xs font-normal text-content-muted line-through">
+                          {formatVND(summary.originalTotalWithShip)}
+                        </span>
+                      )}
+                      <strong className="text-accent-red">
+                        {formatVND(summary.finalTotalAmount)}
+                      </strong>
+                    </span>
+                  </p>
+                </div>
+              );
+            })()}
 
             {detailTarget.notes && (
               <p className="border-t border-line-light pt-4 text-content-secondary">
