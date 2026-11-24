@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { QuickBuyProvider } from './context/QuickBuyContext';
 import { WebSocketProvider } from './ws/WebSocketProvider';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -19,11 +20,13 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <BrowserRouter>
           <AuthProvider>
             <WebSocketProvider>
-              <CartProvider>
-                <QuickBuyProvider>
-                  <App />
-                </QuickBuyProvider>
-              </CartProvider>
+              <NotificationProvider>
+                <CartProvider>
+                  <QuickBuyProvider>
+                    <App />
+                  </QuickBuyProvider>
+                </CartProvider>
+              </NotificationProvider>
             </WebSocketProvider>
           </AuthProvider>
         </BrowserRouter>

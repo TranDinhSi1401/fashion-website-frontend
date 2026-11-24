@@ -179,8 +179,8 @@ export default function AdminOrdersPage() {
 
         if (active) {
           setOrders(response.data?.content || []);
-          setTotalElements(response.data?.totalElements || 0);
-          setTotalPages(response.data?.totalPages || 0);
+          setTotalElements(response.data?.page?.totalElements || 0);
+          setTotalPages(response.data?.page?.totalPages || 0);
         }
       } catch (error) {
         if (active) {

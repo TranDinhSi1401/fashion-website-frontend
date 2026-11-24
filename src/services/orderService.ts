@@ -60,12 +60,12 @@ export interface OrderResponse {
 
 export interface OrdersPage {
   content: OrderResponse[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-  first: boolean;
-  last: boolean;
+  page: {
+    size: number;
+    number: number;
+    totalElements: number;
+    totalPages: number;
+  };
 }
 
 export interface OrderSearchFilters {
