@@ -33,6 +33,7 @@ import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
 import AdminOrderStatisticsPage from './pages/AdminOrderStatisticsPage';
 import AdminReviewStatisticsPage from './pages/AdminReviewStatisticsPage';
 import AdminStatisticsPlaceholderPage from './pages/AdminStatisticsPlaceholderPage';
+import AboutUsPage from './pages/AboutUsPage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -51,6 +52,8 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
+          <Route path="/ve-chung-toi" element={<AboutUsPage />} />
+          <Route path="/about" element={<Navigate to="/ve-chung-toi" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

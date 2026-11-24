@@ -86,6 +86,92 @@ function writeCatalogCache(snapshot: CatalogCacheSnapshot): void {
   }
 }
 
+interface CatalogBannerMeta {
+  imageUrl: string;
+  badge: string;
+  subtitle: string;
+  objectPosition?: string;
+}
+
+function resolveCatalogBanner(
+  group?: string | null,
+  tag?: string | null,
+  categoryName?: string | null
+): CatalogBannerMeta {
+  const normCategory = (categoryName || '').toLowerCase();
+
+  if (tag === 'sale') {
+    return {
+      imageUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1600&auto=format&fit=crop',
+      badge: 'ĐẶC QUYỀN ƯU ĐÃI · PRIVILEGE SALE',
+      subtitle: 'Cơ hội sở hữu những thiết kế may đo cao cấp với mức giá ưu đãi đặc quyền.',
+      objectPosition: 'center 35%',
+    };
+  }
+  if (tag === 'new') {
+    return {
+      imageUrl: 'https://images.unsplash.com/photo-1516826957135-700dedea698c?q=80&w=1600&auto=format&fit=crop',
+      badge: 'BỘ SƯU TẬP MỚI · NEW ARRIVALS',
+      subtitle: 'Cập nhật những xu hướng thời trang đương đại và chất liệu thượng hạng mới nhất.',
+      objectPosition: 'center 35%',
+    };
+  }
+  if (normCategory.includes('sơ mi') || normCategory.includes('so mi')) {
+    return {
+      imageUrl: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?q=80&w=1600&auto=format&fit=crop',
+      badge: 'ÁO SƠ MI CAO CẤP · DRESS SHIRTS',
+      subtitle: 'Chất liệu Cotton Ai Cập và Linen Normandie thoáng mát, tôn vinh phong thái lịch lãm.',
+      objectPosition: 'center 30%',
+    };
+  }
+  if (normCategory.includes('polo')) {
+    return {
+      imageUrl: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=1600&auto=format&fit=crop',
+      badge: 'ÁO POLO DỆT KIM · LUXURY POLO',
+      subtitle: 'Sự giao thoa hoàn hảo giữa nét năng động hiện đại và sự chỉn chu tinh tế.',
+      objectPosition: 'center 35%',
+    };
+  }
+  if (group === 'ao' || normCategory.includes('áo') || normCategory.includes('ao')) {
+    return {
+      imageUrl: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=1600&auto=format&fit=crop',
+      badge: 'BỘ SƯU TẬP ÁO NAM · SHIRTS & POLOS',
+      subtitle: 'Định hình phong cách quý ông với các thiết kế áo may đo sắc nét và êm ái.',
+      objectPosition: 'center 35%',
+    };
+  }
+  if (normCategory.includes('short')) {
+    return {
+      imageUrl: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?q=80&w=1600&auto=format&fit=crop',
+      badge: 'QUẦN SHORT NAM · CASUAL SHORTS',
+      subtitle: 'Thoải mái, phóng khoáng nhưng luôn giữ trọn nét lịch thiệp mùa hè.',
+      objectPosition: 'center 45%',
+    };
+  }
+  if (normCategory.includes('tây') || normCategory.includes('khaki') || normCategory.includes('jeans')) {
+    return {
+      imageUrl: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?q=80&w=1600&auto=format&fit=crop',
+      badge: 'QUẦN TÂY MAY ĐO · TAILORED TROUSERS',
+      subtitle: 'Đường ly phẳng phiu, phom dáng chuẩn mực nâng tầm từng bước đi đĩnh đạc.',
+      objectPosition: 'center 45%',
+    };
+  }
+  if (group === 'quan' || normCategory.includes('quần') || normCategory.includes('quan')) {
+    return {
+      imageUrl: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?q=80&w=1600&auto=format&fit=crop',
+      badge: 'BỘ SƯU TẬP QUẦN NAM · TROUSERS & PANTS',
+      subtitle: 'Sự vừa vặn hoàn hảo, tôn dáng tự nhiên và đem lại cảm giác thoải mái cả ngày.',
+      objectPosition: 'center 45%',
+    };
+  }
+  return {
+    imageUrl: 'https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?q=80&w=1600&auto=format&fit=crop',
+    badge: 'FASHION WEBSITE · ĐẲNG CẤP QUÝ ÔNG',
+    subtitle: 'Định hình phong cách hiện đại với những thiết kế tối giản, sắc nét và chất liệu cao cấp.',
+    objectPosition: 'center 35%',
+  };
+}
+
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const paramsKey = searchParams.toString();
@@ -302,6 +388,7 @@ export default function ProductsPage() {
       : searchParams.get('tag') === 'new'
       ? `Hàng mới về trong 30 ngày${categoryName ? ` · ${categoryName}` : ''}`
       : categoryName || 'Danh mục sản phẩm';
+  const bannerMeta = resolveCatalogBanner(selection.group, searchParams.get('tag'), categoryName);
   const shownError = metadataError || selection.validation;
   const categoryTag = searchParams.get('tag') === 'new' ? 'new' : '';
 
@@ -490,18 +577,37 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-surface-body text-content-primary">
-      <section className="bg-surface-dark py-12 text-content-inverse md:py-16">
-        <div className="container">
-          <p className="text-xs font-semibold uppercase tracking-wider text-accent-gold">
-            FASHION WEBSITE
-          </p>
-          <h1 className="my-4 text-2xl font-bold uppercase tracking-wide text-content-inverse md:text-[36px]">
-            {title}
-          </h1>
-          <p className="text-base text-content-disabled">
-            Khám phá bộ sưu tập và tìm sản phẩm phù hợp với bạn.
-          </p>
+      {/* Banner Ảnh Thật Editorial với Độ Sáng Rõ Nét */}
+      <section className="relative overflow-hidden bg-black text-content-inverse min-h-[200px] sm:min-h-[240px] md:min-h-[280px] flex items-center">
+        {/* Ảnh nền thật sáng rõ, chi tiết cao */}
+        <img
+          src={bannerMeta.imageUrl}
+          alt={title}
+          loading="eager"
+          style={{ objectPosition: bannerMeta.objectPosition || 'center 35%' }}
+          className="absolute inset-0 h-full w-full object-cover filter brightness-95 contrast-105 transition-transform duration-1000 hover:scale-103"
+        />
+
+        {/* Lớp phủ mờ nhẹ bên trái để giữ độ tương phản chữ, bên phải sáng rõ ảnh thật */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+
+        <div className="container relative z-10 py-8 sm:py-12 md:py-14">
+          <div className="max-w-2xl drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]">
+            <span className="inline-block text-[0.7rem] sm:text-xs font-bold uppercase tracking-[0.2em] text-accent-gold mb-2">
+              {bannerMeta.badge}
+            </span>
+            <h1 className="my-1.5 text-2xl font-bold uppercase tracking-wider text-white sm:text-3xl md:text-[36px] leading-tight">
+              {title}
+            </h1>
+            <p className="mt-2 text-xs sm:text-sm md:text-base leading-relaxed text-gray-100 font-normal max-w-xl">
+              {bannerMeta.subtitle}
+            </p>
+          </div>
         </div>
+
+        {/* Đường viền vàng mảnh tinh tế dưới đáy banner */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-accent-gold/60 to-transparent" />
       </section>
 
       <div className="container">

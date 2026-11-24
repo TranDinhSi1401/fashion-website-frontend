@@ -1,0 +1,189 @@
+/* AboutUsPage.module.css - Luxury Menswear Editorial Style */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400;1,600&display=swap');
+
+:root {
+  --editorial-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --editorial-gold: #C9A961;
+  --editorial-gold-dark: #A8863A;
+  --editorial-cream: #FAF8F5;
+  --editorial-dark: #111111;
+  --editorial-gray: #777777;
+  --editorial-border: #E8E4DC;
+}
+
+.pageContainer {
+  background-color: var(--editorial-cream);
+  color: var(--editorial-dark);
+  font-family: var(--font-primary, 'Montserrat', sans-serif);
+  overflow-x: hidden;
+}
+
+/* Serif Headings */
+.serifHeading {
+  font-family: var(--editorial-serif);
+  letter-spacing: -0.01em;
+}
+
+/* Drop Cap cho đoạn văn mở đầu câu chuyện */
+.dropCap::first-letter {
+  float: left;
+  font-family: var(--editorial-serif);
+  font-size: 4.2rem;
+  line-height: 0.8;
+  padding-top: 6px;
+  padding-right: 14px;
+  padding-bottom: 2px;
+  color: var(--editorial-gold);
+  font-weight: 700;
+}
+
+/* Hiệu ứng Parallax nhẹ cho Hero */
+.heroBanner {
+  position: relative;
+  height: 80vh;
+  min-height: 540px;
+  max-height: 720px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0b0b0b;
+}
+
+.heroImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+  filter: brightness(0.65) contrast(1.08);
+  transform: scale(1.04);
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.heroBanner:hover .heroImage {
+  transform: scale(1.07);
+}
+
+/* Khung ảnh editorial bo góc tối thiểu */
+.editorialImageWrapper {
+  position: relative;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.15);
+}
+
+/* Section Header viền vàng mảnh */
+.sectionGoldLine {
+  display: inline-block;
+  width: 48px;
+  height: 2px;
+  background-color: var(--editorial-gold);
+  margin-bottom: 1rem;
+}
+
+/* Thẻ giá trị cốt lõi */
+.valueCard {
+  background-color: #FFFFFF;
+  border: 1px solid var(--editorial-border);
+  padding: 36px 28px;
+  border-radius: 2px;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.valueCard::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0%;
+  height: 2px;
+  background-color: var(--editorial-gold);
+  transition: width 0.35s ease;
+}
+
+.valueCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
+  border-color: rgba(201, 169, 97, 0.5);
+}
+
+.valueCard:hover::after {
+  width: 100%;
+}
+
+/* Thẻ nhân sự / đội ngũ */
+.teamCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+  background-color: #FFFFFF;
+  border: 1px solid var(--editorial-border);
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+.teamCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 18px 36px -10px rgba(0, 0, 0, 0.12);
+}
+
+.teamImage {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  filter: grayscale(18%);
+  transition: filter 0.35s ease, transform 0.4s ease;
+}
+
+.teamCard:hover .teamImage {
+  filter: grayscale(0%);
+  transform: scale(1.03);
+}
+
+/* Timeline 4 bước quy trình */
+.timelineStep {
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.timelineStep:hover {
+  transform: translateY(-4px);
+}
+
+.stepNumber {
+  font-family: var(--editorial-serif);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--editorial-gold);
+  line-height: 1;
+  opacity: 0.9;
+}
+
+/* Scroll Animation Helper */
+.fadeInUp {
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroImage,
+  .valueCard,
+  .teamCard,
+  .fadeInUp {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}

@@ -139,30 +139,30 @@ export default function Footer() {
             </h5>
             <ul>
               <li>
-                <a
-                  href="#story"
+                <Link
+                  to="/ve-chung-toi#story"
                   className={cn(
                     'text-sm font-normal leading-[2.2] text-content-disabled',
                     styles.footerLink
                   )}
                 >
                   Câu chuyện thương hiệu
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#sustainability"
+                <Link
+                  to="/ve-chung-toi#sustainability"
                   className={cn(
                     'text-sm font-normal leading-[2.2] text-content-disabled',
                     styles.footerLink
                   )}
                 >
                   Phát triển bền vững
-                </a>
+                </Link>
               </li>
               <li>
                 <Link
-                  to="/#stores"
+                  to="/ve-chung-toi#stores"
                   className={cn(
                     'text-sm font-normal leading-[2.2] text-content-disabled',
                     styles.footerLink
@@ -172,15 +172,15 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a
-                  href="#careers"
+                <Link
+                  to="/ve-chung-toi#careers"
                   className={cn(
                     'text-sm font-normal leading-[2.2] text-content-disabled',
                     styles.footerLink
                   )}
                 >
                   Cơ hội nghề nghiệp
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
