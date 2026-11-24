@@ -1,0 +1,155 @@
+/* ChatWidget.module.css - Luxury Menswear Black & Gold Theme */
+
+:root {
+  --chat-bg: #FAF8F5;
+  --chat-surface: #FFFFFF;
+  --chat-primary: #111111;
+  --chat-primary-hover: #222222;
+  --chat-gold: #C9A961;
+  --chat-gold-dark: #B38F46;
+  --chat-gold-light: #F7F3E9;
+  --chat-gold-border: rgba(201, 169, 97, 0.35);
+  --chat-muted: #8A8A8A;
+  --chat-border: #EAE6DF;
+}
+
+/* Chat container shell */
+.chatContainer {
+  font-family: var(--font-primary, 'Montserrat', sans-serif);
+  background-color: var(--chat-bg);
+  box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--chat-gold-border);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+  animation: widgetEntrance 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes widgetEntrance {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Custom Luxury Scrollbar - Mảnh 6px màu gold mờ */
+.messagesScroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 169, 97, 0.3) transparent;
+}
+
+.messagesScroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.messagesScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messagesScroll::-webkit-scrollbar-thumb {
+  background: rgba(201, 169, 97, 0.25);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.messagesScroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(201, 169, 97, 0.6);
+}
+
+/* Tin nhắn animation */
+.messageItem {
+  animation: messageSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Typing indicator dots */
+.typingDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--chat-gold);
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+
+.typingDot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typingDot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typingBounce {
+  0%, 80%, 100% {
+    transform: scale(0.5);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Quick reply chip */
+.quickChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #FFFFFF;
+  border: 1px solid var(--chat-border);
+  color: var(--chat-primary);
+  border-radius: 9999px;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.quickChip:hover {
+  border-color: var(--chat-gold);
+  background-color: var(--chat-gold-light);
+  color: #111111;
+  transform: translateY(-1px);
+}
+
+.quickChip:active {
+  transform: scale(0.97);
+}
+
+/* Launcher button pulse */
+.launcherPulse {
+  box-shadow: 0 0 0 0 rgba(201, 169, 97, 0.5);
+  animation: pulseGold 2.2s infinite;
+}
+
+@keyframes pulseGold {
+  0% {
+    box-shadow: 0 0 0 0 rgba(201, 169, 97, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(201, 169, 97, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 169, 97, 0);
+  }
+}
+
+/* Safe area bottom on iPhone */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safeBottom {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+}

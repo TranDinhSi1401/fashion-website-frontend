@@ -881,12 +881,6 @@ export default function AdminUsersPage() {
                       <Badge variant="default">
                         {formatGender(u.gender)}
                       </Badge>
-                      {u.dateOfBirth && (
-                        <div className="text-[0.72rem] text-content-muted mt-1 flex items-center gap-1">
-                          <Calendar size={11} className="text-accent-gold shrink-0" />
-                          <span>{formatDateVN(u.dateOfBirth)}</span>
-                        </div>
-                      )}
                     </td>
                     <td className="p-3.5">
                       <div className="text-content-primary">{u.email}</div>
