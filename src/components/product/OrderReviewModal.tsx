@@ -370,7 +370,7 @@ function OrderReviewForm({ item, onBusyChange, onClose, onSuccess }: OrderReview
                   <Star
                     size={28}
                     className={
-                      active ? 'fill-primary text-primary' : 'fill-transparent text-line'
+                      active ? 'fill-amber-400 text-amber-400' : 'fill-transparent text-line'
                     }
                   />
                 </button>

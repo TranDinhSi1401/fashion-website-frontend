@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, Tag, Users, MessageSquare, BellRing, UserRound, ShieldCheck, Menu, ChevronDown, LogOut, ChartNoAxesCombined, ClipboardCheck, RotateCcw } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Tag, Users, MessageSquare, BellRing, UserRound, ShieldCheck, Menu, ChevronDown, LogOut, ChartNoAxesCombined, ClipboardCheck, RotateCcw, Star } from 'lucide-react';
 import ProtectedRoute from '../common/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../ui/Modal';
@@ -53,6 +53,7 @@ export default function AdminLayout() {
                   <Link to="/admin/statistics/orders" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/orders' ? 'page' : undefined} className={pathname === '/admin/statistics/orders' ? styles.subActive : ''}><ShoppingCart size={16} /><span>Thống kê đơn hàng</span></Link>
                   <Link to="/admin/statistics/products" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/products' ? 'page' : undefined}><ClipboardCheck size={16} /><span>Thống kê sản phẩm</span></Link>
                   <Link to="/admin/statistics/returns" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/returns' ? 'page' : undefined}><RotateCcw size={16} /><span>Thống kê phiếu trả</span></Link>
+                  <Link to="/admin/statistics/reviews" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/reviews' ? 'page' : undefined} className={pathname === '/admin/statistics/reviews' ? styles.subActive : ''}><Star size={16} /><span>Thống kê đánh giá</span></Link>
                 </div>
               )}
             </div>

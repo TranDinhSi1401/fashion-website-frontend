@@ -11,6 +11,7 @@ export interface ProductReviewImageResponse {
 export interface ProductReviewResponse {
   id: number;
   productId: number;
+  productName?: string | null;
   userId: number;
   userName?: string | null;
   fullName?: string | null;
