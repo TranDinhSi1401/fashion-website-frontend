@@ -445,14 +445,14 @@ export default function CustomerOrdersTab() {
                               {/* Tóm tắt đánh giá đã gửi (nếu có) */}
                               {revItem.reviewed && existingReview && (
                                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                                  <span className="inline-flex items-center gap-0.5 text-primary">
+                                  <span className="inline-flex items-center gap-0.5 text-amber-400">
                                     {[1, 2, 3, 4, 5].map((star) => (
                                       <Star
                                         key={star}
                                         size={12}
                                         className={
                                           star <= existingReview.rating
-                                            ? 'fill-primary text-primary'
+                                            ? 'fill-amber-400 text-amber-400'
                                             : 'fill-transparent text-line'
                                         }
                                       />

@@ -92,6 +92,16 @@ export const reviewService = {
   },
 
   /**
+   * Lấy danh sách tất cả đánh giá sản phẩm (Dành cho Admin / Quản lý)
+   */
+  async getAllReviews(signal?: AbortSignal): Promise<ApiResponse<ProductReviewResponse[]>> {
+    const res = await apiClient.get<ApiResponse<ProductReviewResponse[]>>('/product-reviews', {
+      signal,
+    });
+    return res.data;
+  },
+
+  /**
    * Tạo đánh giá mới (Yêu cầu đăng nhập)
    */
   async createReview(
@@ -168,5 +178,16 @@ export const reviewService = {
   async deleteReviewImage(imageId: number): Promise<ApiResponse<void>> {
     const res = await apiClient.delete<ApiResponse<void>>(`/product-review-images/${imageId}`);
     return res.data;
+  },
+
+  /**
+   * Tóm tắt và phân tích đánh giá bằng AI dành cho Quản trị viên
+   */
+  async generateAdminAiSummary(prompt: string): Promise<string> {
+    const res = await apiClient.post<ApiResponse<string>>(
+      '/product-reviews/admin/ai-summary',
+      { prompt }
+    );
+    return res.data?.data || '';
   },
 };

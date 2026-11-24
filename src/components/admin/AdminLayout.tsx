@@ -16,6 +16,7 @@ import {
   ChartNoAxesCombined,
   ClipboardCheck,
   RotateCcw,
+  Star,
   Mail,
   Phone,
   Calendar,
@@ -75,6 +76,7 @@ export default function AdminLayout() {
                   <Link to="/admin/statistics/orders" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/orders' ? 'page' : undefined} className={pathname === '/admin/statistics/orders' ? styles.subActive : ''}><ShoppingCart size={16} /><span>Thống kê đơn hàng</span></Link>
                   <Link to="/admin/statistics/products" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/products' ? 'page' : undefined}><ClipboardCheck size={16} /><span>Thống kê sản phẩm</span></Link>
                   <Link to="/admin/statistics/returns" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/returns' ? 'page' : undefined}><RotateCcw size={16} /><span>Thống kê phiếu trả</span></Link>
+                  <Link to="/admin/statistics/reviews" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/reviews' ? 'page' : undefined} className={pathname === '/admin/statistics/reviews' ? styles.subActive : ''}><Star size={16} /><span>Thống kê đánh giá</span></Link>
                 </div>
               )}
             </div>

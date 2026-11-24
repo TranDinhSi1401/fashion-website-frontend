@@ -436,7 +436,7 @@ export default function ProductDetailPage() {
                     size={13}
                     className={
                       star <= Math.round(Number(product.averageRating || 0))
-                        ? 'fill-primary text-primary'
+                        ? 'fill-amber-400 text-amber-400'
                         : 'fill-transparent text-[#CCCCCC]'
                     }
                   />
