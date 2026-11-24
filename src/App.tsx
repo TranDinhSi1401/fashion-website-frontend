@@ -31,6 +31,7 @@ import AdminReturnDetailPage from './pages/AdminReturnDetailPage';
 import AdminDormantReviewsPage from './pages/AdminDormantReviewsPage';
 import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
 import AdminOrderStatisticsPage from './pages/AdminOrderStatisticsPage';
+import AdminReviewStatisticsPage from './pages/AdminReviewStatisticsPage';
 import AdminStatisticsPlaceholderPage from './pages/AdminStatisticsPlaceholderPage';
 
 export default function App() {
@@ -159,6 +160,14 @@ export default function App() {
                 element={
                 <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
                     <AdminStatisticsPlaceholderPage title="Thống kê phiếu trả" />
+                </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/admin/statistics/reviews"
+                element={
+                <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                    <AdminReviewStatisticsPage />
                 </ProtectedRoute>
                 }
             />

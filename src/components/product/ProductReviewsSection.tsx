@@ -93,7 +93,7 @@ function StarRow({
           <Star
             key={star}
             size={size}
-            className={filled ? 'fill-primary text-primary' : 'fill-transparent text-[#CCCCCC]'}
+            className={filled ? 'fill-amber-400 text-amber-400' : 'fill-transparent text-[#CCCCCC]'}
           />
         );
       })}
@@ -291,7 +291,7 @@ export default function ProductReviewsSection({
                     : 'border-line bg-surface-body text-content-primary hover:border-primary'
                 )}
               >
-                <span>{star} ★</span>
+                <span>{star} <span className="text-amber-400">★</span></span>
                 <span className={active ? 'text-content-inverse/80' : 'text-content-muted'}>
                   ({count})
                 </span>
