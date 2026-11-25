@@ -36,6 +36,8 @@ import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import QuantityStepper from '../components/ui/QuantityStepper';
 import ReturnImageUploader from '../components/returns/ReturnImageUploader';
+import BankSelect from '../components/returns/BankSelect';
+import { setSelfDropOffFlag } from '../constants/banks';
 import { cn } from '../utils/cn';
 
 /**
@@ -80,9 +82,22 @@ export default function ReturnCreatePage() {
   const [pickupPhone, setPickupPhone] = useState<string>(
     () => (location.state as { order?: OrderWithItems })?.order?.shippingPhone || ''
   );
+  const [isSelfDropOff, setIsSelfDropOff] = useState<boolean>(false);
+  const [agreedPolicy, setAgreedPolicy] = useState<boolean>(false);
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string>('');
+  const [fieldErrors, setFieldErrors] = useState<{
+    items?: string;
+    reasonDetail?: string;
+    images?: string;
+    pickupContactName?: string;
+    pickupPhone?: string;
+    accountNumber?: string;
+  }>({});
+  const [alreadyRequestedByOrderItemId, setAlreadyRequestedByOrderItemId] = useState<
+    Record<number, number>
+  >({});
 
   // Tải sổ địa chỉ của khách hàng để chọn nơi shipper GHN tới lấy hàng
   useEffect(() => {
@@ -105,15 +120,48 @@ export default function ReturnCreatePage() {
     };
   }, []);
 
+  // Tải danh sách phiếu trả hiện có của khách hàng để tính chính xác số lượng còn có thể trả trên từng dòng sản phẩm
+  useEffect(() => {
+    if (!order?.id) return;
+    let isMounted = true;
+
+    returnService
+      .getMyRequests(0, 100)
+      .then((res) => {
+        if (!isMounted || !res?.data?.content) return;
+        const usedMap: Record<number, number> = {};
+        res.data.content.forEach((req) => {
+          if (
+            Number(req.orderId) !== Number(order.id) ||
+            req.status === 'CANCELLED' ||
+            req.status === 'REJECTED'
+          ) {
+            return;
+          }
+          (req.items || []).forEach((it) => {
+            usedMap[it.orderItemId] = (usedMap[it.orderItemId] || 0) + (it.quantity || 0);
+          });
+        });
+        setAlreadyRequestedByOrderItemId(usedMap);
+      })
+      .catch(() => {
+        // Bỏ qua nếu không tải được lịch sử trả; Backend vẫn bảo vệ ở bước submit
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [order?.id]);
+
   // Nếu không có state truyền từ C1, đọc orderId từ query param và gọi API lấy chi tiết đơn
   useEffect(() => {
     if (order) {
-      // Khởi tạo trạng thái chọn sản phẩm: mặc định chọn tất cả sản phẩm
+      // Khởi tạo trạng thái chọn sản phẩm: mặc định bỏ chọn và đặt số lượng khởi điểm = 1 để không tạo nhầm trả toàn bộ đơn
       const initSelected: Record<number, SelectedItemState> = {};
       (order.orderItems || []).forEach((item: OrderItemResponse) => {
         initSelected[item.id] = {
-          selected: true,
-          quantity: item.quantity || 1,
+          selected: false,
+          quantity: 1,
         };
       });
       setSelectedItems(initSelected);
@@ -153,8 +201,8 @@ export default function ReturnCreatePage() {
         const initSelected: Record<number, SelectedItemState> = {};
         (fetchedOrder.orderItems || []).forEach((item: OrderItemResponse) => {
           initSelected[item.id] = {
-            selected: true,
-            quantity: item.quantity || 1,
+            selected: false,
+            quantity: 1,
           };
         });
         setSelectedItems(initSelected);
@@ -169,6 +217,7 @@ export default function ReturnCreatePage() {
 
   // Xử lý bật/tắt checkbox chọn sản phẩm
   const handleToggleItem = (itemId: number) => {
+    setFieldErrors((prev) => (prev.items ? { ...prev, items: undefined } : prev));
     setSelectedItems((prev) => {
       const current = prev[itemId] || { selected: false, quantity: 1 };
       return {
@@ -183,6 +232,7 @@ export default function ReturnCreatePage() {
 
   // Cập nhật số lượng sản phẩm cần trả
   const handleQuantityChange = (itemId: number, newQty: number) => {
+    setFieldErrors((prev) => (prev.items ? { ...prev, items: undefined } : prev));
     setSelectedItems((prev) => {
       const current = prev[itemId] || { selected: true, quantity: 1 };
       return {
@@ -199,60 +249,76 @@ export default function ReturnCreatePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
+    setFieldErrors({});
 
     if (!order) {
       setFormError('Không có thông tin đơn hàng hợp lệ.');
       return;
     }
 
-    // 1. Kiểm tra danh sách sản phẩm được chọn
+    const nextErrors: {
+      items?: string;
+      reasonDetail?: string;
+      images?: string;
+      pickupContactName?: string;
+      pickupPhone?: string;
+      accountNumber?: string;
+    } = {};
+
+    // 1. Kiểm tra danh sách sản phẩm được chọn và giới hạn còn có thể trả
     const chosenItems = (order.orderItems || [])
       .filter((item: OrderItemResponse) => selectedItems[item.id]?.selected)
-      .map((item: OrderItemResponse) => ({
-        orderItemId: item.id,
-        quantity: selectedItems[item.id].quantity,
-      }));
+      .map((item: OrderItemResponse) => {
+        const remainingQty = Math.max(
+          0,
+          (item.quantity || 0) - (alreadyRequestedByOrderItemId[item.id] || 0)
+        );
+        return {
+          orderItemId: item.id,
+          quantity: Math.min(selectedItems[item.id]?.quantity || 1, remainingQty),
+          remainingQty,
+        };
+      })
+      .filter((it) => it.remainingQty > 0 && it.quantity > 0);
 
     if (chosenItems.length === 0) {
-      setFormError('Vui lòng chọn ít nhất 1 sản phẩm bạn muốn yêu cầu trả hàng.');
-      return;
+      nextErrors.items = 'Vui lòng chọn ít nhất 1 sản phẩm còn số lượng có thể trả.';
     }
 
     // 2. Kiểm tra mô tả chi tiết lý do
     if (!reasonDetail.trim()) {
-      setFormError('Vui lòng nhập mô tả chi tiết lý do trả hàng.');
-      return;
-    }
-
-    if (reasonDetail.trim().length > 1000) {
-      setFormError('Mô tả chi tiết không được vượt quá 1000 ký tự.');
-      return;
+      nextErrors.reasonDetail = 'Vui lòng nhập mô tả chi tiết lý do trả hàng.';
+    } else if (reasonDetail.trim().length > 1000) {
+      nextErrors.reasonDetail = 'Mô tả chi tiết không được vượt quá 1000 ký tự.';
     }
 
     // 3. Kiểm tra tính hợp lệ của ảnh minh chứng (1-5 ảnh khi DEFECTIVE hoặc WRONG_ITEM)
     const imageValidation = validateReturnImageFiles(images, reason);
     if (!imageValidation.isValid) {
-      setFormError(imageValidation.error || 'Ảnh minh chứng chưa hợp lệ.');
-      return;
+      nextErrors.images = imageValidation.error || 'Ảnh minh chứng chưa hợp lệ.';
     }
 
-    // 4. Kiểm tra thông tin lấy hàng GHN (nếu có nhập)
-    const trimmedPickupName = pickupContactName.trim();
-    if (trimmedPickupName.length > 100) {
-      setFormError('Tên người liên hệ lấy hàng không được vượt quá 100 ký tự.');
-      return;
+    // 4. Kiểm tra thông tin lấy hàng GHN (chỉ khi không tự mang đến cửa hàng)
+    const trimmedPickupName = isSelfDropOff ? '' : pickupContactName.trim();
+    if (!isSelfDropOff && trimmedPickupName.length > 100) {
+      nextErrors.pickupContactName = 'Tên người liên hệ lấy hàng không được vượt quá 100 ký tự.';
     }
 
-    const trimmedPickupPhone = pickupPhone.trim();
-    if (trimmedPickupPhone !== '' && !isValidPickupPhone(trimmedPickupPhone)) {
-      setFormError('Số điện thoại lấy hàng không hợp lệ (bắt đầu bằng 0 hoặc +84, gồm 10–11 chữ số).');
-      return;
+    const trimmedPickupPhone = isSelfDropOff ? '' : pickupPhone.trim();
+    if (!isSelfDropOff && trimmedPickupPhone !== '' && !isValidPickupPhone(trimmedPickupPhone)) {
+      nextErrors.pickupPhone =
+        'Số điện thoại lấy hàng không hợp lệ (bắt đầu bằng 0 hoặc +84, gồm 10–11 chữ số).';
     }
 
     // 5. Kiểm tra tài khoản ngân hàng nếu có điền
     const trimmedAccount = accountNumber.trim();
     if (trimmedAccount !== '' && !isValidBankAccountNumber(trimmedAccount)) {
-      setFormError('Số tài khoản ngân hàng không hợp lệ (phải gồm từ 6 đến 30 chữ số).');
+      nextErrors.accountNumber =
+        'Số tài khoản ngân hàng không hợp lệ (phải gồm từ 6 đến 30 chữ số).';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
       return;
     }
 
@@ -261,11 +327,11 @@ export default function ReturnCreatePage() {
       orderId: order.id,
       reason,
       reasonDetail: reasonDetail.trim(),
-      items: chosenItems,
+      items: chosenItems.map(({ orderItemId, quantity }) => ({ orderItemId, quantity })),
       bankName: bankName.trim(),
       accountNumber: trimmedAccount,
       accountHolderName: accountHolderName.trim(),
-      pickupAddressId: pickupAddressId || null,
+      pickupAddressId: isSelfDropOff ? null : pickupAddressId || null,
       pickupContactName: trimmedPickupName,
       pickupPhone: trimmedPickupPhone,
     });
@@ -279,6 +345,7 @@ export default function ReturnCreatePage() {
       );
 
       if (res.data) {
+        setSelfDropOffFlag(res.data.id, isSelfDropOff);
         // Chuyển hướng sang màn C4 chi tiết phiếu trả hàng vừa tạo
         navigate(`/account/returns/${res.data.id}`, {
           state: { newlyCreated: true },
@@ -386,24 +453,33 @@ export default function ReturnCreatePage() {
 
             <div className="flex flex-col gap-3">
               {(order.orderItems || []).map((item: OrderItemResponse) => {
+                const remainingQty = Math.max(
+                  0,
+                  (item.quantity || 0) - (alreadyRequestedByOrderItemId[item.id] || 0)
+                );
+                const isExhausted = remainingQty === 0;
                 const itemState = selectedItems[item.id] || { selected: false, quantity: 1 };
+                const safeSelectedQty = Math.min(itemState.quantity || 1, Math.max(1, remainingQty));
 
                 return (
                   <div
                     key={item.id}
                     className={cn(
                       'p-4 border rounded-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors',
-                      itemState.selected
-                        ? 'border-primary bg-surface'
-                        : 'border-line-light bg-surface-body opacity-60'
+                      isExhausted
+                        ? 'border-line-light bg-surface opacity-55'
+                        : itemState.selected
+                          ? 'border-primary bg-surface'
+                          : 'border-line-light bg-surface-body opacity-75'
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
-                        checked={itemState.selected}
+                        checked={!isExhausted && itemState.selected}
+                        disabled={isExhausted}
                         onChange={() => handleToggleItem(item.id)}
-                        className="w-5 h-5 rounded-sm border-line text-primary focus:ring-0 cursor-pointer"
+                        className="w-5 h-5 rounded-sm border-line text-primary focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
                         id={`item-checkbox-${item.id}`}
                       />
 
@@ -428,19 +504,24 @@ export default function ReturnCreatePage() {
                         </label>
                         <div className="text-xs text-content-muted">{item.variantInfo || 'Tiêu chuẩn'}</div>
                         <div className="text-xs text-content-secondary mt-0.5">
-                          Đơn giá: {formatVND(item.unitPrice)} | Số lượng đã mua: {item.quantity}
+                          Đơn giá: {formatVND(item.unitPrice)} | Đã mua: {item.quantity} |{' '}
+                          <strong className={isExhausted ? 'text-status-error' : 'text-content-primary'}>
+                            {isExhausted
+                              ? 'Đã yêu cầu trả đủ số lượng'
+                              : `Còn có thể trả: ${remainingQty}`}
+                          </strong>
                         </div>
                       </div>
                     </div>
 
                     {/* Số lượng chọn trả */}
-                    {itemState.selected && (
+                    {!isExhausted && itemState.selected && (
                       <div className="flex items-center gap-3 self-end sm:self-center">
                         <span className="text-xs font-medium text-content-muted">SL trả:</span>
                         <QuantityStepper
                           min={1}
-                          max={item.quantity || 1}
-                          value={itemState.quantity}
+                          max={Math.max(1, remainingQty)}
+                          value={safeSelectedQty}
                           onChange={(newQty) => handleQuantityChange(item.id, newQty)}
                         />
                       </div>
@@ -449,6 +530,9 @@ export default function ReturnCreatePage() {
                 );
               })}
             </div>
+            {fieldErrors.items && (
+              <p className="mt-2 text-xs italic text-status-error">{fieldErrors.items}</p>
+            )}
           </div>
 
           {/* KHỐI 2: LÝ DO TRẢ HÀNG & MÔ TẢ CHI TIẾT */}
@@ -466,7 +550,10 @@ export default function ReturnCreatePage() {
               <Select
                 label="Lý do trả hàng"
                 value={reason}
-                onChange={(e) => setReason(e.target.value as ReturnReason)}
+                onChange={(e) => {
+                  setReason(e.target.value as ReturnReason);
+                  setFieldErrors((prev) => (prev.images ? { ...prev, images: undefined } : prev));
+                }}
                 required
               >
                 {RETURN_REASON_OPTIONS.map((opt) => (
@@ -484,12 +571,22 @@ export default function ReturnCreatePage() {
               <textarea
                 rows={4}
                 value={reasonDetail}
-                onChange={(e) => setReasonDetail(e.target.value)}
+                onChange={(e) => {
+                  setReasonDetail(e.target.value);
+                  setFieldErrors((prev) =>
+                    prev.reasonDetail ? { ...prev, reasonDetail: undefined } : prev
+                  );
+                }}
                 maxLength={1000}
-                required
                 placeholder="Vui lòng cung cấp chi tiết lỗi đường may, vị trí hỏng, hoặc chi tiết giao sai..."
-                className="w-full rounded-input border border-line bg-surface-body p-3 text-sm text-content-primary focus:border-line-focus focus:outline-none"
+                className={cn(
+                  'w-full rounded-input border bg-surface-body p-3 text-sm text-content-primary focus:border-line-focus focus:outline-none',
+                  fieldErrors.reasonDetail ? 'border-line-error' : 'border-line'
+                )}
               />
+              {fieldErrors.reasonDetail && (
+                <p className="mt-1 text-xs italic text-status-error">{fieldErrors.reasonDetail}</p>
+              )}
               <div className="flex justify-between items-center text-xs text-content-muted mt-1">
                 <span>Tối đa 1000 ký tự</span>
                 <span>{reasonDetail.length}/1000</span>
@@ -508,59 +605,114 @@ export default function ReturnCreatePage() {
 
             <ReturnImageUploader
               files={images}
-              onChange={setImages}
+              onChange={(nextFiles) => {
+                setImages(nextFiles);
+                setFieldErrors((prev) => (prev.images ? { ...prev, images: undefined } : prev));
+              }}
               reason={reason}
+              error={fieldErrors.images}
             />
           </div>
 
-          {/* KHỐI 4: THÔNG TIN LẤY HÀNG CHIỀU HOÀN (GHN) */}
+          {/* KHỐI 4: HÌNH THỨC GỬI TRẢ HÀNG & THÔNG TIN LẤY HÀNG */}
           <div className="bg-surface-body border border-line-light p-6 rounded-card flex flex-col gap-4">
             <div>
               <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-1">
-                4. Thông Tin Lấy Hàng (GHN)
+                4. Hình Thức Gửi Trả Hàng
               </h2>
               <p className="text-xs text-content-muted">
-                Chọn địa chỉ trong sổ địa chỉ để bưu tá GHN đến lấy hàng trả, hoặc bỏ trống để dùng địa chỉ giao hàng của đơn gốc
+                Bạn có thể chọn tự mang hàng đến cửa hàng hoặc để bưu tá GHN đến lấy tận nơi
               </p>
             </div>
 
-            <div>
-              <Select
-                label="Địa chỉ lấy hàng (từ sổ địa chỉ)"
-                value={pickupAddressId}
-                onChange={(e) => setPickupAddressId(e.target.value)}
-                helperText={
-                  addressesLoadFailed
-                    ? 'Không tải được sổ địa chỉ; hệ thống sẽ tự lấy theo địa chỉ giao hàng của đơn gốc.'
-                    : undefined
-                }
-              >
-                <option value="">Dùng địa chỉ giao hàng của đơn gốc (mặc định)</option>
-                {addresses.map((addr) => (
-                  <option key={addr.id} value={String(addr.id)}>
-                    {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
-                    {addr.isDefault ? ' (Mặc định)' : ''}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            <label
+              htmlFor="self-dropoff-create"
+              className={cn(
+                'flex items-center gap-3 p-3.5 border rounded-sm cursor-pointer transition-colors',
+                isSelfDropOff
+                  ? 'border-primary bg-surface font-medium text-content-primary'
+                  : 'border-line-light bg-surface-body text-content-primary hover:bg-surface'
+              )}
+            >
+              <input
+                id="self-dropoff-create"
+                type="checkbox"
+                checked={isSelfDropOff}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIsSelfDropOff(checked);
+                  if (checked) {
+                    setFieldErrors((prev) => ({
+                      ...prev,
+                      pickupContactName: undefined,
+                      pickupPhone: undefined,
+                    }));
+                  }
+                }}
+                className="w-4 h-4 rounded-sm border-line text-primary focus:ring-0 cursor-pointer shrink-0"
+              />
+              <span className="text-sm">
+                Tôi tự mang sản phẩm đến cửa hàng (không cần shipper GHN đến lấy)
+              </span>
+            </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Người liên hệ lấy hàng"
-                placeholder="VD: Nguyễn Văn A"
-                maxLength={100}
-                value={pickupContactName}
-                onChange={(e) => setPickupContactName(e.target.value)}
-              />
-              <Input
-                label="SĐT lấy hàng"
-                placeholder="VD: 0901234567"
-                maxLength={20}
-                value={pickupPhone}
-                onChange={(e) => setPickupPhone(e.target.value)}
-              />
-            </div>
+            {isSelfDropOff ? (
+              <div className="p-3.5 bg-surface border border-line-light rounded-sm text-xs text-content-secondary">
+                Sau khi yêu cầu được duyệt, bạn vui lòng mang sản phẩm trực tiếp đến cửa hàng gần nhất để nhân viên tiếp nhận kiểm tra.
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Select
+                    label="Địa chỉ lấy hàng (từ sổ địa chỉ)"
+                    value={pickupAddressId}
+                    onChange={(e) => setPickupAddressId(e.target.value)}
+                    helperText={
+                      addressesLoadFailed
+                        ? 'Không tải được sổ địa chỉ; hệ thống sẽ tự lấy theo địa chỉ giao hàng của đơn gốc.'
+                        : undefined
+                    }
+                  >
+                    <option value="">Dùng địa chỉ giao hàng của đơn gốc (mặc định)</option>
+                    {addresses.map((addr) => (
+                      <option key={addr.id} value={String(addr.id)}>
+                        {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
+                        {addr.isDefault ? ' (Mặc định)' : ''}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Người liên hệ lấy hàng"
+                    placeholder="VD: Nguyễn Văn A"
+                    maxLength={100}
+                    value={pickupContactName}
+                    error={fieldErrors.pickupContactName}
+                    onChange={(e) => {
+                      setPickupContactName(e.target.value);
+                      setFieldErrors((prev) =>
+                        prev.pickupContactName ? { ...prev, pickupContactName: undefined } : prev
+                      );
+                    }}
+                  />
+                  <Input
+                    label="SĐT lấy hàng"
+                    placeholder="VD: 0901234567"
+                    maxLength={20}
+                    value={pickupPhone}
+                    error={fieldErrors.pickupPhone}
+                    onChange={(e) => {
+                      setPickupPhone(e.target.value);
+                      setFieldErrors((prev) =>
+                        prev.pickupPhone ? { ...prev, pickupPhone: undefined } : prev
+                      );
+                    }}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* KHỐI 5: THÔNG TIN TÀI KHOẢN NGÂN HÀNG NHẬN HOÀN TIỀN */}
@@ -570,22 +722,29 @@ export default function ReturnCreatePage() {
                 5. Tài Khoản Ngân Hàng Nhận Hoàn Tiền (Tùy chọn)
               </h2>
               <p className="text-xs text-content-muted">
-                Bạn có thể bổ sung ngay bây giờ hoặc cập nhật sau khi yêu cầu được kiểm định
+                Bạn có thể bổ sung ngay bây giờ hoặc cập nhật sau khi yêu cầu được kiểm tra
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Input
-                label="Tên ngân hàng"
-                placeholder="VD: Vietcombank, Techcombank..."
+              <BankSelect
+                label="Ngân hàng"
                 value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
+                onChange={setBankName}
+                allowClear
+                placeholder="Chọn ngân hàng..."
               />
               <Input
                 label="Số tài khoản"
                 placeholder="6–30 chữ số"
                 value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
+                error={fieldErrors.accountNumber}
+                onChange={(e) => {
+                  setAccountNumber(e.target.value);
+                  setFieldErrors((prev) =>
+                    prev.accountNumber ? { ...prev, accountNumber: undefined } : prev
+                  );
+                }}
               />
               <Input
                 label="Chủ tài khoản"
@@ -597,11 +756,32 @@ export default function ReturnCreatePage() {
           </div>
 
           {/* KHỐI HÀNH ĐỘNG GỬI YÊU CẦU */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 bg-surface border border-line-light rounded-sm">
-            <div className="text-xs text-content-muted">
-              Bằng việc gửi yêu cầu, bạn xác nhận đồng ý với chính sách Trả hàng &amp; Hoàn tiền của chúng tôi.
-            </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-surface border border-line-light rounded-sm">
+            <label
+              htmlFor="agree-return-policy"
+              className="flex items-start sm:items-center gap-2.5 text-xs text-content-primary cursor-pointer select-none"
+            >
+              <input
+                id="agree-return-policy"
+                type="checkbox"
+                checked={agreedPolicy}
+                onChange={(e) => setAgreedPolicy(e.target.checked)}
+                className="w-4 h-4 mt-0.5 sm:mt-0 rounded-sm border-line text-primary focus:ring-0 cursor-pointer shrink-0"
+              />
+              <span>
+                Tôi đã đọc và đồng ý với{' '}
+                <Link
+                  to="/chinh-sach-doi-tra"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-semibold text-primary underline hover:opacity-80"
+                >
+                  Chính sách Trả hàng &amp; Hoàn tiền
+                </Link>
+              </span>
+            </label>
+            <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
               <Button
                 type="button"
                 variant="secondary"
@@ -615,7 +795,11 @@ export default function ReturnCreatePage() {
                 type="submit"
                 variant="primary"
                 loading={isSubmitting}
-                className="flex-1 sm:flex-initial"
+                disabled={!agreedPolicy || isSubmitting}
+                className={cn(
+                  'flex-1 sm:flex-initial transition-opacity',
+                  !agreedPolicy && 'opacity-45 cursor-not-allowed'
+                )}
               >
                 Gửi Yêu Cầu Trả Hàng
               </Button>

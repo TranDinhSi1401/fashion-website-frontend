@@ -33,6 +33,7 @@ import type {
   ReturnRequestHolidayRequest,
 } from '../types/return';
 import { returnAdminService } from '../services/returnAdminService';
+import { formatDate } from '../utils/returnHelpers';
 import AdminReturnSubNav from '../components/returns/AdminReturnSubNav';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -250,6 +251,7 @@ export default function AdminReturnHolidaysPage() {
           <Button
             variant="primary"
             size="sm"
+            data-testid="btn-add-holiday"
             onClick={handleOpenCreateModal}
             icon={Plus}
           >
@@ -260,23 +262,6 @@ export default function AdminReturnHolidaysPage() {
 
       {/* Thanh Sub-Nav A1, A3, A4 */}
       <AdminReturnSubNav />
-
-      {/* Thẻ lưu ý bảo vệ ngày lễ mặc định */}
-      <div className="flex items-start gap-3 p-4 bg-surface border border-line-light rounded-sm mb-6">
-        <Info size={22} className="text-content-primary shrink-0 mt-0.5" />
-        <div className="text-xs text-content-primary leading-relaxed">
-          <p className="font-semibold text-sm mb-1">
-            Quy định ngày nghỉ lễ mặc định của hệ thống
-          </p>
-          <p className="text-content-secondary">
-            6 ngày lễ cố định (Tết Dương lịch 01/01, Giỗ Tổ Hùng Vương 10/03 Âm lịch, 30/04, 01/05,
-            Quốc khánh 02/09 và Ngày Văn hóa Việt Nam 24/11) được gắn cờ{' '}
-            <strong>Mặc định hệ thống</strong> và khóa chỉnh sửa/xóa bỏ. Các ngày nghỉ thay đổi theo
-            lịch hằng năm (5 ngày Tết Nguyên Đán, 1 ngày liền kề Quốc khánh và ngày nghỉ bù) thuộc
-            nhóm mở rộng để Admin cập nhật theo lịch áp dụng từng năm.
-          </p>
-        </div>
-      </div>
 
       {/* Bộ chọn năm */}
       <div className="flex items-center gap-4 p-4 bg-surface border border-line-light rounded-sm mb-6 max-w-md">
@@ -325,7 +310,7 @@ export default function AdminReturnHolidaysPage() {
                 <th className="py-3 px-3.5 w-36">Ngày nghỉ lễ</th>
                 <th className="py-3 px-3.5">Tên ngày lễ</th>
                 <th className="py-3 px-3.5 w-52 whitespace-nowrap">Phân loại</th>
-                <th className="py-3 px-3.5">Căn cứ / Mô tả</th>
+                <th className="py-3 px-3.5">Mô tả</th>
                 <th className="py-3 px-3.5 text-center w-28">Thao tác</th>
               </tr>
             </thead>
@@ -333,7 +318,7 @@ export default function AdminReturnHolidaysPage() {
               {holidays.map((h, idx) => (
                 <tr key={h.id ?? `default-${idx}`} className="hover:bg-surface transition-colors">
                   <td className="py-3 px-3.5 font-mono font-bold text-sm text-content-primary">
-                    {h.holidayDate}
+                    {formatDate(h.holidayDate)}
                   </td>
 
                   <td className="py-3 px-3.5 font-semibold text-content-primary text-sm">
@@ -411,6 +396,7 @@ export default function AdminReturnHolidaysPage() {
             </label>
             <input
               type="date"
+              name="holidayDate"
               value={formData.holidayDate}
               onChange={(e) => setFormData((prev) => ({ ...prev, holidayDate: e.target.value }))}
               disabled={isSubmitting}
@@ -423,6 +409,7 @@ export default function AdminReturnHolidaysPage() {
               Tên ngày nghỉ lễ <span className="text-status-error">*</span>
             </label>
             <Input
+              name="name"
               value={formData.name}
               onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               placeholder="Ví dụ: Nghỉ bù lễ Quốc khánh..."
@@ -432,16 +419,17 @@ export default function AdminReturnHolidaysPage() {
 
           <div>
             <label className="block text-sm font-semibold text-content-primary mb-1.5">
-              Mô tả chi tiết / Căn cứ quyết định (tùy chọn)
+              Mô tả chi tiết (tùy chọn)
             </label>
             <Input
               multiline
+              name="description"
               rows={3}
               value={formData.description}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
-              placeholder="Ví dụ: Theo thông báo số 123/TB-BGDĐT về lịch nghỉ bù..."
+              placeholder="Nhập mô tả chi tiết..."
               disabled={isSubmitting}
             />
           </div>
@@ -482,6 +470,7 @@ export default function AdminReturnHolidaysPage() {
             </label>
             <input
               type="date"
+              name="holidayDate"
               value={formData.holidayDate}
               onChange={(e) => setFormData((prev) => ({ ...prev, holidayDate: e.target.value }))}
               disabled={isSubmitting}
@@ -494,6 +483,7 @@ export default function AdminReturnHolidaysPage() {
               Tên ngày nghỉ lễ <span className="text-status-error">*</span>
             </label>
             <Input
+              name="name"
               value={formData.name}
               onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               placeholder="Nhập tên ngày lễ..."
@@ -507,12 +497,13 @@ export default function AdminReturnHolidaysPage() {
             </label>
             <Input
               multiline
+              name="description"
               rows={3}
               value={formData.description}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
-              placeholder="Nhập căn cứ hoặc mô tả..."
+              placeholder="Nhập mô tả chi tiết..."
               disabled={isSubmitting}
             />
           </div>
@@ -550,7 +541,7 @@ export default function AdminReturnHolidaysPage() {
           <p className="text-sm text-content-primary">
             Bạn có chắc chắn muốn xóa ngày nghỉ lễ{' '}
             <strong>{deletingHoliday?.name}</strong> (ngày{' '}
-            <span className="font-mono">{deletingHoliday?.holidayDate}</span>) khỏi hệ thống không?
+            <span className="font-mono">{formatDate(deletingHoliday?.holidayDate)}</span>) khỏi hệ thống không?
           </p>
           <p className="text-xs text-content-secondary">
             Sau khi xóa, ngày này sẽ không còn được trừ ra khi hệ thống tính toán thời hạn SLA 2

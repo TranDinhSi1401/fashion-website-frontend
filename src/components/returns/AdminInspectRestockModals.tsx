@@ -247,21 +247,16 @@ export function ReturnInspectModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Kiểm định chất lượng sản phẩm (QC Thẩm định)"
+      title="Kiểm định chất lượng sản phẩm"
       size="quick-view"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Banner hướng dẫn kiểm định */}
+        {/* Banner thông tin kiểm định */}
         <div className="flex items-start gap-3 p-3.5 bg-surface border border-line-light rounded-sm">
           <ClipboardCheck size={22} className="text-content-primary shrink-0 mt-0.5" />
           <div className="text-xs text-content-primary leading-relaxed">
-            <p className="font-semibold text-sm mb-0.5">
-              Phiếu kiểm định: <span className="font-mono">{returnRequest.returnCode}</span> — Lý do ban đầu: {getReturnReasonLabel(returnRequest.reason)}
-            </p>
-            <p className="text-content-secondary">
-              Nhập số lượng sản phẩm đạt chuẩn chất lượng thực tế. Nếu số lượng duyệt ít hơn yêu
-              cầu của khách, hệ thống sẽ tự động chuyển trạng thái sang{' '}
-              <strong>Chờ khách phản hồi</strong> để chốt phương án.
+            <p className="font-semibold text-sm">
+              Phiếu kiểm định: <span className="font-mono">{returnRequest.returnCode}</span> — Lý do: {getReturnReasonLabel(returnRequest.reason)}
             </p>
           </div>
         </div>
@@ -377,10 +372,10 @@ export function ReturnInspectModal({
           </div>
         </div>
 
-        {/* Lý do từ chối (bắt buộc nếu tổng duyệt = 0) */}
+        {/* Ghi chú kiểm định chung (bắt buộc nếu tổng duyệt = 0) */}
         <div>
           <label className="block text-xs font-semibold text-content-primary mb-1">
-            Lý do từ chối / Ghi chú kiểm định chung{' '}
+            Ghi chú kiểm định chung{' '}
             {totalAcceptedQuantity === 0 && (
               <span className="text-status-error font-bold">
                 (Bắt buộc vì tổng số lượng duyệt = 0)
@@ -393,44 +388,44 @@ export function ReturnInspectModal({
               setRejectionReason(e.target.value);
               if (errorMessage) setErrorMessage('');
             }}
-            placeholder="Nhập lý do từ chối duyệt hoặc giải thích cho khách hàng..."
+            placeholder="Nhập ghi chú kiểm định chung hoặc giải thích cho khách hàng..."
             disabled={isSubmitting}
           />
         </div>
 
-        {/* Thẻ Realtime Calculation Preview */}
+        {/* Tóm tắt tiền hoàn dự kiến */}
         <div className="p-3.5 bg-surface border border-line-light rounded-sm">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-line-light">
             <DollarSign size={16} className="text-content-primary" />
             <span className="text-xs font-bold uppercase tracking-wider text-content-primary">
-              Đối soát tài chính dự tính sau kiểm định:
+              Tóm tắt tiền hoàn dự kiến:
             </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div>
-              <span className="text-content-muted block">Số lượng duyệt:</span>
+              <span className="text-content-muted block">Sản phẩm đạt:</span>
               <span className="font-bold text-sm font-mono text-content-primary">
                 {totalAcceptedQuantity} / {totalMaxQuantity} món
               </span>
             </div>
 
             <div>
-              <span className="text-content-muted block">Tiền hàng duyệt:</span>
+              <span className="text-content-muted block">Tiền hàng được hoàn:</span>
               <span className="font-bold text-sm font-mono text-content-primary">
                 {formatVND(calculatedItemsRefund)}
               </span>
             </div>
 
             <div>
-              <span className="text-content-muted block">Khấu trừ phí ship:</span>
+              <span className="text-content-muted block">Trừ phí gửi trả:</span>
               <span className="font-bold text-sm font-mono text-status-error">
                 - {formatVND(effectiveShippingFee)}
               </span>
             </div>
 
             <div>
-              <span className="text-content-muted block">Thực hoàn cho khách:</span>
+              <span className="text-content-muted block">Khách thực nhận:</span>
               <span className="font-bold text-base font-mono text-accent-red">
                 {formatVND(calculatedNetRefund)}
               </span>
@@ -589,19 +584,15 @@ export function ReturnRestockModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Phân loại và nhập lại kho bán (Restock Inventory)"
+      title="Phân loại và nhập lại kho bán"
       size="quick-view"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex items-start gap-3 p-3.5 bg-surface border border-line-light rounded-sm">
           <PackageCheck size={22} className="text-status-success shrink-0 mt-0.5" />
           <div className="text-xs text-content-primary leading-relaxed">
-            <p className="font-semibold text-sm mb-0.5">
+            <p className="font-semibold text-sm">
               Nhập kho phiếu: <span className="font-mono">{returnRequest.returnCode}</span>
-            </p>
-            <p className="text-content-secondary">
-              Phân loại số lượng sản phẩm đủ chuẩn đóng gói lại để mở bán trên website. Hệ thống
-              hỗ trợ nhập cộng dồn nhiều đợt; số lượng nhập đợt này không vượt quá phần còn lại.
             </p>
           </div>
         </div>

@@ -37,10 +37,12 @@ import type { ReturnRequestResponse } from '../../types/return';
 import { returnAdminService } from '../../services/returnAdminService';
 import {
   formatVND,
+  formatDateTime,
   toLocalIsoDateTimeString,
   validateReturnImageFiles,
   ACCEPTED_IMAGE_EXTENSIONS,
 } from '../../utils/returnHelpers';
+import { buildDynamicVietQrUrl } from '../../constants/banks';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -127,12 +129,8 @@ export function ReturnApproveModal({
         <div className="flex items-start gap-3 p-3.5 bg-surface border border-line-light rounded-sm">
           <CheckCircle2 size={20} className="text-status-success shrink-0 mt-0.5" />
           <div className="text-sm text-content-primary">
-            <p className="font-semibold mb-1">
+            <p className="font-semibold">
               Phê duyệt phiếu yêu cầu: <span className="font-mono">{returnRequest.returnCode}</span>
-            </p>
-            <p className="text-content-secondary text-xs">
-              Sau khi duyệt, phiếu sẽ chuyển sang trạng thái <strong>Chờ nhận hàng trả</strong> và
-              thiết lập thời hạn bàn giao 7 ngày để khách gửi hàng cho shipper.
             </p>
           </div>
         </div>
@@ -156,15 +154,14 @@ export function ReturnApproveModal({
           </label>
           <Input
             multiline
+            name="instructionNote"
+            data-testid="textarea-instruction-note"
             rows={4}
             value={instructionNote}
             onChange={(e) => setInstructionNote(e.target.value)}
             placeholder="Nhập hướng dẫn đóng gói..."
             disabled={isSubmitting}
           />
-          <p className="text-xs text-content-muted mt-1">
-            Nội dung này sẽ hiển thị cho khách hàng trên trang chi tiết phiếu trả hàng.
-          </p>
         </div>
 
         {errorMessage && (
@@ -175,10 +172,10 @@ export function ReturnApproveModal({
         )}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-line-light">
-          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
+          <Button data-testid="btn-close-modal" variant="ghost" onClick={onClose} disabled={isSubmitting}>
             Đóng
           </Button>
-          <Button type="submit" variant="primary" loading={isSubmitting}>
+          <Button data-testid="btn-confirm-approve" type="submit" variant="primary" loading={isSubmitting}>
             Xác Nhận Duyệt
           </Button>
         </div>
@@ -253,12 +250,8 @@ export function ReturnRejectModal({
         <div className="flex items-start gap-3 p-3.5 bg-surface border border-line-error rounded-sm">
           <XCircle size={20} className="text-status-error shrink-0 mt-0.5" />
           <div className="text-sm text-content-primary">
-            <p className="font-semibold mb-1">
+            <p className="font-semibold">
               Từ chối phiếu yêu cầu: <span className="font-mono">{returnRequest.returnCode}</span>
-            </p>
-            <p className="text-content-secondary text-xs">
-              Hành động này sẽ chuyển trạng thái phiếu sang <strong>Bị từ chối</strong>. Lý do từ
-              chối sẽ được thông báo trực tiếp đến khách hàng.
             </p>
           </div>
         </div>
@@ -288,10 +281,10 @@ export function ReturnRejectModal({
         )}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-line-light">
-          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
-            Hủy
+          <Button data-testid="btn-close-modal" variant="ghost" onClick={onClose} disabled={isSubmitting}>
+            Đóng
           </Button>
-          <Button type="submit" variant="danger" loading={isSubmitting}>
+          <Button data-testid="btn-confirm-reject" type="submit" variant="danger" loading={isSubmitting}>
             Xác Nhận Từ Chối
           </Button>
         </div>
@@ -373,22 +366,14 @@ export function ReturnHandoverModal({
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-content-primary mb-1.5">
-            Thời điểm bàn giao thực tế
-          </label>
-          <input
-            type="datetime-local"
-            value={handedOverAt}
-            onChange={(e) => setHandedOverAt(e.target.value)}
-            disabled={isSubmitting}
-            className="h-10 w-full rounded-sm border border-line bg-surface-body px-3 text-base text-content-primary focus:border-line-focus focus:outline-none"
-          />
+        <div className="text-xs text-content-muted">
+          Thời điểm bàn giao thực tế:{' '}
+          <span className="font-mono">{formatDateTime(handedOverAt)}</span>
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-content-primary mb-1.5">
-            Đơn vị vận chuyển / Mã vận đơn / Ghi chú (tùy chọn)
+            Ghi chú (tùy chọn)
           </label>
           <Input
             value={note}
@@ -595,27 +580,15 @@ export function ReturnReceiveModal({
         <div className="flex items-start gap-3 p-3.5 bg-surface border border-line-light rounded-sm">
           <PackageCheck size={20} className="text-status-success shrink-0 mt-0.5" />
           <div className="text-sm text-content-primary">
-            <p className="font-semibold mb-1">
+            <p className="font-semibold">
               Nhận kiện hàng: <span className="font-mono">{returnRequest.returnCode}</span>
-            </p>
-            <p className="text-content-secondary text-xs">
-              Sau khi nhận hàng, phiếu sẽ chuyển sang trạng thái <strong>Đang kiểm tra hàng</strong>{' '}
-              để nhân viên QC tiến hành thẩm định chất lượng thực tế.
             </p>
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-content-primary mb-1.5">
-            Thời điểm nhận hàng thực tế tại kho
-          </label>
-          <input
-            type="datetime-local"
-            value={receivedAt}
-            onChange={(e) => setReceivedAt(e.target.value)}
-            disabled={isSubmitting}
-            className="h-10 w-full rounded-sm border border-line bg-surface-body px-3 text-base text-content-primary focus:border-line-focus focus:outline-none"
-          />
+        <div className="text-xs text-content-muted">
+          Thời điểm nhận hàng thực tế tại kho:{' '}
+          <span className="font-mono">{formatDateTime(receivedAt)}</span>
         </div>
 
         <div>
@@ -678,13 +651,22 @@ export function ReturnRefundModal({
   const [proofImage, setProofImage] = useState<File | null>(null);
   const [proofPreviewUrl, setProofPreviewUrl] = useState<string>('');
   const [note, setNote] = useState<string>('');
+  const [debouncedNote, setDebouncedNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedNote(note);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [note]);
 
   useEffect(() => {
     if (isOpen) {
       setProofImage(null);
       setNote('');
+      setDebouncedNote('');
       setErrorMessage('');
       setIsSubmitting(false);
     }
@@ -709,6 +691,17 @@ export function ReturnRefundModal({
   const accountHolder =
     returnRequest.accountHolderName || returnRequest.bankAccountHolder || 'Chưa cung cấp';
   const refundAmount = returnRequest.refundAmount ?? 0;
+
+  const dynamicQr = buildDynamicVietQrUrl({
+    baseQrUrl: returnRequest.refundVietQrUrl,
+    bankName: returnRequest.bankName,
+    accountNumber: returnRequest.accountNumber || returnRequest.bankAccountNumber,
+    accountHolder: returnRequest.accountHolderName || returnRequest.bankAccountHolder,
+    refundAmount,
+    returnCode: returnRequest.returnCode,
+    customNote: debouncedNote,
+  });
+  const liveQrNote = note.trim() || dynamicQr.defaultNote;
 
   // Kiểm tra file ảnh biên lai khi kế toán chọn từ máy
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -806,15 +799,20 @@ export function ReturnRefundModal({
 
         {/* Mã VietQR quét chuyển khoản nhanh */}
         <div className="p-4 bg-surface border border-line-light rounded-sm text-center">
-          {returnRequest.refundVietQrUrl ? (
+          {dynamicQr.qrUrl ? (
             <>
               <img
-                src={returnRequest.refundVietQrUrl}
+                data-testid="img-refund-vietqr"
+                src={dynamicQr.qrUrl}
                 alt="Mã VietQR hoàn tiền"
                 className="mx-auto w-56 h-56 object-contain border border-line-light rounded-sm bg-surface-body"
               />
               <p className="text-xs text-content-secondary mt-2">
                 Quét mã bằng ứng dụng ngân hàng để chuyển khoản
+              </p>
+              <p className="text-xs text-content-muted mt-1">
+                Nội dung CK trên mã QR:{' '}
+                <span className="font-mono font-semibold text-content-primary">{liveQrNote}</span>
               </p>
             </>
           ) : (
@@ -832,6 +830,7 @@ export function ReturnRefundModal({
 
           <input
             ref={fileInputRef}
+            data-testid="upload-refund-proof"
             type="file"
             accept={ACCEPTED_IMAGE_EXTENSIONS.join(', ')}
             onChange={handleFileChange}
@@ -915,10 +914,11 @@ export function ReturnRefundModal({
         )}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-line-light">
-          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
+          <Button data-testid="btn-close-modal" variant="ghost" onClick={onClose} disabled={isSubmitting}>
             Đóng
           </Button>
           <Button
+            data-testid="btn-confirm-refund"
             type="submit"
             variant="primary"
             loading={isSubmitting}
@@ -986,8 +986,8 @@ export function ReturnOverdueNoteModal({
     }
 
     const estimatedEpoch = new Date(estimatedCompletionAt).getTime();
-    if (isNaN(estimatedEpoch) || estimatedEpoch <= Date.now()) {
-      setErrorMessage('Thời điểm dự kiến hoàn thành mới bắt buộc phải ở thời điểm tương lai.');
+    if (isNaN(estimatedEpoch)) {
+      setErrorMessage('Thời điểm dự kiến hoàn thành mới không hợp lệ.');
       return;
     }
 
@@ -1015,12 +1015,8 @@ export function ReturnOverdueNoteModal({
         <div className="flex items-start gap-3 p-3.5 bg-surface border border-line-error rounded-sm">
           <AlertTriangle size={20} className="text-status-error shrink-0 mt-0.5" />
           <div className="text-sm text-content-primary">
-            <p className="font-semibold mb-1">
+            <p className="font-semibold">
               Hồ sơ quá hạn SLA: <span className="font-mono">{returnRequest.returnCode}</span>
-            </p>
-            <p className="text-content-secondary text-xs">
-              Theo quy định, các hồ sơ xử lý quá 2 ngày làm việc cần ghi nhận biên bản giải trình
-              nguyên nhân và cam kết lại thời điểm hoàn thành để phục vụ kiểm toán dịch vụ.
             </p>
           </div>
         </div>
@@ -1056,9 +1052,6 @@ export function ReturnOverdueNoteModal({
             disabled={isSubmitting}
             className="h-10 w-full rounded-sm border border-line bg-surface-body px-3 text-base text-content-primary focus:border-line-focus focus:outline-none"
           />
-          <p className="text-xs text-content-muted mt-1">
-            Bắt buộc phải chọn thời điểm trong tương lai.
-          </p>
         </div>
 
         {errorMessage && (
@@ -1255,9 +1248,7 @@ export function ReturnCompleteModal({
               Đóng hồ sơ: <span className="font-mono">{returnRequest.returnCode}</span>
             </p>
             <p className="text-content-secondary text-xs">
-              Bạn có chắc chắn muốn đóng hoàn tất hồ sơ trả hàng này không? Sau khi đóng, hồ sơ sẽ
-              được lưu trữ vào dữ liệu lịch sử hoàn tất và không thể thực hiện thêm các thao tác
-              chỉnh sửa khác.
+              Xác nhận đóng và lưu trữ hồ sơ này? Sau khi đóng sẽ không thể chỉnh sửa thêm.
             </p>
           </div>
         </div>
