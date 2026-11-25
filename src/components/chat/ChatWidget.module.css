@@ -179,6 +179,11 @@
   height: 60px;
 }
 
+.speedDialSnapping {
+  transition: left 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .mainFab {
   position: relative;
   z-index: 3;
@@ -272,6 +277,15 @@
     visibility 0.38s ease;
 }
 
+/* Khi bong bóng neo ở lề trái: xoay chiều item để bung vòng cung sang bên phải */
+.radialItemLeft {
+  right: auto;
+  left: 4px;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  transform-origin: 26px 50%;
+}
+
 .radialItemClosed {
   opacity: 0;
   visibility: hidden;
@@ -279,7 +293,7 @@
   transform: translate3d(0, 0, 0) scale(0.35);
 }
 
-/* Item 1: Top-upward arc position (AI Stylist Tư Vấn) */
+/* Item 1: Top-upward arc position (AI Stylist Tư Vấn) - Lề phải */
 .radialItemAiOpen {
   opacity: 1;
   visibility: visible;
@@ -288,12 +302,30 @@
   transition-delay: 0.03s;
 }
 
-/* Item 2: Diagonal upper-left arc position (Chat Với Cửa Hàng) */
+/* Item 1: Top-upward arc position (AI Stylist Tư Vấn) - Lề trái */
+.radialItemAiOpenLeft {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate3d(10px, -84px, 0) scale(1);
+  transition-delay: 0.03s;
+}
+
+/* Item 2: Diagonal upper-left arc position (Chat Với Cửa Hàng) - Lề phải */
 .radialItemChatOpen {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
   transform: translate3d(-66px, -24px, 0) scale(1);
+  transition-delay: 0.08s;
+}
+
+/* Item 2: Diagonal upper-right arc position (Chat Với Cửa Hàng) - Lề trái */
+.radialItemChatOpenLeft {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate3d(66px, -24px, 0) scale(1);
   transition-delay: 0.08s;
 }
 
@@ -308,6 +340,10 @@
   border-radius: 9999px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
   transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.radialLabelLeft {
+  align-items: flex-start;
 }
 
 .radialTitle {
@@ -361,6 +397,10 @@
   transform: translateX(-3px);
 }
 
+.radialItemLeft:hover .radialLabel {
+  transform: translateX(3px);
+}
+
 @media (max-width: 640px) {
   .speedDialRoot {
     bottom: calc(18px + env(safe-area-inset-bottom, 0px));
@@ -378,8 +418,16 @@
     transform: translate3d(-6px, -78px, 0) scale(1);
   }
 
+  .radialItemAiOpenLeft {
+    transform: translate3d(6px, -78px, 0) scale(1);
+  }
+
   .radialItemChatOpen {
     transform: translate3d(-56px, -20px, 0) scale(1);
+  }
+
+  .radialItemChatOpenLeft {
+    transform: translate3d(56px, -20px, 0) scale(1);
   }
 }
 
