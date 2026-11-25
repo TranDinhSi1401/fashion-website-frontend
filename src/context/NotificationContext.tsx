@@ -19,6 +19,7 @@ interface NotificationContextValue {
   loading: boolean;
   markRead: (notification: NotificationResponse) => Promise<void>;
   markAll: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -51,9 +52,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         notificationService.getUnreadCount(),
       ]);
       if (activeToken.current !== token) return;
-      notificationIds.current = new Set(listRes.data.content.map((item) => item.id));
-      setItems(listRes.data.content);
-      setUnread(countRes.data.count);
+      const validItems = listRes.data.content.filter(
+        (item) =>
+          !item.title?.toUpperCase().includes('VIP') &&
+          !item.content?.toUpperCase().includes('VIP15')
+      );
+      notificationIds.current = new Set(validItems.map((item) => item.id));
+      setItems(validItems);
+      setUnread(validItems.filter((item) => !item.seen).length);
     } catch (error) {
       console.warn('Could not load notifications:', error);
     } finally {
@@ -111,7 +117,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [unread]);
 
   return (
-    <NotificationContext.Provider value={{ items, unread, loading, markRead, markAll }}>
+    <NotificationContext.Provider value={{ items, unread, loading, markRead, markAll, refresh: load }}>
       {children}
     </NotificationContext.Provider>
   );

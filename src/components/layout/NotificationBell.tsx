@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Package, Tag, RotateCcw, Info } from 'lucide-react';
 import { useWsStatus } from '../../ws/WebSocketProvider';
 import { NotificationType } from '../../types/realtime';
@@ -36,6 +37,7 @@ export default function NotificationBell() {
   const { items, unread, loading, markRead, markAll } = useNotifications();
   const [open, setOpen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -122,7 +124,19 @@ export default function NotificationBell() {
                 <button
                   type="button"
                   key={n.id}
-                  onClick={() => void markRead(n)}
+                  onClick={() => {
+                    void markRead(n);
+                    if (n.type === 'PROMOTION') {
+                      setOpen(false);
+                      navigate('/account/vouchers');
+                    } else if (n.type === 'ORDER_STATUS') {
+                      setOpen(false);
+                      navigate('/account/orders');
+                    } else if (n.type === 'RETURN_REQUEST') {
+                      setOpen(false);
+                      navigate('/account/returns');
+                    }
+                  }}
                   className={cn(
                     'flex w-full cursor-pointer items-start gap-3 border-0 px-4 py-3 text-left transition-colors hover:bg-surface',
                     !n.seen ? 'bg-accent-gold/5' : 'bg-surface-elevated'

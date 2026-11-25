@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Tag,
+  Ticket,
   User,
   Users,
   X,
@@ -588,6 +589,18 @@ export default function Header() {
                       <div className="flex items-center gap-2.5">
                         <Package size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
                         <span className="font-medium">Đơn hàng của tôi</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
+                    </Link>
+
+                    <Link
+                      to="/account/vouchers"
+                      onClick={() => setDropdownOpen(false)}
+                      className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface', styles.accentHover)}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Ticket size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Ví Voucher của tôi</span>
                       </div>
                       <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
                     </Link>
