@@ -13,7 +13,11 @@ const SUGGESTED_PROMPTS = [
   'Phối đồ với Áo sơ mi và Quần tây sao cho trẻ trung?'
 ];
 
-export default function AiAdvisorWidget() {
+interface AiAdvisorWidgetProps {
+  hideLauncher?: boolean;
+}
+
+export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidgetProps) {
   const { isAuthenticated, user, isAdmin, isStaff } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
@@ -37,6 +41,23 @@ export default function AiAdvisorWidget() {
   const isDraggingBtn = useRef(false);
   const hasMovedBtn = useRef(false);
   const btnStartRef = useRef({ pointerX: 0, pointerY: 0, elemX: 0, elemY: 0 });
+
+  useEffect(() => {
+    const handleOpenAi = () => setIsOpen(true);
+    const handleCloseAll = () => setIsOpen(false);
+    window.addEventListener('fashion:open-ai-stylist', handleOpenAi);
+    window.addEventListener('fashion:open-store-chat', handleCloseAll);
+    return () => {
+      window.removeEventListener('fashion:open-ai-stylist', handleOpenAi);
+      window.removeEventListener('fashion:open-store-chat', handleCloseAll);
+    };
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('fashion:ai-stylist-state', { detail: { isOpen } })
+    );
+  }, [isOpen]);
 
   const handleLauncherPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return;
@@ -153,8 +174,8 @@ export default function AiAdvisorWidget() {
 
   return (
     <>
-      {/* Nút bấm mở Floating AI Stylist (Hỗ trợ kéo thả di chuyển mọi nơi) */}
-      {!isOpen && (
+      {/* Nút bấm mở Floating AI Stylist (Đã được gộp vào bong bóng chat chung khi hideLauncher = true) */}
+      {!hideLauncher && !isOpen && (
         <button
           ref={launcherRef}
           type="button"
