@@ -2,6 +2,43 @@
 .toolbar { position: relative; display: grid; grid-template-columns: minmax(360px, 520px) 200px auto; align-items: end; gap: 12px; margin-bottom: 24px; }
 .dateFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .filterError { grid-column: 1 / -1; margin: 0; color: var(--status-error); font-size: var(--fs-xs); }
+
+.quickPresets {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+.presetLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 4px;
+}
+.presetBtn {
+  border: 1px solid var(--border-light);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.presetBtn:hover {
+  border-color: #C5A059;
+  color: var(--text-primary);
+  background: #FAF5EC;
+}
+.presetBtnActive {
+  background: #111111;
+  color: #FFFFFF;
+  border-color: #111111;
+}
+
 .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
 .card, .chartPanel, .panel { min-width: 0; border: 1px solid var(--border-light); border-radius: var(--radius-card); background: var(--bg-elevated); }
 .card { padding: 22px; }
@@ -32,7 +69,7 @@
 }
 .aiTitleGroup {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
 }
 .aiIconBadge {
@@ -44,6 +81,7 @@
   border-radius: 10px;
   background: #111111;
   color: #FBBF24;
+  flex-shrink: 0;
 }
 .aiTitleGroup h3 {
   margin: 0;
@@ -52,22 +90,133 @@
   color: var(--text-primary);
 }
 .aiTitleGroup p {
-  margin: 3px 0 0;
+  margin: 4px 0 0;
   font-size: var(--fs-xs);
   color: var(--text-secondary);
 }
-.aiContent {
-  margin-top: 18px;
+.aiScopeBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #EFE4CE;
+  color: #5C4419;
+  font-size: 11px;
+  font-weight: 600;
+}
+.aiMetaBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #E8F5E9;
+  color: #1B5E20;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.aiCoverageBar {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid #EAE0CE;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.aiCoverageItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.aiCoverageItem strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.diagnosticBox {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+}
+.diagnosticEmpty {
+  background: #FFF8EB;
+  border-color: #F3D19E;
+  color: #78350F;
+}
+.diagnosticPartial {
+  background: #F0F7FF;
+  border-color: #BFDBFE;
+  color: #1E3A8A;
+}
+.diagnosticComplete {
+  background: #ECFDF5;
+  border-color: #A7F3D0;
+  color: #065F46;
+}
+.diagnosticHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.diagnosticTitle {
+  font-weight: 700;
   font-size: var(--fs-sm);
-  line-height: 1.7;
-  color: #333333;
+  margin-bottom: 2px;
+}
+.diagnosticReason {
+  margin: 0;
+}
+.diagnosticList {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.diagnosticList li {
+  margin-bottom: 3px;
+}
+
+.aiLoadingBox {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px dashed #D8C39E;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.aiPromptAction {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px dashed #D8C39E;
+}
+.aiContent {
+  margin-top: 16px;
+  padding: 18px 20px;
+  border-radius: 8px;
+  background: #FFFFFF;
+  border: 1px solid #EAE0CE;
+  font-size: var(--fs-sm);
+  line-height: 1.75;
+  color: #222222;
   white-space: pre-line;
 }
 .aiEmpty {
-  margin-top: 16px;
-  color: var(--text-muted);
+  margin: 0;
+  color: var(--text-secondary);
   font-size: var(--fs-sm);
-  font-style: italic;
 }
 
 .detailsGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 24px; margin-bottom: 24px; }
