@@ -12,6 +12,39 @@ export const API_BASE_URL = rawBaseUrl.includes('/api/v1') ? rawBaseUrl : `${raw
 
 export const TOKEN_KEY = 'fashion_access_token';
 export const REFRESH_TOKEN_KEY = 'fashion_refresh_token';
+export const REMEMBERED_USERNAME_KEY = 'fashion_remembered_username';
+
+export function getAuthStorageItem(key: string): string | null {
+  return localStorage.getItem(key) || sessionStorage.getItem(key);
+}
+
+export function isRememberedSession(): boolean {
+  return Boolean(localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY));
+}
+
+export function setAuthTokensStorage(
+  token: string,
+  refreshToken: string | undefined,
+  rememberMe: boolean
+): void {
+  const primary = rememberMe ? localStorage : sessionStorage;
+  const secondary = rememberMe ? sessionStorage : localStorage;
+
+  secondary.removeItem(TOKEN_KEY);
+  secondary.removeItem(REFRESH_TOKEN_KEY);
+
+  primary.setItem(TOKEN_KEY, token);
+  if (refreshToken) {
+    primary.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  }
+}
+
+export function clearAuthTokensStorage(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+}
 
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -48,7 +81,7 @@ apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Public endpoints also receive an optional token so managers retain their role.
     // In particular, GET /products/paged requires ADMIN/STAFF authentication.
-    Object.assign(config.headers, requestAuthorization(config.url || '', localStorage.getItem(TOKEN_KEY)));
+    Object.assign(config.headers, requestAuthorization(config.url || '', getAuthStorageItem(TOKEN_KEY)));
 
     return config;
   },
@@ -92,12 +125,11 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+      const refreshToken = getAuthStorageItem(REFRESH_TOKEN_KEY);
 
       if (!refreshToken) {
         isRefreshing = false;
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        clearAuthTokensStorage();
         window.dispatchEvent(new Event('auth-logout'));
         return Promise.reject(error);
       }
@@ -112,8 +144,7 @@ apiClient.interceptors.response.use(
           const newAccessToken = newTokens.token;
           const newRefreshToken = newTokens.refreshToken || refreshToken;
 
-          localStorage.setItem(TOKEN_KEY, newAccessToken);
-          localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+          setAuthTokensStorage(newAccessToken, newRefreshToken, isRememberedSession());
 
           apiClient.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -125,8 +156,7 @@ apiClient.interceptors.response.use(
         }
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        clearAuthTokensStorage();
         window.dispatchEvent(new Event('auth-logout'));
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';

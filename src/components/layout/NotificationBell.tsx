@@ -67,11 +67,20 @@ export default function NotificationBell() {
 
     setOpen(false);
 
-    if (n.type === 'RETURN_REQUEST' && n.referenceId) {
+    if (n.type === 'PROMOTION') {
+      navigate('/account/vouchers');
+      return;
+    }
+
+    if (n.type === 'RETURN_REQUEST') {
       navigate(
-        canManageReturns
-          ? `/admin/returns/${n.referenceId}`
-          : `/account/returns/${n.referenceId}`
+        n.referenceId
+          ? canManageReturns
+            ? `/admin/returns/${n.referenceId}`
+            : `/account/returns/${n.referenceId}`
+          : canManageReturns
+            ? '/admin/returns'
+            : '/account/returns'
       );
       return;
     }

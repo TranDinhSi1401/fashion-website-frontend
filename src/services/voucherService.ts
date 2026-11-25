@@ -36,6 +36,40 @@ export const voucherService = {
   },
 
   /**
+   * Lấy danh sách voucher trong Ví cá nhân của tài khoản đang đăng nhập
+   * GET /vouchers/my-vouchers
+   */
+  async getMyVouchers(): Promise<ApiResponse<VoucherResponse[]>> {
+    const res = await apiClient.get<ApiResponse<VoucherResponse[]>>(
+      '/vouchers/my-vouchers'
+    );
+    return res.data;
+  },
+
+  /**
+   * Lưu voucher vào Ví cá nhân theo ID
+   * POST /vouchers/:id/claim
+   */
+  async claimVoucher(id: number): Promise<ApiResponse<VoucherResponse>> {
+    const res = await apiClient.post<ApiResponse<VoucherResponse>>(
+      `/vouchers/${id}/claim`
+    );
+    return res.data;
+  },
+
+  /**
+   * Nhập mã code để lưu voucher vào Ví cá nhân
+   * POST /vouchers/claim-code
+   */
+  async claimVoucherByCode(code: string): Promise<ApiResponse<VoucherResponse>> {
+    const res = await apiClient.post<ApiResponse<VoucherResponse>>(
+      '/vouchers/claim-code',
+      { code }
+    );
+    return res.data;
+  },
+
+  /**
    * Admin: Lấy danh sách voucher phân trang
    * GET /vouchers/admin
    */

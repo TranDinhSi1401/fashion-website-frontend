@@ -19,6 +19,7 @@ interface NotificationContextValue {
   loading: boolean;
   markRead: (notification: NotificationResponse) => Promise<void>;
   markAll: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
@@ -75,13 +76,20 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         notificationService.getUnreadCount(),
       ]);
       if (activeToken.current !== token) return;
+      const isHiddenVip = (item: NotificationResponse) =>
+        Boolean(
+          item.title?.toUpperCase().includes('VIP') ||
+            item.content?.toUpperCase().includes('VIP15')
+        );
+      const validItems = listRes.data.content.filter((item) => !isHiddenVip(item));
+      const hiddenUnread = listRes.data.content.filter(
+        (item) => isHiddenVip(item) && !item.seen
+      ).length;
       notificationIds.current = new Set(
-        listRes.data.content
-          .map((item) => item.id)
-          .filter((id): id is number => id != null)
+        validItems.map((item) => item.id).filter((id): id is number => id != null)
       );
-      setItems(listRes.data.content);
-      setUnread(countRes.data.count);
+      setItems(validItems);
+      setUnread(Math.max(0, countRes.data.count - hiddenUnread));
     } catch (error) {
       console.warn('Could not load notifications:', error);
     } finally {
@@ -175,7 +183,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [unread]);
 
   return (
-    <NotificationContext.Provider value={{ items, unread, loading, markRead, markAll }}>
+    <NotificationContext.Provider value={{ items, unread, loading, markRead, markAll, refresh: load }}>
       {children}
     </NotificationContext.Provider>
   );

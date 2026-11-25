@@ -13,6 +13,7 @@ import Breadcrumb from '../components/layout/Breadcrumb';
 import BackButton from '../components/common/BackButton';
 import ProductPrice from '../components/product/ProductPrice';
 import ProductReviewsSection from '../components/product/ProductReviewsSection';
+import ProductVoucherStrip from '../components/voucher/ProductVoucherStrip';
 import {
   Badge,
   Button,
@@ -454,6 +455,11 @@ export default function ProductDetailPage() {
               <ProductPrice price={selectedVariant?.price ?? product.basePrice} offer={selectedVariant ? selectedVariant.bestOffer : product.bestOffer} />
             </p>
           </div>
+
+          <ProductVoucherStrip
+            unitPrice={selectedVariant?.price ?? product.basePrice}
+            quantity={chosenQuantity || 1}
+          />
 
           <p className="whitespace-pre-line text-base leading-relaxed text-content-secondary">
             {product.description || 'Chưa có mô tả sản phẩm.'}

@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Tag,
+  Ticket,
   User,
   Users,
   X,
@@ -52,7 +53,7 @@ function BrandLogo({
       aria-label="FashionWeb - Trang chủ"
       onClick={onClick}
     >
-      <span className="flex h-8 w-8 items-center justify-center border-2 border-primary bg-primary text-xs font-bold tracking-wide text-content-inverse">
+      <span className="flex h-8 w-8 items-center justify-center border border-[#ecc880]/70 bg-[#ecc880] text-xs font-bold tracking-wide text-[#0a0a0c]">
         FW
       </span>
       <span className={styles.logoText}>
@@ -201,7 +202,7 @@ export default function Header() {
       <header
         onMouseLeave={() => setActiveMenu(null)}
         className={cn(
-          'w-full rounded-none text-content-primary',
+          'w-full rounded-none text-white',
           styles.header,
           isScrolled && styles.headerScrolled
         )}
@@ -218,7 +219,7 @@ export default function Header() {
               ref={mobileMenuTriggerRef}
               type="button"
               className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-full text-content-primary hover:bg-surface lg:hidden',
+                'flex h-9 w-9 items-center justify-center rounded-full text-white hover:bg-white/10 lg:hidden',
                 styles.hamburger
               )}
               onClick={() => {
@@ -588,6 +589,18 @@ export default function Header() {
                       <div className="flex items-center gap-2.5">
                         <Package size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
                         <span className="font-medium">Đơn hàng của tôi</span>
+                      </div>
+                      <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
+                    </Link>
+
+                    <Link
+                      to="/account/vouchers"
+                      onClick={() => setDropdownOpen(false)}
+                      className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-surface', styles.accentHover)}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Ticket size={15} className="text-content-muted group-hover:text-accent-gold transition-colors" />
+                        <span className="font-medium">Ví Voucher của tôi</span>
                       </div>
                       <ChevronRight size={13} className="text-content-muted/40 group-hover:text-accent-gold transition-colors" />
                     </Link>
