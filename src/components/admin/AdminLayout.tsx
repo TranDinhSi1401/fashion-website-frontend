@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, Tag, Users, MessageSquare, BellRing, UserRound, ShieldCheck, Menu, ChevronDown, LogOut, ChartNoAxesCombined, ClipboardCheck, RotateCcw } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Tag, Users, MessageSquare, BellRing, UserRound, ShieldCheck, Menu, ChevronDown, LogOut, ChartNoAxesCombined, ClipboardCheck, RotateCcw, Store } from 'lucide-react';
 import ProtectedRoute from '../common/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../ui/Modal';
+import NotificationBell from '../layout/NotificationBell';
 import styles from './AdminLayout.module.css';
 
 const modules = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/products', label: 'Quản lý sản phẩm', icon: Package },
   { to: '/admin/orders', label: 'Quản lý đơn hàng', icon: ShoppingCart },
+  { to: '/admin/returns', label: 'Quản lý trả hàng', icon: RotateCcw },
   { to: '/admin/promotions', label: 'Quản lý khuyến mãi', icon: Tag },
   { to: '/admin/users', label: 'Người dùng & sổ địa chỉ', icon: Users },
   { to: '/admin/chat', label: 'Chat hỗ trợ khách hàng', icon: MessageSquare },
@@ -65,7 +67,19 @@ export default function AdminLayout() {
           </button>
         </div>
       </aside>
-      <div className={styles.content}><Outlet /></div>
+      <div className={styles.content}>
+        <div className="flex items-center justify-between gap-4 border-b border-line-light bg-surface-body px-6 py-2.5">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-content-secondary hover:text-content-primary transition-colors"
+          >
+            <Store size={15} />
+            <span>Về trang cửa hàng</span>
+          </Link>
+          <NotificationBell />
+        </div>
+        <Outlet />
+      </div>
       <Modal isOpen={showAccount} onClose={() => setShowAccount(false)} title="Thông tin tài khoản" maxWidth="560px">
         {user ? (
           <dl className={styles.accountDetails}>
