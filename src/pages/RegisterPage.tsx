@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Lock, Mail, Phone, UserCheck, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Lock, Mail, Phone, UserCheck, Calendar, AlertCircle, CheckCircle2, Gift } from 'lucide-react';
 import { authService } from '../services/authService';
 import { Button, Input, Select } from '../components/ui';
 import { isValidVietnamPhone, validateDateOfBirth, extractErrorMessage } from '../utils/format';
@@ -93,10 +93,12 @@ export default function RegisterPage() {
         phone: formData.phone.trim(),
       });
 
-      setSuccessMessage('Đăng ký tài khoản thành công! Đang chuyển đến trang đăng nhập...');
+      setSuccessMessage(
+        'Đăng ký thành công! Bạn đã được tặng mã WELCOME50K (Giảm 50.000₫) vào Ví Voucher cá nhân. Đang chuyển đến trang đăng nhập...'
+      );
       setTimeout(() => {
         navigate('/login');
-      }, 1500);
+      }, 2200);
     } catch (err) {
       setErrorMessage(extractErrorMessage(err, 'Đăng ký không thành công. Vui lòng thử lại.'));
     } finally {
@@ -112,13 +114,23 @@ export default function RegisterPage() {
       <div className={cn('animate-slide-up max-w-[520px]', styles.lightGlassCard)}>
         <div className={styles.lightCardTopBar} />
 
-        <div className="text-center mb-7">
+        <div className="text-center mb-5">
           <h2 className="text-[1.65rem] font-extrabold tracking-[0.06em] uppercase text-primary mb-2">
             Tạo Tài Khoản
           </h2>
           <p className="text-[0.85rem] text-content-secondary">
             Gia nhập cộng đồng thành viên để nhận ưu đãi đặc quyền
           </p>
+        </div>
+
+        <div className="mb-5 flex items-center gap-3 rounded-sm border border-accent-gold/40 bg-accent-gold/10 px-3.5 py-2.5 text-left">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-gold text-black">
+            <Gift size={18} />
+          </div>
+          <div className="text-xs leading-snug text-content-primary">
+            <strong className="uppercase tracking-wide text-primary">Quà chào mừng thành viên mới:</strong>{' '}
+            Nhận tự động voucher <strong className="font-mono">WELCOME50K</strong> (Giảm 50.000₫ cho đơn từ 300.000₫) vào Ví Voucher ngay khi đăng ký!
+          </div>
         </div>
 
         {errorMessage && (

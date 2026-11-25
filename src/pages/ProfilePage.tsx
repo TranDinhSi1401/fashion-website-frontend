@@ -16,9 +16,11 @@ import {
   ExternalLink,
   Package,
   RotateCcw,
+  Ticket,
 } from "lucide-react";
 import CustomerOrdersTab from "./CustomerOrdersTab";
 import CustomerReturnsTab from "./CustomerReturnsTab";
+import CustomerVouchersTab from "./CustomerVouchersTab";
 import { useAuth } from "../context/AuthContext";
 import { userService } from "../services/userService";
 import { UserAddressResponse } from "../types/user";
@@ -48,9 +50,11 @@ export default function ProfilePage() {
     ? "password"
     : location.pathname.includes("/orders")
       ? "orders"
-      : location.pathname.includes("/returns")
-        ? "returns"
-        : "profile";
+      : location.pathname.includes("/vouchers")
+        ? "vouchers"
+        : location.pathname.includes("/returns")
+          ? "returns"
+          : "profile";
 
   const [profileForm, setProfileForm] = useState({
     fullname: "",
@@ -569,6 +573,22 @@ export default function ProfilePage() {
             >
               <Package size={16} />
               Đơn Hàng Của Tôi
+            </button>
+
+            <button
+              type='button'
+              onClick={() =>
+                navigate("/account/vouchers", { state: { keepScroll: true } })
+              }
+              className={cn(
+                "flex items-center gap-2.5 px-3.5 py-2.5 text-[0.85rem] text-left cursor-pointer rounded-btn border-0 transition-colors",
+                activeTab === "vouchers"
+                  ? "bg-surface-dark text-content-inverse font-bold"
+                  : "bg-transparent text-content-primary hover:bg-surface-elevated font-medium",
+              )}
+            >
+              <Ticket size={16} />
+              Ví Voucher Của Tôi
             </button>
 
             <button
@@ -1246,6 +1266,13 @@ export default function ProfilePage() {
             {activeTab === "orders" && (
               <div>
                 <CustomerOrdersTab />
+              </div>
+            )}
+
+            {/* TAB MY VOUCHERS */}
+            {activeTab === "vouchers" && (
+              <div>
+                <CustomerVouchersTab />
               </div>
             )}
 

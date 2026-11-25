@@ -16,6 +16,8 @@ export interface VoucherResponse {
   maxUsesPerUser: number;
   userUsedCount?: number | null;
   remainingUserUses?: number | null;
+  isClaimed?: boolean | null;
+  claimedAt?: string | null;
   startDate: string;
   endDate: string;
   status: VoucherStatus;
@@ -69,4 +71,5 @@ export interface VoucherCalculationResult {
   maxUsesPerUser?: number;
   userUsedCount?: number;
   remainingUserUses?: number;
+  newlyClaimed?: boolean;
 }

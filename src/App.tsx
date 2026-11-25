@@ -97,6 +97,14 @@ export default function App() {
             }
           />
           <Route
+            path="/account/vouchers"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/account/returns"
             element={
               <ProtectedRoute>
