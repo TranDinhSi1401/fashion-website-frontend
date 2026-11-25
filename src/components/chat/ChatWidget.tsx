@@ -124,6 +124,8 @@ export default function ChatWidget() {
   // Widget States
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isMenuExpanded, setIsMenuExpanded] = useState(false);
+  const [isAiStylistOpen, setIsAiStylistOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessageResponse[]>([]);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
@@ -166,6 +168,16 @@ export default function ChatWidget() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const isOpenRef = useRef(isOpen);
 
+  // Lắng nghe trạng thái đóng/mở của AI Stylist để đồng bộ bong bóng chung
+  useEffect(() => {
+    const handleAiState = (e: Event) => {
+      const customEvent = e as CustomEvent<{ isOpen: boolean }>;
+      setIsAiStylistOpen(Boolean(customEvent.detail?.isOpen));
+    };
+    window.addEventListener('fashion:ai-stylist-state', handleAiState);
+    return () => window.removeEventListener('fashion:ai-stylist-state', handleAiState);
+  }, []);
+
   // Kéo thả Launcher Button
   const handleLauncherPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return;
@@ -193,8 +205,8 @@ export default function ChatWidget() {
     }
 
     if (hasMovedBtn.current && launcherRef.current) {
-      const w = launcherRef.current.offsetWidth || 180;
-      const h = launcherRef.current.offsetHeight || 52;
+      const w = launcherRef.current.offsetWidth || 60;
+      const h = launcherRef.current.offsetHeight || 60;
       const maxX = window.innerWidth - w - 8;
       const maxY = window.innerHeight - h - 8;
 
@@ -218,7 +230,21 @@ export default function ChatWidget() {
       e.stopPropagation();
       return;
     }
+    // Nếu khách chưa đăng nhập thì chỉ có 1 chức năng AI Stylist -> mở luôn hoặc mở menu tùy chọn
+    setIsMenuExpanded((prev) => !prev);
+  };
+
+  const handleOpenAiStylist = () => {
+    setIsMenuExpanded(false);
+    setIsOpen(false);
+    window.dispatchEvent(new CustomEvent('fashion:open-ai-stylist'));
+  };
+
+  const handleOpenStoreChat = () => {
+    setIsMenuExpanded(false);
+    window.dispatchEvent(new CustomEvent('fashion:open-store-chat'));
     setIsOpen(true);
+    setIsMinimized(false);
   };
 
   // Kéo thả Chat Window Header
@@ -271,6 +297,7 @@ export default function ChatWidget() {
     if (isOpen) {
       setUnreadCount(0);
       setIsMinimized(false);
+      setIsMenuExpanded(false);
     }
   }, [isOpen]);
 
@@ -286,13 +313,17 @@ export default function ChatWidget() {
   // Handle ESC key to close/minimize
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false);
+      if (e.key === 'Escape') {
+        if (isMenuExpanded) {
+          setIsMenuExpanded(false);
+        } else if (isOpen) {
+          setIsOpen(false);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, isMenuExpanded]);
 
   // Tải lịch sử hội thoại mỗi khi kết nối thành công
   useEffect(() => {
@@ -380,8 +411,8 @@ export default function ChatWidget() {
     return { size: 'XXL', note: 'Form lớn thoải mái' };
   }, [heightCm, weightKg]);
 
-  // Ẩn widget nếu chưa đăng nhập hoặc đang ở trang quản trị của Admin/Staff
-  if (!isAuthenticated || isAdmin || isStaff || location.pathname.startsWith('/admin')) {
+  // Ẩn widget nếu đang ở trang quản trị của Admin/Staff
+  if (isAdmin || isStaff || location.pathname.startsWith('/admin')) {
     return null;
   }
 
@@ -526,46 +557,139 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* Nút mở Chat Hỗ Trợ (Launcher Button - Hỗ trợ kéo thả di chuyển) */}
-      {!isOpen && (
-        <button
-          ref={launcherRef}
-          type="button"
-          onClick={handleLauncherClick}
-          onPointerDown={handleLauncherPointerDown}
-          onPointerMove={handleLauncherPointerMove}
-          onPointerUp={handleLauncherPointerUp}
-          onPointerCancel={handleLauncherPointerUp}
-          style={btnPos ? { left: `${btnPos.x}px`, top: `${btnPos.y}px`, bottom: 'auto', right: 'auto' } : undefined}
-          title="Bấm để mở chat hoặc kéo thả để di chuyển đến vị trí mong muốn"
-          className={cn(
-            'group fixed z-[997] flex items-center gap-2.5 rounded-full border border-[#C9A961]/40 bg-[#111111] px-3.5 py-3 text-white shadow-xl select-none touch-none cursor-grab active:cursor-grabbing transition-transform hover:border-[#C9A961] hover:bg-[#1a1a1a]',
-            !btnPos && 'bottom-6 right-6',
-            styles.launcherPulse
-          )}
-          aria-label="Chat hỗ trợ khách hàng (Kéo thả để di chuyển)"
+      {/* Lớp nền mờ nhẹ khi mở menu bong bóng hướng tâm */}
+      <div
+        onClick={() => setIsMenuExpanded(false)}
+        className={cn(
+          styles.speedDialBackdrop,
+          isMenuExpanded && !isOpen && !isAiStylistOpen
+            ? styles.speedDialBackdropOpen
+            : styles.speedDialBackdropClosed
+        )}
+        aria-hidden="true"
+      />
+
+      {/* Bong bóng gộp (Unified Radial Speed-Dial Bubble) cho AI Stylist & Chat Với Cửa Hàng */}
+      {!isOpen && !isAiStylistOpen && (
+        <div
+          style={
+            btnPos
+              ? { left: `${btnPos.x}px`, top: `${btnPos.y}px`, bottom: 'auto', right: 'auto' }
+              : undefined
+          }
+          className={styles.speedDialRoot}
         >
-          <GripVertical size={14} className="text-[#8A8A8A] group-hover:text-[#C9A961] opacity-70 shrink-0 cursor-grab" />
-          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#A8863A] to-[#E5CA82] text-[#111111] shadow-xs">
-            <MessageCircle size={18} className="fill-[#111111]" />
-            {unreadCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[0.65rem] font-extrabold text-white animate-pulse">
+          {/* Mục 1: AI Stylist Tư Vấn (Xòe lên cung trên) */}
+          <button
+            type="button"
+            onClick={handleOpenAiStylist}
+            className={cn(
+              styles.radialItem,
+              isMenuExpanded ? styles.radialItemAiOpen : styles.radialItemClosed
+            )}
+            aria-label="Mở AI Stylist Tư Vấn"
+          >
+            <div className={styles.radialLabel}>
+              <span className={styles.radialTitle}>AI Stylist Tư Vấn</span>
+              <span className={styles.radialSub}>Phối đồ thông minh</span>
+            </div>
+            <div className={cn(styles.radialCircle, styles.radialCircleAi)}>
+              <Sparkles size={21} />
+            </div>
+          </button>
+
+          {/* Mục 2: Chat Với Cửa Hàng (Xòe chéo sang trái theo hình vòng cung) */}
+          {isAuthenticated && (
+            <button
+              type="button"
+              onClick={handleOpenStoreChat}
+              className={cn(
+                styles.radialItem,
+                isMenuExpanded ? styles.radialItemChatOpen : styles.radialItemClosed
+              )}
+              aria-label="Mở Chat Với Cửa Hàng"
+            >
+              <div className={styles.radialLabel}>
+                <span className={styles.radialTitle}>Chat Với Cửa Hàng</span>
+                <span className={styles.radialSub}>Tư vấn viên online</span>
+              </div>
+              <div className={cn(styles.radialCircle, styles.radialCircleChat)}>
+                <MessageCircle size={20} className="fill-[#E5CA82]" />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[0.65rem] font-extrabold text-white">
+                    {unreadCount}
+                  </span>
+                )}
+                <span
+                  className={cn(
+                    'absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[#111111]',
+                    status === 'CONNECTED' ? 'bg-emerald-500' : 'bg-amber-400'
+                  )}
+                />
+              </div>
+            </button>
+          )}
+
+          {/* Nút Bong bóng chính (Nhấn để bung / đóng với hiệu ứng xoay X mượt mà) */}
+          <button
+            ref={launcherRef}
+            type="button"
+            onClick={handleLauncherClick}
+            onPointerDown={handleLauncherPointerDown}
+            onPointerMove={handleLauncherPointerMove}
+            onPointerUp={handleLauncherPointerUp}
+            onPointerCancel={handleLauncherPointerUp}
+            title="Nhấn để chọn trợ lý tư vấn hoặc kéo thả để di chuyển"
+            aria-expanded={isMenuExpanded}
+            aria-label="Mở menu tư vấn và trò chuyện"
+            className={cn(
+              styles.mainFab,
+              isMenuExpanded ? styles.mainFabOpen : styles.launcherPulse,
+              'select-none touch-none'
+            )}
+          >
+            <div className={styles.fabIconWrap}>
+              <div
+                className={cn(
+                  styles.fabIcon,
+                  isMenuExpanded ? styles.fabIconHidden : styles.fabIconVisible
+                )}
+              >
+                <div className="relative flex items-center justify-center">
+                  <MessageCircle size={24} className="text-[#E5CA82] fill-[#E5CA82]/20" />
+                  <Sparkles
+                    size={12}
+                    className="absolute -right-1.5 -top-1.5 text-[#FAF8F5] drop-shadow"
+                  />
+                </div>
+              </div>
+              <X
+                size={24}
+                strokeWidth={2.5}
+                className={cn(
+                  styles.fabIcon,
+                  isMenuExpanded ? styles.fabCloseVisible : styles.fabCloseHidden
+                )}
+              />
+            </div>
+
+            {/* Chấm báo tin nhắn chưa đọc hoặc trạng thái trực tuyến trên nút chính khi đang đóng */}
+            {!isMenuExpanded && unreadCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[0.68rem] font-extrabold text-white shadow-md animate-pulse">
                 {unreadCount}
               </span>
             )}
-          </div>
-          <div className="hidden flex-col items-start text-left sm:flex">
-            <span className="text-[0.82rem] font-bold tracking-wide text-white">Chat Với Cửa Hàng</span>
-            <span className="text-[0.65rem] text-[#C9A961]">Tư vấn viên online</span>
-          </div>
-          <span
-            className={cn(
-              'h-2.5 w-2.5 rounded-full ring-2 ring-[#111111]',
-              status === 'CONNECTED' ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'
+            {!isMenuExpanded && isAuthenticated && unreadCount === 0 && (
+              <span
+                className={cn(
+                  'absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#111111]',
+                  status === 'CONNECTED' ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'
+                )}
+                title={status === 'CONNECTED' ? 'Tư vấn viên đang online' : 'Đang kết nối'}
+              />
             )}
-            title={status === 'CONNECTED' ? 'Đã kết nối' : 'Đang kết nối lại'}
-          />
-        </button>
+          </button>
+        </div>
       )}
 
       {/* Mini Bar khi bấm Minimize (Thu nhỏ) */}
