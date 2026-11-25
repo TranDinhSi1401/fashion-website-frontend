@@ -7,7 +7,6 @@ import {
   Tag,
   Users,
   MessageSquare,
-  BellRing,
   UserRound,
   ShieldCheck,
   Menu,
@@ -36,7 +35,6 @@ const modules = [
   { to: '/admin/promotions', label: 'Quản lý khuyến mãi', icon: Tag },
   { to: '/admin/users', label: 'Người dùng & sổ địa chỉ', icon: Users },
   { to: '/admin/chat', label: 'Chat hỗ trợ khách hàng', icon: MessageSquare },
-  { to: '/admin/notifications', label: 'Thông báo & sự kiện', icon: BellRing },
 ];
 
 export default function AdminLayout() {

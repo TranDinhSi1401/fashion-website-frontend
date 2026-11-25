@@ -25,7 +25,6 @@ import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminPromotionsPage from './pages/AdminPromotionsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminChatPage from './pages/AdminChatPage';
-import AdminNotificationsPage from './pages/AdminNotificationsPage';
 import AdminReturnsPage from './pages/AdminReturnsPage';
 import AdminReturnDetailPage from './pages/AdminReturnDetailPage';
 import AdminDormantReviewsPage from './pages/AdminDormantReviewsPage';
@@ -196,14 +195,6 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
                 <AdminChatPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/notifications"
-            element={
-              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
-                <AdminNotificationsPage />
               </ProtectedRoute>
             }
           />
