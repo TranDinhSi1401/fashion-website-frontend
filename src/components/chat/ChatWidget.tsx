@@ -154,6 +154,8 @@ export default function ChatWidget() {
 
   // Draggable States cho Launcher & Chat Window
   const [btnPos, setBtnPos] = useState<{ x: number; y: number } | null>(null);
+  const [dockSide, setDockSide] = useState<'left' | 'right'>('right');
+  const [isSnappingBtn, setIsSnappingBtn] = useState(false);
   const [windowPos, setWindowPos] = useState<{ x: number; y: number } | null>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const chatWindowRef = useRef<HTMLDivElement>(null);
@@ -178,7 +180,25 @@ export default function ChatWidget() {
     return () => window.removeEventListener('fashion:ai-stylist-state', handleAiState);
   }, []);
 
-  // Kéo thả Launcher Button
+  // Giữ bong bóng bám đúng lề trái/phải khi người dùng thay đổi kích thước cửa sổ trình duyệt
+  useEffect(() => {
+    const handleResize = () => {
+      setBtnPos((prev) => {
+        if (!prev) return null;
+        const w = launcherRef.current?.offsetWidth || 60;
+        const h = launcherRef.current?.offsetHeight || 60;
+        const edgeMargin = window.innerWidth < 640 ? 16 : 24;
+        const snappedX =
+          dockSide === 'left' ? edgeMargin : Math.max(edgeMargin, window.innerWidth - w - edgeMargin);
+        const clampedY = Math.max(12, Math.min(window.innerHeight - h - 12, prev.y));
+        return { x: snappedX, y: clampedY };
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [dockSide]);
+
+  // Kéo thả Launcher Button (khi thả ra sẽ tự động hút về lề trái hoặc lề phải gần nhất)
   const handleLauncherPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return;
     const btn = launcherRef.current;
@@ -192,6 +212,7 @@ export default function ChatWidget() {
     };
     isDraggingBtn.current = true;
     hasMovedBtn.current = false;
+    setIsSnappingBtn(false);
     btn.setPointerCapture(e.pointerId);
   };
 
@@ -205,6 +226,9 @@ export default function ChatWidget() {
     }
 
     if (hasMovedBtn.current && launcherRef.current) {
+      if (isMenuExpanded) {
+        setIsMenuExpanded(false);
+      }
       const w = launcherRef.current.offsetWidth || 60;
       const h = launcherRef.current.offsetHeight || 60;
       const maxX = window.innerWidth - w - 8;
@@ -222,6 +246,26 @@ export default function ChatWidget() {
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
+
+    if (hasMovedBtn.current && launcherRef.current) {
+      const rect = launcherRef.current.getBoundingClientRect();
+      const w = rect.width || 60;
+      const h = rect.height || 60;
+      const edgeMargin = window.innerWidth < 640 ? 16 : 24;
+
+      // Chỉ xét 2 lề trái và phải: tâm bong bóng gần lề nào hơn thì hút mượt về lề đó, giữ nguyên trục Y
+      const centerX = rect.left + w / 2;
+      const isLeftCloser = centerX < window.innerWidth / 2;
+      const targetSide: 'left' | 'right' = isLeftCloser ? 'left' : 'right';
+      const targetX = isLeftCloser
+        ? edgeMargin
+        : Math.max(edgeMargin, window.innerWidth - w - edgeMargin);
+      const clampedY = Math.max(12, Math.min(window.innerHeight - h - 12, rect.top));
+
+      setDockSide(targetSide);
+      setIsSnappingBtn(true);
+      setBtnPos({ x: targetX, y: clampedY });
+    }
   };
 
   const handleLauncherClick = (e: React.MouseEvent) => {
@@ -577,7 +621,7 @@ export default function ChatWidget() {
               ? { left: `${btnPos.x}px`, top: `${btnPos.y}px`, bottom: 'auto', right: 'auto' }
               : undefined
           }
-          className={styles.speedDialRoot}
+          className={cn(styles.speedDialRoot, isSnappingBtn && styles.speedDialSnapping)}
         >
           {/* Mục 1: AI Stylist Tư Vấn (Xòe lên cung trên) */}
           <button
@@ -585,11 +629,16 @@ export default function ChatWidget() {
             onClick={handleOpenAiStylist}
             className={cn(
               styles.radialItem,
-              isMenuExpanded ? styles.radialItemAiOpen : styles.radialItemClosed
+              dockSide === 'left' && styles.radialItemLeft,
+              isMenuExpanded
+                ? dockSide === 'left'
+                  ? styles.radialItemAiOpenLeft
+                  : styles.radialItemAiOpen
+                : styles.radialItemClosed
             )}
             aria-label="Mở AI Stylist Tư Vấn"
           >
-            <div className={styles.radialLabel}>
+            <div className={cn(styles.radialLabel, dockSide === 'left' && styles.radialLabelLeft)}>
               <span className={styles.radialTitle}>AI Stylist Tư Vấn</span>
               <span className={styles.radialSub}>Phối đồ thông minh</span>
             </div>
@@ -598,18 +647,23 @@ export default function ChatWidget() {
             </div>
           </button>
 
-          {/* Mục 2: Chat Với Cửa Hàng (Xòe chéo sang trái theo hình vòng cung) */}
+          {/* Mục 2: Chat Với Cửa Hàng (Xòe chéo theo hình vòng cung vào trong màn hình) */}
           {isAuthenticated && (
             <button
               type="button"
               onClick={handleOpenStoreChat}
               className={cn(
                 styles.radialItem,
-                isMenuExpanded ? styles.radialItemChatOpen : styles.radialItemClosed
+                dockSide === 'left' && styles.radialItemLeft,
+                isMenuExpanded
+                  ? dockSide === 'left'
+                    ? styles.radialItemChatOpenLeft
+                    : styles.radialItemChatOpen
+                  : styles.radialItemClosed
               )}
               aria-label="Mở Chat Với Cửa Hàng"
             >
-              <div className={styles.radialLabel}>
+              <div className={cn(styles.radialLabel, dockSide === 'left' && styles.radialLabelLeft)}>
                 <span className={styles.radialTitle}>Chat Với Cửa Hàng</span>
                 <span className={styles.radialSub}>Tư vấn viên online</span>
               </div>
