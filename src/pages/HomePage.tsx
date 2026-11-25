@@ -6,14 +6,11 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  RotateCcw,
-  Sparkles,
-  ShieldCheck,
-  Percent,
 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { ProductResponse } from '../types/product';
 import { Button, ProductCard, SectionHeader } from '../components/ui';
+import HomeVoucherSection from '../components/voucher/HomeVoucherSection';
 import { cn } from '../utils/cn';
 import { normalize } from '../utils/catalog';
 import { extractProductImage } from '../utils/format';
@@ -112,29 +109,6 @@ const FEATURED_CATEGORIES: CategoryCard[] = [
     image:
       '',
     count: 'Phong cách năng động',
-  },
-];
-
-const VALUE_PROMISES = [
-  {
-    icon: ShieldCheck,
-    title: '100% Chính Hãng',
-    desc: 'Thiết kế & sợi sinh thái tuyển chọn độc quyền',
-  },
-  {
-    icon: Percent,
-    title: 'Giảm giá 50.000đ',
-    desc: 'Cho mọi đơn hàng từ 500.000₫',
-  },
-  {
-    icon: RotateCcw,
-    title: '15 Ngày Đổi Trả',
-    desc: 'Đổi tận nơi linh hoạt, không thủ tục rườm rà',
-  },
-  {
-    icon: Sparkles,
-    title: 'Bảo Hành Trọn Đời',
-    desc: 'Chăm sóc đường kim, cúc áo chuẩn phong thái',
   },
 ];
 
@@ -424,29 +398,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 2. VALUE PROPOSITION BAR */}
-      <section className="border-b border-line-light bg-surface py-5 sm:py-6">
-        <div className="mx-auto max-w-container px-3.5 sm:px-6">
-          <div className="grid grid-cols-2 gap-3.5 sm:gap-6 lg:grid-cols-4">
-            {VALUE_PROMISES.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div key={item.title} className="flex items-center gap-2.5 sm:gap-4">
-                  <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center bg-primary text-content-inverse">
-                    <Icon size={18} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-base font-bold uppercase tracking-wide text-content-primary">
-                      {item.title}
-                    </h4>
-                    <p className="mt-0.5 text-[11px] sm:text-xs text-content-secondary line-clamp-1 sm:line-clamp-none">{item.desc}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      {/* 2. KHO VOUCHER & MÃ KHUYẾN MÃI NỔI BẬT */}
+      <HomeVoucherSection />
 
       {/* 3. FEATURED CATEGORIES GRID */}
       <section className="py-10 sm:py-16">

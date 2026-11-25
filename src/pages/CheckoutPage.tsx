@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { CreditCard, ShoppingBag, ChevronDown, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { CreditCard, ShoppingBag, ChevronDown, Ticket, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { userService } from '../services/userService';
@@ -9,11 +9,12 @@ import { shippingService, ShippingOrderPreview } from '../services/shippingServi
 import { paymentMethodService, PaymentMethodResponse } from '../services/paymentMethodService';
 import { specialOfferService, SpecialOfferResponse } from '../services/specialOfferService';
 import { voucherService } from '../services/voucherService';
-import { VoucherCalculationResult } from '../types/voucher';
+import { VoucherCalculationResult, VoucherResponse } from '../types/voucher';
 import { UserAddressResponse } from '../types/user';
 import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import AddressFormModal from '../components/profile/AddressFormModal';
+import VoucherPickerDrawer, { estimateVoucherDiscount } from '../components/voucher/VoucherPickerDrawer';
 import { Button, Input, Modal, Radio, Select } from '../components/ui';
 
 function CheckoutProductImage({ url, name }: { url?: string | null; name: string }) {
@@ -95,6 +96,9 @@ export default function CheckoutPage() {
   const [appliedVoucher, setAppliedVoucher] = useState<VoucherCalculationResult | null>(null);
   const [voucherLoading, setVoucherLoading] = useState(false);
   const [voucherError, setVoucherError] = useState('');
+  const [voucherClaimNotice, setVoucherClaimNotice] = useState('');
+  const [isVoucherDrawerOpen, setIsVoucherDrawerOpen] = useState(false);
+  const [quickVouchers, setQuickVouchers] = useState<VoucherResponse[]>([]);
   const [detailOffer, setDetailOffer] = useState<SpecialOfferResponse | null>(null);
   const offerSelectorRef = useRef<HTMLDivElement>(null);
   const offerTriggerRef = useRef<HTMLButtonElement>(null);
@@ -104,6 +108,7 @@ export default function CheckoutPage() {
   const [isOrderConfirmOpen, setIsOrderConfirmOpen] = useState(false);
   const [orderConfirmationMessage, setOrderConfirmationMessage] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
 
 
   useEffect(() => {
@@ -367,8 +372,33 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleApplyVoucher = async () => {
-    if (!voucherInput.trim()) {
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled([
+      voucherService.getAvailableVouchers(),
+      voucherService.getMyVouchers(),
+    ]).then(([availRes, myRes]) => {
+      if (!active) return;
+      const map = new Map<number, VoucherResponse>();
+      if (myRes.status === 'fulfilled' && Array.isArray(myRes.value.data)) {
+        myRes.value.data.forEach((v) => map.set(v.id, { ...v, isClaimed: true }));
+      }
+      if (availRes.status === 'fulfilled' && Array.isArray(availRes.value.data)) {
+        availRes.value.data.forEach((v) => {
+          const ex = map.get(v.id);
+          map.set(v.id, { ...v, isClaimed: Boolean(v.isClaimed || ex?.isClaimed) });
+        });
+      }
+      setQuickVouchers(Array.from(map.values()));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const applyVoucherCodeDirect = async (codeToApply: string) => {
+    const cleanCode = codeToApply.trim().toUpperCase();
+    if (!cleanCode) {
       setVoucherError('Vui lòng nhập mã voucher');
       return;
     }
@@ -377,33 +407,96 @@ export default function CheckoutPage() {
       return;
     }
 
+    setVoucherInput(cleanCode);
     setVoucherLoading(true);
     setVoucherError('');
+    setVoucherClaimNotice('');
     try {
       const res = await voucherService.validateVoucher({
-        code: voucherInput.trim(),
+        code: cleanCode,
         subtotal: cart.totalPrice,
       });
       if (res.data) {
-        setAppliedVoucher(res.data);
-        const newVoucherDisc = Number(res.data.discountAmount || 0);
+        const resultData = res.data;
+        setAppliedVoucher(resultData);
+        setQuickVouchers((prev) =>
+          prev.map((v) =>
+            v.id === resultData.voucherId || v.code.toUpperCase() === resultData.code.toUpperCase()
+              ? { ...v, isClaimed: true }
+              : v
+          )
+        );
+        if (resultData.newlyClaimed) {
+          setVoucherClaimNotice(
+            `Đã tự động lưu mã ${resultData.code} vào Ví Voucher của bạn và áp dụng thành công!`
+          );
+        }
+        const newVoucherDisc = Number(resultData.discountAmount || 0);
         if (hasEligibleOffer && newVoucherDisc >= offerDiscountAmount) {
           // Nếu Voucher có mức giảm cao hơn thì Khuyến mãi đang chọn sẽ bị bỏ chọn
           setSelectedOfferId('');
         }
       }
     } catch (err) {
-      setVoucherError(extractErrorMessage(err, 'Mã voucher không hợp lệ hoặc đã hết hạn'));
+      const msg = extractErrorMessage(err, 'Mã giảm giá không tồn tại');
+      if (msg.startsWith('Đã lưu mã')) {
+        setVoucherClaimNotice(msg);
+        setQuickVouchers((prev) =>
+          prev.map((v) =>
+            v.code.toUpperCase() === cleanCode ? { ...v, isClaimed: true } : v
+          )
+        );
+      } else {
+        setVoucherError(msg);
+      }
       setAppliedVoucher(null);
+      throw err;
     } finally {
       setVoucherLoading(false);
     }
   };
 
+  const handleApplyVoucher = async () => {
+    try {
+      await applyVoucherCodeDirect(voucherInput);
+    } catch {
+      // Đã xử lý hiển thị lỗi tại voucherError
+    }
+  };
+
+  useEffect(() => {
+    const stateCode = (location.state as { voucherCode?: string } | null)?.voucherCode;
+    if (stateCode && cart && cart.totalPrice > 0 && !appliedVoucher && !voucherInput) {
+      void applyVoucherCodeDirect(stateCode).catch(() => {});
+    }
+  }, [location.state, cart?.totalPrice]);
+
+  const eligibleVouchersCount = cart
+    ? quickVouchers.filter((v) => {
+        const minOrder = Number(v.minOrderAmount || 0);
+        const hasStock = (v.remainingQuantity ?? v.totalQuantity - v.usedQuantity) > 0;
+        const hasQuota = v.remainingUserUses == null || v.remainingUserUses > 0;
+        const validFlag = v.isValid ?? (v as unknown as { valid?: boolean }).valid ?? true;
+        return Boolean(v.isClaimed) && validFlag && cart.totalPrice >= minOrder && hasStock && hasQuota;
+      }).length
+    : 0;
+
+  const bestPossibleVoucherDiscount = cart
+    ? quickVouchers.reduce((max, v) => {
+        const minOrder = Number(v.minOrderAmount || 0);
+        const hasStock = (v.remainingQuantity ?? v.totalQuantity - v.usedQuantity) > 0;
+        const hasQuota = v.remainingUserUses == null || v.remainingUserUses > 0;
+        const validFlag = v.isValid ?? (v as unknown as { valid?: boolean }).valid ?? true;
+        if (!v.isClaimed || !validFlag || cart.totalPrice < minOrder || !hasStock || !hasQuota) return max;
+        return Math.max(max, estimateVoucherDiscount(v, cart.totalPrice));
+      }, 0)
+    : 0;
+
   const handleRemoveVoucher = () => {
     setAppliedVoucher(null);
     setVoucherInput('');
     setVoucherError('');
+    setVoucherClaimNotice('');
   };
 
   const handlePlaceOrder = async () => {
@@ -801,18 +894,34 @@ export default function CheckoutPage() {
               ))}
             </ul>
 
-            {/* Nhập mã Voucher */}
+            {/* Nhập mã Voucher & Chọn từ Ví / Kho Voucher */}
             <div className="border-t border-line-light py-4">
-              <label
-                htmlFor="checkout-voucher-code"
-                className={`mb-1.5 block text-sm font-semibold transition-opacity ${
-                  isVoucherDimmed
-                    ? 'text-content-muted opacity-50'
-                    : 'text-content-primary'
-                }`}
-              >
-                Mã giảm giá (Voucher)
-              </label>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <label
+                  htmlFor="checkout-voucher-code"
+                  className={`block text-sm font-semibold transition-opacity ${
+                    isVoucherDimmed
+                      ? 'text-content-muted opacity-50'
+                      : 'text-content-primary'
+                  }`}
+                >
+                  Mã giảm giá (Voucher)
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => setIsVoucherDrawerOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-accent-gold transition-colors"
+                >
+                  <Ticket size={14} />
+                  <span>Chọn từ Ví / Kho Voucher</span>
+                  {eligibleVouchersCount > 0 && (
+                    <span className="rounded-full bg-primary px-1.5 py-0.2 text-[10px] font-bold text-content-inverse">
+                      {eligibleVouchersCount}
+                    </span>
+                  )}
+                </button>
+              </div>
 
               <div>
                 <div className="flex gap-2">
@@ -863,10 +972,61 @@ export default function CheckoutPage() {
                     Áp dụng
                   </Button>
                 </div>
+
                 {voucherError && (
                   <p className="mt-1.5 text-xs text-status-error" role="alert">
                     {voucherError}
                   </p>
+                )}
+
+                {voucherClaimNotice && (
+                  <p
+                    className="mt-1.5 rounded-input border border-status-success/40 bg-status-success/10 px-2.5 py-1.5 text-xs font-medium text-status-success"
+                    role="status"
+                  >
+                    {voucherClaimNotice}
+                  </p>
+                )}
+
+                {appliedVoucher && (
+                  <div className="mt-2.5 flex items-center justify-between gap-2 rounded-input border border-status-success/40 bg-status-success/10 px-3 py-2 text-xs">
+                    <div className="min-w-0">
+                      <span className="font-bold text-content-primary">
+                        Đã áp dụng: {appliedVoucher.code}
+                      </span>
+                      <span className="ml-1.5 font-semibold text-status-success">
+                        (−{formatCurrencyVND(appliedVoucher.discountAmount)})
+                      </span>
+                      <p className="truncate text-[11px] text-content-secondary">
+                        {appliedVoucher.name}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsVoucherDrawerOpen(true)}
+                      className="shrink-0 font-bold text-primary underline"
+                    >
+                      Đổi mã
+                    </button>
+                  </div>
+                )}
+
+                {!appliedVoucher && eligibleVouchersCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsVoucherDrawerOpen(true)}
+                    className="mt-2.5 flex w-full items-center justify-between gap-2 rounded-input border border-dashed border-accent-gold/60 bg-accent-gold/10 px-3 py-2 text-left text-xs transition-colors hover:bg-accent-gold/15"
+                  >
+                    <span className="text-content-primary">
+                      Có <strong>{eligibleVouchersCount} voucher</strong> đủ điều kiện
+                      {bestPossibleVoucherDiscount > 0
+                        ? ` (giảm tới ${formatCurrencyVND(bestPossibleVoucherDiscount)})`
+                        : ''}
+                    </span>
+                    <span className="shrink-0 font-bold text-primary underline">
+                      Chọn ngay →
+                    </span>
+                  </button>
                 )}
               </div>
             </div>
@@ -1304,6 +1464,15 @@ export default function CheckoutPage() {
           );
         })()}
       </Modal>
+
+      <VoucherPickerDrawer
+        isOpen={isVoucherDrawerOpen}
+        onClose={() => setIsVoucherDrawerOpen(false)}
+        subtotal={cart?.totalPrice ?? 0}
+        appliedCode={appliedVoucher?.code ?? null}
+        onSelectVoucher={applyVoucherCodeDirect}
+        onRemoveVoucher={handleRemoveVoucher}
+      />
     </div>
   );
 }
