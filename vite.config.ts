@@ -8,12 +8,12 @@ export default defineConfig({
     allowedHosts: true, // Cho phép các domain ngrok truy cập
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
         ws: true, // Hỗ trợ proxy WebSocket cho /api/v1/ws
       },
       '/ws': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
         ws: true,
         rewrite: (path) => path.replace(/^\/ws/, '/api/v1/ws'),

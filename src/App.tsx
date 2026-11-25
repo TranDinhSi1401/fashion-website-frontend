@@ -30,9 +30,11 @@ import AdminReturnDetailPage from './pages/AdminReturnDetailPage';
 import AdminDormantReviewsPage from './pages/AdminDormantReviewsPage';
 import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
 import AdminOrderStatisticsPage from './pages/AdminOrderStatisticsPage';
+import AdminReturnStatisticsPage from './pages/AdminReturnStatisticsPage';
 import AdminReviewStatisticsPage from './pages/AdminReviewStatisticsPage';
 import AdminStatisticsPlaceholderPage from './pages/AdminStatisticsPlaceholderPage';
 import AboutUsPage from './pages/AboutUsPage';
+import ReturnPolicyPage from './pages/ReturnPolicyPage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -52,6 +54,8 @@ export default function App() {
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/ve-chung-toi" element={<AboutUsPage />} />
+          <Route path="/chinh-sach-doi-tra" element={<ReturnPolicyPage />} />
+          <Route path="/chinh-sach-doi-tra" element={<ReturnPolicyPage />} />
           <Route path="/about" element={<Navigate to="/ve-chung-toi" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -169,7 +173,7 @@ export default function App() {
                 path="/admin/statistics/returns"
                 element={
                 <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
-                    <AdminStatisticsPlaceholderPage title="Thống kê phiếu trả" />
+                    <AdminReturnStatisticsPage />
                 </ProtectedRoute>
                 }
             />
@@ -216,6 +220,14 @@ export default function App() {
           />
           <Route
             path="/admin/returns/dormant"
+            element={
+              <ProtectedRoute requiredRoles={['ADMIN']}>
+                <AdminDormantReviewsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/returns/dormant-reviews"
             element={
               <ProtectedRoute requiredRoles={['ADMIN']}>
                 <AdminDormantReviewsPage />

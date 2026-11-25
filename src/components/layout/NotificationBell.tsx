@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Package, Tag, RotateCcw, Info } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useWsStatus } from '../../ws/WebSocketProvider';
-import { NotificationType } from '../../types/realtime';
+import { NotificationResponse, NotificationType } from '../../types/realtime';
 import { useNotifications } from '../../context/NotificationContext';
 import { IconButton } from '../ui';
 import { cn } from '../../utils/cn';
@@ -33,11 +34,14 @@ function formatNotificationTime(iso?: string): string {
 }
 
 export default function NotificationBell() {
+  const { isAdmin, isStaff } = useAuth();
+  const navigate = useNavigate();
   const status = useWsStatus();
   const { items, unread, loading, markRead, markAll } = useNotifications();
   const [open, setOpen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+
+  const canManageReturns = Boolean(isAdmin || isStaff);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -55,6 +59,36 @@ export default function NotificationBell() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  const handleNotificationClick = async (n: NotificationResponse) => {
+    if (!n.seen) {
+      await markRead(n);
+    }
+
+    setOpen(false);
+
+    if (n.type === 'PROMOTION') {
+      navigate('/account/vouchers');
+      return;
+    }
+
+    if (n.type === 'RETURN_REQUEST') {
+      navigate(
+        n.referenceId
+          ? canManageReturns
+            ? `/admin/returns/${n.referenceId}`
+            : `/account/returns/${n.referenceId}`
+          : canManageReturns
+            ? '/admin/returns'
+            : '/account/returns'
+      );
+      return;
+    }
+
+    if (n.type === 'ORDER_STATUS') {
+      navigate(canManageReturns ? '/admin/orders' : '/account/orders');
+    }
+  };
 
   return (
     <div className="relative" ref={containerRef}>
@@ -120,23 +154,15 @@ export default function NotificationBell() {
                 </p>
               </div>
             ) : (
-              items.map((n) => (
+              items.map((n, index) => (
                 <button
                   type="button"
-                  key={n.id}
-                  onClick={() => {
-                    void markRead(n);
-                    if (n.type === 'PROMOTION') {
-                      setOpen(false);
-                      navigate('/account/vouchers');
-                    } else if (n.type === 'ORDER_STATUS') {
-                      setOpen(false);
-                      navigate('/account/orders');
-                    } else if (n.type === 'RETURN_REQUEST') {
-                      setOpen(false);
-                      navigate('/account/returns');
-                    }
-                  }}
+                  key={
+                    n.id != null
+                      ? n.id
+                      : `topic-${n.type}-${n.referenceId ?? 'none'}-${n.createdAt ?? index}`
+                  }
+                  onClick={() => void handleNotificationClick(n)}
                   className={cn(
                     'flex w-full cursor-pointer items-start gap-3 border-0 px-4 py-3 text-left transition-colors hover:bg-surface',
                     !n.seen ? 'bg-accent-gold/5' : 'bg-surface-elevated'

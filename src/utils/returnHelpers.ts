@@ -363,9 +363,117 @@ export function isValidBankAccountNumber(accountNumber?: string | null): boolean
   return BANK_ACCOUNT_REGEX.test(accountNumber.trim());
 }
 
+/**
+ * Biểu thức chính quy kiểm tra số điện thoại lấy hàng Việt Nam: bắt đầu bằng 0 hoặc +84 theo sau bởi 9–10 chữ số.
+ */
+export const PICKUP_PHONE_REGEX = /^(\+84|0)[0-9]{9,10}$/;
+
+/**
+ * Chức năng: Kiểm tra tính hợp lệ của số điện thoại liên hệ lấy hàng trả (GHN).
+ *
+ * @param phone Đầu vào: Chuỗi số điện thoại cần kiểm tra.
+ * @returns Đầu ra: true nếu khớp định dạng SĐT Việt Nam hợp lệ; ngược lại false.
+ */
+export function isValidPickupPhone(phone?: string | null): boolean {
+  if (!phone || typeof phone !== 'string') {
+    return false;
+  }
+  return PICKUP_PHONE_REGEX.test(phone.trim());
+}
+
+/**
+ * Chức năng: Tạo đường dẫn tra cứu hành trình vận đơn công khai của Giao Hàng Nhanh (GHN).
+ *
+ * @param trackingCode Đầu vào: Mã vận đơn GHN.
+ * @returns Đầu ra: URL tra cứu vận đơn GHN hoặc chuỗi rỗng nếu chưa có mã vận đơn.
+ */
+export function buildGhnTrackingUrl(trackingCode?: string | null): string {
+  const trimmed = (trackingCode || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+  return `https://donhang.ghn.vn/?order_code=${encodeURIComponent(trimmed)}`;
+}
+
+/**
+ * Chức năng: Ghép các thành phần địa chỉ lấy hàng (địa chỉ chi tiết, phường/xã, tỉnh/thành) thành chuỗi dễ đọc.
+ *
+ * @param ret Đầu vào: Đối tượng chứa pickupAddress, pickupWardName và pickupProvinceName.
+ * @returns Đầu ra: Chuỗi địa chỉ đầy đủ nối bằng dấu phẩy hoặc chuỗi rỗng nếu không có dữ liệu.
+ */
+export function formatPickupAddress(
+  ret?: {
+    pickupAddress?: string | null;
+    pickupWardName?: string | null;
+    pickupProvinceName?: string | null;
+  } | null
+): string {
+  if (!ret) {
+    return '';
+  }
+  return [ret.pickupAddress, ret.pickupWardName, ret.pickupProvinceName]
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter((part) => part !== '')
+    .join(', ');
+}
+
 // ============================================================================
 // 5. BỘ DỰNG PAYLOAD THUẦN (EXPLICIT PAYLOAD BUILDERS)
 // ============================================================================
+
+/**
+ * Chức năng: Gắn các trường ngân hàng và địa chỉ lấy hàng tùy chọn vào payload tạo/sửa phiếu,
+ * đảm bảo lược bỏ hoàn toàn giá trị rỗng để tránh vi phạm Bean Validation @Pattern.
+ *
+ * @param payload Đích cần gắn các trường hợp lệ.
+ * @param form    Nguồn dữ liệu thô từ form khách hàng.
+ */
+function attachOptionalBankAndPickupFields(
+  payload: ReturnRequestCreationRequest | ReturnRequestUpdateRequest,
+  form: {
+    bankName?: string;
+    accountNumber?: string;
+    accountHolderName?: string;
+    pickupAddressId?: number | string | null;
+    pickupContactName?: string;
+    pickupPhone?: string;
+  }
+): void {
+  // Chỉ đính kèm thông tin ngân hàng khi người dùng thực sự nhập số tài khoản không rỗng
+  const trimmedAccountNumber = (form.accountNumber || '').trim();
+  if (trimmedAccountNumber !== '') {
+    payload.accountNumber = trimmedAccountNumber;
+    if (form.bankName && form.bankName.trim() !== '') {
+      payload.bankName = form.bankName.trim();
+    }
+    if (form.accountHolderName && form.accountHolderName.trim() !== '') {
+      payload.accountHolderName = form.accountHolderName.trim();
+    }
+  }
+
+  // Đính kèm mã địa chỉ lấy hàng nếu hợp lệ (> 0)
+  if (
+    form.pickupAddressId !== undefined &&
+    form.pickupAddressId !== null &&
+    String(form.pickupAddressId).trim() !== ''
+  ) {
+    const parsedAddrId = Number(form.pickupAddressId);
+    if (!isNaN(parsedAddrId) && parsedAddrId > 0) {
+      payload.pickupAddressId = parsedAddrId;
+    }
+  }
+
+  // Đính kèm người liên hệ và SĐT lấy hàng nếu có nhập (bỏ trống sẽ dùng fallback ở Backend)
+  const trimmedContactName = (form.pickupContactName || '').trim();
+  if (trimmedContactName !== '') {
+    payload.pickupContactName = trimmedContactName;
+  }
+
+  const trimmedPickupPhone = (form.pickupPhone || '').trim();
+  if (trimmedPickupPhone !== '') {
+    payload.pickupPhone = trimmedPickupPhone;
+  }
+}
 
 /**
  * Cấu trúc dữ liệu nhập liệu thô từ Form tạo yêu cầu trả hàng C2.
@@ -382,6 +490,9 @@ export interface CreateReturnFormData {
   bankName?: string;
   accountNumber?: string;
   accountHolderName?: string;
+  pickupAddressId?: number | string | null;
+  pickupContactName?: string;
+  pickupPhone?: string;
   // Các trường hệ thống có thể lẫn trong form state
   [key: string]: any;
 }
@@ -389,7 +500,7 @@ export interface CreateReturnFormData {
 /**
  * Chức năng: Chuẩn hóa payload tạo yêu cầu trả hàng sạch sẽ trước khi gửi lên Backend (POST /api/v1/returns).
  * Tự động loại bỏ mọi trường thừa (id, status, refundAmount, isOverdue...) để bảo vệ chống lỗi 400 UNSUPPORTED_FIELD (@JsonAnySetter).
- * Đồng thời loại bỏ hoàn toàn các trường ngân hàng nếu accountNumber là chuỗi rỗng để tránh lỗi Bean Validation @Pattern.
+ * Đồng thời loại bỏ hoàn toàn các trường ngân hàng và địa chỉ/SĐT rỗng để tránh lỗi Bean Validation @Pattern.
  *
  * @param form Đầu vào: Dữ liệu form thô từ màn hình C2.
  * @returns Đầu ra: Đối tượng ReturnRequestCreationRequest chuẩn chỉ gồm đúng các trường cho phép.
@@ -408,17 +519,7 @@ export function buildCreateReturnPayload(form: CreateReturnFormData): ReturnRequ
     items: cleanItems,
   };
 
-  // Chỉ đính kèm thông tin ngân hàng khi người dùng thực sự nhập số tài khoản không rỗng
-  const trimmedAccountNumber = (form.accountNumber || '').trim();
-  if (trimmedAccountNumber !== '') {
-    payload.accountNumber = trimmedAccountNumber;
-    if (form.bankName && form.bankName.trim() !== '') {
-      payload.bankName = form.bankName.trim();
-    }
-    if (form.accountHolderName && form.accountHolderName.trim() !== '') {
-      payload.accountHolderName = form.accountHolderName.trim();
-    }
-  }
+  attachOptionalBankAndPickupFields(payload, form);
 
   return payload;
 }
@@ -437,6 +538,9 @@ export interface UpdateReturnFormData {
   bankName?: string;
   accountNumber?: string;
   accountHolderName?: string;
+  pickupAddressId?: number | string | null;
+  pickupContactName?: string;
+  pickupPhone?: string;
   orderId?: any; // Cố tình truyền hoặc lẫn từ state chi tiết phiếu
   [key: string]: any;
 }
@@ -444,7 +548,7 @@ export interface UpdateReturnFormData {
 /**
  * Chức năng: Chuẩn hóa payload chỉnh sửa yêu cầu trả hàng (PUT /api/v1/returns/{id}).
  * Quy tắc sống còn: Tuyệt đối KHÔNG BAO GIỜ đính kèm trường orderId (Backend ném 400 UNSUPPORTED_FIELD nếu có orderId khi update).
- * Lược bỏ toàn bộ trường ngân hàng nếu accountNumber để trống.
+ * Lược bỏ toàn bộ trường ngân hàng và lấy hàng rỗng để tránh vi phạm @Pattern Bean Validation.
  *
  * @param form Đầu vào: Dữ liệu form chỉnh sửa từ Modal C5a.
  * @returns Đầu ra: Đối tượng ReturnRequestUpdateRequest sạch sẽ.
@@ -461,17 +565,7 @@ export function buildUpdateReturnPayload(form: UpdateReturnFormData): ReturnRequ
     items: cleanItems,
   };
 
-  // Loại bỏ các trường ngân hàng rỗng để tránh vi phạm @Pattern Bean Validation
-  const trimmedAccountNumber = (form.accountNumber || '').trim();
-  if (trimmedAccountNumber !== '') {
-    payload.accountNumber = trimmedAccountNumber;
-    if (form.bankName && form.bankName.trim() !== '') {
-      payload.bankName = form.bankName.trim();
-    }
-    if (form.accountHolderName && form.accountHolderName.trim() !== '') {
-      payload.accountHolderName = form.accountHolderName.trim();
-    }
-  }
+  attachOptionalBankAndPickupFields(payload, form);
 
   return payload;
 }
@@ -548,10 +642,9 @@ export function canCustomerCancelReturn(ret?: {
 /**
  * Chức năng: Kiểm tra xem khách hàng có quyền chỉnh sửa thông tin yêu cầu trả hàng hay không (Modal C5a).
  * Điều kiện: Chỉ được sửa khi phiếu còn ở trạng thái PENDING_APPROVAL (chờ xét duyệt),
- * và nếu có thông tin ngày giao hàng deliveredAt thì vẫn phải còn trong hạn 7 ngày lịch.
+ * không khóa theo hạn 7 ngày sau giao hàng đối với phiếu đã gửi hợp lệ từ trước.
  *
- * @param ret   Đầu vào: Thông tin phiếu trả hàng chứa status và tùy chọn deliveredAt / orderDeliveredAt.
- * @param nowMs Đầu vào: Mốc thời gian hiện tại tính theo mili-giây (tùy chọn).
+ * @param ret   Đầu vào: Thông tin phiếu trả hàng chứa status.
  * @returns Đầu ra: true nếu được phép mở modal sửa; ngược lại false.
  */
 export function canCustomerEditReturn(
@@ -560,19 +653,12 @@ export function canCustomerEditReturn(
     deliveredAt?: string | null;
     orderDeliveredAt?: string | null;
   } | null,
-  nowMs?: number
+  _nowMs?: number
 ): boolean {
   if (!ret || !ret.status) {
     return false;
   }
-  if (ret.status !== 'PENDING_APPROVAL') {
-    return false;
-  }
-  const deliveredAt = ret.deliveredAt ?? ret.orderDeliveredAt;
-  if (deliveredAt) {
-    return isOrderEligibleForReturn({ orderStatus: 'DELIVERED', deliveredAt }, nowMs);
-  }
-  return true;
+  return ret.status === 'PENDING_APPROVAL';
 }
 
 /**
@@ -637,6 +723,7 @@ export type AdminActionType =
 export function getAdminAvailableActions(ret?: {
   status?: ReturnRequestStatus | string;
   handedOverAt?: string | null;
+  handoverDeadline?: string | null;
   inspectedAt?: string | null;
   restockedAt?: string | null;
   receivedAt?: string | null;
@@ -654,11 +741,18 @@ export function getAdminAvailableActions(ret?: {
     actions.push('approve');
   }
 
-  // 2. Từ chối yêu cầu: Cho phép ở PENDING_APPROVAL, INSPECTING, hoặc WAITING_CUSTOMER_FEEDBACK
+  // 2. Từ chối / Đóng yêu cầu: Cho phép ở PENDING_APPROVAL, INSPECTING, WAITING_CUSTOMER_FEEDBACK,
+  // hoặc đóng phiếu WAITING_FOR_RETURN_DELIVERY khi đã quá hạn 7 ngày bàn giao và chưa giao hàng cho shipper
+  const isHandoverExpired =
+    status === 'WAITING_FOR_RETURN_DELIVERY' &&
+    !ret.handedOverAt &&
+    ret.handoverDeadline != null &&
+    new Date(ret.handoverDeadline).getTime() < Date.now();
   if (
     status === 'PENDING_APPROVAL' ||
     status === 'INSPECTING' ||
-    status === 'WAITING_CUSTOMER_FEEDBACK'
+    status === 'WAITING_CUSTOMER_FEEDBACK' ||
+    isHandoverExpired
   ) {
     actions.push('reject');
   }
@@ -674,8 +768,8 @@ export function getAdminAvailableActions(ret?: {
     actions.push('receive');
   }
 
-  // 5. Kiểm định QC: Khi hàng đã về kho và đang trong trạng thái INSPECTING
-  if (status === 'INSPECTING') {
+  // 5. Kiểm định QC (hoặc điều chỉnh lại phương án sau khi khách bấm Không đồng ý ở WAITING_CUSTOMER_FEEDBACK)
+  if (status === 'INSPECTING' || status === 'WAITING_CUSTOMER_FEEDBACK') {
     actions.push('inspect');
   }
 
@@ -704,11 +798,12 @@ export function getAdminAvailableActions(ret?: {
     actions.push('overdueNote');
   }
 
-  // 9. Ghi nhật ký CSKH: Chưa đóng hồ sơ và (đang chờ khách phản hồi hoặc đã từ chối nhưng hàng đã về kho)
+  // 9. Ghi nhật ký CSKH: Chưa đóng hồ sơ và (đang chờ khách phản hồi, đã từ chối giữ hàng tại kho, hoặc đã hoàn tiền 1 phần còn hàng lưu kho)
   if (
     !ret.completedAt &&
     (status === 'WAITING_CUSTOMER_FEEDBACK' ||
-      (status === 'REJECTED' && ret.receivedAt != null))
+      (status === 'REJECTED' && ret.receivedAt != null) ||
+      status === 'REFUNDED')
   ) {
     actions.push('contactLog');
   }

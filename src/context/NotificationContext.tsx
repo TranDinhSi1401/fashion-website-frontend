@@ -24,14 +24,38 @@ interface NotificationContextValue {
 
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 
+/**
+ * Kiểm tra hai thông báo có đại diện cho cùng một sự kiện realtime hay không
+ * để chống trùng lặp khi Admin/Staff nhận đồng thời từ /user/queue/notifications và /topic/admin/returns.
+ */
+function isDuplicateBroadcast(a: NotificationResponse, b: NotificationResponse): boolean {
+  if (a.id != null && b.id != null) {
+    return a.id === b.id;
+  }
+  if (a.type !== b.type || a.title !== b.title) {
+    return false;
+  }
+  if (a.referenceId == null || b.referenceId == null || a.referenceId !== b.referenceId) {
+    return false;
+  }
+  const timeA = a.createdAt ? new Date(a.createdAt).getTime() : NaN;
+  const timeB = b.createdAt ? new Date(b.createdAt).getTime() : NaN;
+  if (!Number.isNaN(timeA) && !Number.isNaN(timeB)) {
+    return Math.abs(timeA - timeB) <= 60_000;
+  }
+  return true;
+}
+
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const { token } = useAuth();
+  const { token, isAdmin, isStaff } = useAuth();
   const status = useWsStatus();
   const [items, setItems] = useState<NotificationResponse[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
   const activeToken = useRef(token);
   const notificationIds = useRef(new Set<number>());
+
+  const canManageReturns = Boolean(token && (isAdmin || isStaff));
 
   useEffect(() => {
     activeToken.current = token;
@@ -52,14 +76,20 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         notificationService.getUnreadCount(),
       ]);
       if (activeToken.current !== token) return;
-      const validItems = listRes.data.content.filter(
-        (item) =>
-          !item.title?.toUpperCase().includes('VIP') &&
-          !item.content?.toUpperCase().includes('VIP15')
+      const isHiddenVip = (item: NotificationResponse) =>
+        Boolean(
+          item.title?.toUpperCase().includes('VIP') ||
+            item.content?.toUpperCase().includes('VIP15')
+        );
+      const validItems = listRes.data.content.filter((item) => !isHiddenVip(item));
+      const hiddenUnread = listRes.data.content.filter(
+        (item) => isHiddenVip(item) && !item.seen
+      ).length;
+      notificationIds.current = new Set(
+        validItems.map((item) => item.id).filter((id): id is number => id != null)
       );
-      notificationIds.current = new Set(validItems.map((item) => item.id));
       setItems(validItems);
-      setUnread(validItems.filter((item) => !item.seen).length);
+      setUnread(Math.max(0, countRes.data.count - hiddenUnread));
     } catch (error) {
       console.warn('Could not load notifications:', error);
     } finally {
@@ -76,10 +106,36 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [status, load]);
 
   const handleNotification = useCallback((notification: NotificationResponse) => {
-    if (notificationIds.current.has(notification.id)) return;
-    notificationIds.current.add(notification.id);
-    setItems((current) => [notification, ...current]);
-    if (!notification.seen) {
+    if (notification.id != null && notificationIds.current.has(notification.id)) {
+      return;
+    }
+
+    let shouldIncrementUnread = false;
+    setItems((current) => {
+      if (notification.id != null && current.some((x) => x.id === notification.id)) {
+        return current;
+      }
+
+      const dupIndex = current.findIndex((x) => isDuplicateBroadcast(x, notification));
+      if (dupIndex !== -1) {
+        const existing = current[dupIndex];
+        if (existing.id == null && notification.id != null) {
+          notificationIds.current.add(notification.id);
+          const next = [...current];
+          next[dupIndex] = notification;
+          return next;
+        }
+        return current;
+      }
+
+      if (notification.id != null) {
+        notificationIds.current.add(notification.id);
+      }
+      shouldIncrementUnread = !notification.seen;
+      return [notification, ...current];
+    });
+
+    if (shouldIncrementUnread) {
       setUnread((count) => count + 1);
     }
   }, []);
@@ -90,13 +146,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     Boolean(token)
   );
 
+  useStompSubscription<NotificationResponse>(
+    '/topic/admin/returns',
+    handleNotification,
+    canManageReturns
+  );
+
   const markRead = useCallback(async (notification: NotificationResponse) => {
     if (notification.seen) return;
     try {
-      await notificationService.markAsRead(notification.id);
+      if (notification.id != null) {
+        await notificationService.markAsRead(notification.id);
+      }
       setItems((current) =>
         current.map((item) =>
-          item.id === notification.id ? { ...item, seen: true } : item
+          (notification.id != null ? item.id === notification.id : item === notification)
+            ? { ...item, seen: true }
+            : item
         )
       );
       setUnread((count) => Math.max(0, count - 1));

@@ -9,6 +9,10 @@
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
   border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .new,

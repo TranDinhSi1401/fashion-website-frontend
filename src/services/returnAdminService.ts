@@ -184,19 +184,37 @@ export const returnAdminService = {
   },
 
   /**
-   * Chức năng: Xác nhận đã thực hiện chuyển khoản hoàn tiền thành công (POST /api/v1/admin/returns/{id}/refund).
+   * Chức năng: Xác nhận đã thực hiện chuyển khoản hoàn tiền thành công qua multipart/form-data
+   * (POST /api/v1/admin/returns/{id}/refund).
+   * Bắt buộc đính kèm tệp ảnh chụp biên lai (proofImage); Backend tự sinh mã giao dịch REFUND-...
    *
-   * @param id      Đầu vào: Mã ID phiếu trả hàng.
-   * @param payload Đầu vào: Mã giao dịch ngân hàng/ủy nhiệm chi, ảnh chứng từ và ghi chú.
+   * @param id         Đầu vào: Mã ID phiếu trả hàng.
+   * @param payload    Đầu vào: Ghi chú hoàn tiền tùy chọn (request part JSON).
+   * @param proofImage Đầu vào: Tệp ảnh chụp màn hình biên lai chuyển khoản (proofImage part).
    * @returns Đầu ra: Promise chứa ApiResponse<ReturnRequestResponse>.
    */
   async refundReturn(
     id: number,
-    payload: ReturnRequestRefundRequest
+    payload: ReturnRequestRefundRequest,
+    proofImage: File
   ): Promise<ApiResponse<ReturnRequestResponse>> {
+    const formData = new FormData();
+    const cleanRequest: ReturnRequestRefundRequest =
+      payload?.note && payload.note.trim() !== '' ? { note: payload.note.trim() } : {};
+
+    // Bọc phần JSON vào Blob application/json để Spring Boot @RequestPart("request") parse chuẩn xác
+    const jsonBlob = new Blob([JSON.stringify(cleanRequest)], { type: 'application/json' });
+    formData.append('request', jsonBlob);
+    formData.append('proofImage', proofImage);
+
     const response = await apiClient.post<ApiResponse<ReturnRequestResponse>>(
       `/admin/returns/${id}/refund`,
-      payload
+      formData,
+      {
+        headers: {
+          'Content-Type': undefined, // Để Axios và trình duyệt tự động gán boundary multipart
+        },
+      }
     );
     return response.data;
   },

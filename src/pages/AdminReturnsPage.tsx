@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
   AlertTriangle,
@@ -39,12 +39,20 @@ import Pagination from '../components/ui/Pagination';
  */
 export default function AdminReturnsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // State bộ lọc
-  const [statusFilter, setStatusFilter] = useState<ReturnRequestStatus | ''>('');
+  // State bộ lọc (đồng bộ khởi tạo từ query params để hỗ trợ deep-link từ Dashboard)
+  const initialStatusParam = searchParams.get('status');
+  const [statusFilter, setStatusFilter] = useState<ReturnRequestStatus | ''>(() =>
+    initialStatusParam && initialStatusParam in RETURN_STATUS_META
+      ? (initialStatusParam as ReturnRequestStatus)
+      : ''
+  );
   const [searchInput, setSearchInput] = useState<string>('');
   const [debouncedOrderCode, setDebouncedOrderCode] = useState<string>('');
-  const [isOverdueOnly, setIsOverdueOnly] = useState<boolean>(false);
+  const [isOverdueOnly, setIsOverdueOnly] = useState<boolean>(
+    () => searchParams.get('isOverdue') === 'true'
+  );
 
   // State dữ liệu & phân trang
   const [pageData, setPageData] = useState<SpringPage<ReturnRequestResponse> | null>(null);
@@ -67,14 +75,33 @@ export default function AdminReturnsPage() {
   }, [searchInput]);
 
   // Reset trang về 1 khi thay đổi trạng thái hoặc cờ quá hạn
+  const syncFilterParams = (nextStatus: ReturnRequestStatus | '', nextOverdue: boolean) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextStatus) {
+      next.set('status', nextStatus);
+    } else {
+      next.delete('status');
+    }
+    if (nextOverdue) {
+      next.set('isOverdue', 'true');
+    } else {
+      next.delete('isOverdue');
+    }
+    setSearchParams(next, { replace: true });
+  };
+
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setStatusFilter(e.target.value as ReturnRequestStatus | '');
+    const val = e.target.value as ReturnRequestStatus | '';
+    setStatusFilter(val);
     setCurrentPage(1);
+    syncFilterParams(val, isOverdueOnly);
   };
 
   const handleOverdueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setIsOverdueOnly(e.target.checked);
+    const checked = e.target.checked;
+    setIsOverdueOnly(checked);
     setCurrentPage(1);
+    syncFilterParams(statusFilter, checked);
   };
 
   // Tải dữ liệu từ Backend theo các tiêu chí lọc
@@ -126,6 +153,7 @@ export default function AdminReturnsPage() {
     setDebouncedOrderCode('');
     setIsOverdueOnly(false);
     setCurrentPage(1);
+    syncFilterParams('', false);
   };
 
   const items = pageData?.content || [];
@@ -134,15 +162,12 @@ export default function AdminReturnsPage() {
 
   return (
     <div className="container py-8 max-w-7xl">
-      {/* Tiêu đề & Giới thiệu */}
+      {/* Tiêu đề */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold uppercase tracking-wide text-content-primary">
             Quản Lý Trả Hàng &amp; Hoàn Tiền
           </h1>
-          <p className="text-sm text-content-secondary mt-1">
-            Theo dõi, điều phối xử lý và đối soát quy trình trả hàng cho toàn bộ khách hàng.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -184,7 +209,12 @@ export default function AdminReturnsPage() {
             <label className="block text-xs font-semibold text-content-primary mb-1.5">
               Trạng thái yêu cầu
             </label>
-            <Select value={statusFilter} onChange={handleStatusChange}>
+            <Select
+              name="status"
+              data-testid="filter-status"
+              value={statusFilter}
+              onChange={handleStatusChange}
+            >
               <option value="">Tất cả trạng thái (8 trạng thái)</option>
               {Object.entries(RETURN_STATUS_META).map(([statusKey, meta]) => (
                 <option key={statusKey} value={statusKey}>
@@ -198,6 +228,8 @@ export default function AdminReturnsPage() {
           <div className="md:col-span-4 flex items-center justify-between gap-3 h-10">
             <Checkbox
               id="filter-is-overdue"
+              name="isOverdue"
+              data-testid="filter-overdue"
               label="Chỉ đơn quá hạn SLA"
               checked={isOverdueOnly}
               onChange={handleOverdueChange}
@@ -260,64 +292,75 @@ export default function AdminReturnsPage() {
       ) : (
         /* Bảng danh sách phiếu trả hàng */
         <div className="overflow-x-auto border border-line-light rounded-sm bg-surface-body shadow-sm">
-          <table className="w-full text-left text-xs border-collapse">
+          <table
+            data-testid="admin-returns-list"
+            className="w-full text-left text-xs border-collapse"
+          >
             <thead>
-              <tr className="bg-surface border-b border-line-light text-content-muted font-bold uppercase tracking-wider">
-                <th className="py-3 px-3.5">Mã phiếu</th>
-                <th className="py-3 px-3.5">Mã đơn hàng</th>
-                <th className="py-3 px-3.5">Mã khách</th>
-                <th className="py-3 px-3.5">Ngày tạo</th>
-                <th className="py-3 px-3.5">Trạng thái</th>
-                <th className="py-3 px-3.5">Cảnh báo SLA</th>
-                <th className="py-3 px-3.5 text-right">Số tiền hoàn</th>
-                <th className="py-3 px-3.5 text-center">Thao tác</th>
+              <tr className="bg-surface border-b border-line-light text-content-muted font-bold uppercase tracking-wider text-[11px]">
+                <th className="py-3 px-2.5">Mã phiếu</th>
+                <th className="py-3 px-2.5">Mã đơn hàng</th>
+                <th className="py-3 px-2.5">Mã khách</th>
+                <th className="py-3 px-2.5">Ngày tạo</th>
+                <th className="py-3 px-2.5">Trạng thái</th>
+                <th className="py-3 px-2.5">Cảnh báo SLA</th>
+                <th className="py-3 px-2.5 text-right">Số tiền hoàn</th>
+                <th className="py-3 px-2.5 text-center">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line-light">
               {items.map((ret) => (
-                <tr key={ret.id} className="hover:bg-surface transition-colors">
-                  <td className="py-3 px-3.5 font-mono font-bold text-sm text-content-primary">
+                <tr
+                  key={ret.id}
+                  data-testid={`return-row-${ret.status}`}
+                  onClick={() => navigate(`/admin/returns/${ret.id}`)}
+                  className="hover:bg-surface transition-colors cursor-pointer"
+                >
+                  <td className="py-3 px-2.5 font-mono font-bold text-xs text-content-primary max-w-[140px] break-all">
                     {ret.returnCode}
                   </td>
 
-                  <td className="py-3 px-3.5 font-mono text-content-secondary">
+                  <td className="py-3 px-2.5 font-mono text-content-secondary max-w-[130px] break-words">
                     {ret.orderCode}
                   </td>
 
-                  <td className="py-3 px-3.5 text-content-secondary">
+                  <td className="py-3 px-2.5 text-content-secondary whitespace-nowrap">
                     ID #{ret.userId}
                   </td>
 
-                  <td className="py-3 px-3.5 text-content-secondary">
+                  <td className="py-3 px-2.5 text-content-secondary">
                     {formatDateTime(ret.createdAt)}
                   </td>
 
-                  <td className="py-3 px-3.5">
+                  <td className="py-3 px-2.5">
                     <ReturnStatusBadge status={ret.status} />
                   </td>
 
-                  <td className="py-3 px-3.5">
+                  <td className="py-3 px-2.5">
                     {ret.isOverdue ? (
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
                         <Badge variant="error">
                           <AlertTriangle size={11} className="mr-1" />
                           Quá hạn SLA
                         </Badge>
                       </span>
                     ) : (
-                      <span className="text-content-muted text-[11px]">Đúng hạn</span>
+                      <span className="text-content-muted text-[11px] whitespace-nowrap">Đúng hạn</span>
                     )}
                   </td>
 
-                  <td className="py-3 px-3.5 text-right font-mono font-bold text-content-primary">
+                  <td className="py-3 px-2.5 text-right font-mono font-bold text-content-primary whitespace-nowrap">
                     {formatVND(ret.refundAmount || 0)}
                   </td>
 
-                  <td className="py-3 px-3.5 text-center">
+                  <td className="py-3 px-2.5 text-center whitespace-nowrap">
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={() => navigate(`/admin/returns/${ret.id}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/admin/returns/${ret.id}`);
+                      }}
                       icon={Eye}
                     >
                       Xử Lý

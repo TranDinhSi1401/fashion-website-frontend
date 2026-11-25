@@ -22,6 +22,9 @@ import {
   normalizeReturnReason,
   getReturnReasonLabel,
   isValidBankAccountNumber,
+  isValidPickupPhone,
+  buildGhnTrackingUrl,
+  formatPickupAddress,
   buildCreateReturnPayload,
   buildUpdateReturnPayload,
   buildConfirmPlanPayload,
@@ -213,11 +216,23 @@ describe('Tier 1: Feature Coverage', () => {
     assert.ok(actionsB4.includes('inspect'));
     assert.ok(actionsB4.includes('reject'));
 
+    // Chờ khách phản hồi (WAITING_CUSTOMER_FEEDBACK) -> cho phép điều chỉnh inspect khi khách từ chối phương án
+    const actionsFeedback = getAdminAvailableActions({ status: 'WAITING_CUSTOMER_FEEDBACK' });
+    assert.ok(actionsFeedback.includes('inspect'));
+
+    // Đóng phiếu quá hạn 7 ngày bàn giao khi chưa giao shipper -> có action reject
+    const actionsExpiredHandover = getAdminAvailableActions({
+      status: 'WAITING_FOR_RETURN_DELIVERY',
+      handedOverAt: null,
+      handoverDeadline: '2020-01-01T00:00:00Z',
+    });
+    assert.ok(actionsExpiredHandover.includes('reject'));
+
     // Bước 5: WAITING_REFUND -> refund
     const actionsB5 = getAdminAvailableActions({ status: 'WAITING_REFUND' });
     assert.ok(actionsB5.includes('refund'));
 
-    // Bước 6: Nhập kho (restock) khi đã inspect và chưa restock
+    // Bước 6: Nhập kho (restock) và ghi nhật ký CSKH cho phiếu REFUNDED chưa đóng (completedAt == null)
     const actionsRestock = getAdminAvailableActions({
       status: 'REFUNDED',
       inspectedAt: '2026-11-15T08:00:00Z',
@@ -225,6 +240,7 @@ describe('Tier 1: Feature Coverage', () => {
       completedAt: null,
     });
     assert.ok(actionsRestock.includes('restock'));
+    assert.ok(actionsRestock.includes('contactLog'));
     assert.ok(actionsRestock.includes('complete')); // REFUNDED chưa completed -> có complete action
   });
 });
@@ -584,7 +600,7 @@ describe('Tier 4: Real-World Scenarios', () => {
     assert.equal(normalizeReturnReason('invalid_value'), 'CHANGE_OF_MIND');
     assert.equal(getReturnReasonLabel('DEFECTIVE'), 'Sản phẩm bị lỗi sản xuất');
 
-    // 3. Khóa nút chỉnh sửa khi quá hạn 7 ngày kể từ ngày giao hàng
+    // 3. Khóa nút chỉnh sửa khi không còn ở PENDING_APPROVAL; giữ mở khi vẫn PENDING_APPROVAL kể cả quá 7 ngày sau giao
     const now = 1700000000000;
     const within7Days = new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString();
     const expired8Days = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString();
@@ -594,7 +610,71 @@ describe('Tier 4: Real-World Scenarios', () => {
     );
     assert.equal(
       canCustomerEditReturn({ status: 'PENDING_APPROVAL', deliveredAt: expired8Days }, now),
+      true
+    );
+    assert.equal(
+      canCustomerEditReturn({ status: 'WAITING_FOR_RETURN_DELIVERY', deliveredAt: within7Days }, now),
       false
+    );
+  });
+
+  test('GHN pickup fields, phone validation, tracking URL, and address formatting', () => {
+    // 1. Payload tạo phiếu đính kèm pickupAddressId, pickupContactName, pickupPhone khi hợp lệ
+    const withPickup = buildCreateReturnPayload({
+      orderId: 10,
+      reason: 'DEFECTIVE',
+      reasonDetail: 'Rách đường may',
+      items: [{ orderItemId: 101, quantity: 1 }],
+      pickupAddressId: 5,
+      pickupContactName: '  Nguyễn Văn A  ',
+      pickupPhone: ' 0901234567 ',
+    });
+    assert.equal(withPickup.pickupAddressId, 5);
+    assert.equal(withPickup.pickupContactName, 'Nguyễn Văn A');
+    assert.equal(withPickup.pickupPhone, '0901234567');
+
+    // 2. Bỏ qua các trường lấy hàng khi null / chuỗi rỗng để tránh lỗi @Pattern
+    const withoutPickup = buildCreateReturnPayload({
+      orderId: 10,
+      reason: 'CHANGE_OF_MIND',
+      reasonDetail: 'Đổi ý',
+      items: [{ orderItemId: 101, quantity: 1 }],
+      pickupAddressId: null,
+      pickupContactName: '   ',
+      pickupPhone: '',
+    });
+    assert.equal('pickupAddressId' in withoutPickup, false);
+    assert.equal('pickupContactName' in withoutPickup, false);
+    assert.equal('pickupPhone' in withoutPickup, false);
+
+    // 3. Payload cập nhật vẫn giữ pickup fields và tuyệt đối không chứa orderId
+    const updatedWithPickup = buildUpdateReturnPayload({
+      orderId: 999,
+      reason: 'WRONG_ITEM',
+      reasonDetail: 'Giao sai size',
+      items: [{ orderItemId: 102, quantity: 1 }],
+      pickupAddressId: '5',
+      pickupContactName: 'Trần Thị B',
+      pickupPhone: '+84901234567',
+    });
+    assert.equal('orderId' in updatedWithPickup, false);
+    assert.equal(updatedWithPickup.pickupAddressId, 5);
+    assert.equal(updatedWithPickup.pickupContactName, 'Trần Thị B');
+    assert.equal(updatedWithPickup.pickupPhone, '+84901234567');
+
+    // 4. Kiểm tra SĐT lấy hàng, link GHN tracking và format địa chỉ
+    assert.equal(isValidPickupPhone('0901234567'), true);
+    assert.equal(isValidPickupPhone('+84901234567'), true);
+    assert.equal(isValidPickupPhone('12345'), false);
+    assert.equal(buildGhnTrackingUrl('ABC'), 'https://donhang.ghn.vn/?order_code=ABC');
+    assert.equal(buildGhnTrackingUrl(''), '');
+    assert.equal(
+      formatPickupAddress({
+        pickupAddress: '12 Nguyễn Văn Bảo',
+        pickupWardName: 'Phường 4',
+        pickupProvinceName: 'TP.HCM',
+      }),
+      '12 Nguyễn Văn Bảo, Phường 4, TP.HCM'
     );
   });
 });

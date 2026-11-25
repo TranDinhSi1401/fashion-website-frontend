@@ -86,15 +86,15 @@ export default function Footer() {
             </h5>
             <ul>
               <li>
-                <a
-                  href="#help"
+                <Link
+                  to="/chinh-sach-doi-tra"
                   className={cn(
                     'text-sm font-normal leading-[2.2] text-content-disabled',
                     styles.footerLink
                   )}
                 >
-                  Chính sách đổi trả trong 30 ngày
-                </a>
+                  Chính sách trả hàng &amp; hoàn tiền
+                </Link>
               </li>
               <li>
                 <a

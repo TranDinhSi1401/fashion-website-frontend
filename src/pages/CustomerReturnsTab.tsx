@@ -1,35 +1,62 @@
 /**
  * Tab hiển thị danh sách phiếu trả hàng của khách hàng (Customer Returns Tab - C3).
  * Tích hợp trong ProfilePage (/account/returns).
- * Hiển thị danh sách phiếu trả hàng, trạng thái vòng đời qua ReturnStatusBadge,
- * cờ cảnh báo SLA quá hạn, số tiền hoàn và phân trang 1-based đồng bộ với Spring Data.
+ * Ẩn mã phiếu nội bộ, tập trung hiển thị sản phẩm trả, số lượng trả, tiền hoàn từng món,
+ * tổng tiền hoàn và trạng thái nổi bật trên 1 dòng duy nhất.
  */
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RotateCcw, AlertTriangle, ChevronRight, AlertCircle, Eye, Calendar, Package } from 'lucide-react';
+import { RotateCcw, ChevronRight, AlertCircle, Calendar, Package } from 'lucide-react';
 import { returnService } from '../services/returnService';
+import { orderService } from '../services/orderService';
 import type { ReturnRequestResponse, SpringPage } from '../types/return';
-import { pageToSpring, pageFromSpring, formatVND, formatDateTime } from '../utils/returnHelpers';
+import {
+  pageToSpring,
+  formatVND,
+  formatDateTime,
+  getReturnReasonLabel,
+} from '../utils/returnHelpers';
 import ReturnStatusBadge from '../components/returns/ReturnStatusBadge';
-import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Pagination from '../components/ui/Pagination';
-import { cn } from '../utils/cn';
 
-/**
- * Chức năng: Hiển thị danh sách các phiếu yêu cầu trả hàng đã tạo và phân trang kết quả.
- *
- * @returns Đầu ra: Thẻ JSX danh sách phiếu trả hàng.
- */
 export default function CustomerReturnsTab() {
   const navigate = useNavigate();
   const [returnsPage, setReturnsPage] = useState<SpringPage<ReturnRequestResponse> | null>(null);
+  const [orderItemPriceMap, setOrderItemPriceMap] = useState<Record<number, number>>({});
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  // Tải dữ liệu danh sách phiếu trả hàng theo trang
+  // Tải đơn giá sản phẩm từ đơn hàng gốc để hiển thị tiền hoàn dự kiến từng món trước khi kho kiểm định
+  useEffect(() => {
+    let isMounted = true;
+    orderService
+      .getMyOrders()
+      .then((orders) => {
+        if (!isMounted || !Array.isArray(orders)) return;
+        const map: Record<number, number> = {};
+        orders.forEach((ord) => {
+          (ord.orderItems || []).forEach((oi) => {
+            if (oi.unitPrice > 0) {
+              map[oi.id] = oi.unitPrice;
+            } else if (oi.totalPrice > 0 && oi.quantity > 0) {
+              map[oi.id] = Math.round(oi.totalPrice / oi.quantity);
+            }
+          });
+        });
+        setOrderItemPriceMap(map);
+      })
+      .catch(() => {
+        // Bỏ qua lỗi phụ, vẫn hiển thị bình thường với dữ liệu từ phiếu trả
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Tải danh sách yêu cầu trả hàng theo trang
   useEffect(() => {
     let isMounted = true;
 
@@ -44,7 +71,10 @@ export default function CustomerReturnsTab() {
         }
       } catch (err: any) {
         if (isMounted) {
-          const msg = err?.response?.data?.message || err?.message || 'Không thể tải danh sách phiếu trả hàng.';
+          const msg =
+            err?.response?.data?.message ||
+            err?.message ||
+            'Không thể tải danh sách yêu cầu trả hàng.';
           setErrorMessage(msg);
         }
       } finally {
@@ -69,7 +99,6 @@ export default function CustomerReturnsTab() {
     navigate(`/account/returns/${id}`);
   };
 
-  // Trạng thái đang tải dữ liệu
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-content-muted">
@@ -79,7 +108,6 @@ export default function CustomerReturnsTab() {
     );
   }
 
-  // Trạng thái gặp lỗi khi gọi API
   if (errorMessage) {
     return (
       <div className="p-6 bg-surface border border-line-light rounded-sm text-center">
@@ -96,7 +124,6 @@ export default function CustomerReturnsTab() {
   const totalPages = returnsPage?.totalPages || 0;
   const totalElements = returnsPage?.totalElements || 0;
 
-  // Trạng thái chưa có phiếu trả hàng nào
   if (items.length === 0) {
     return (
       <div className="p-12 bg-surface border border-line-light rounded-sm text-center">
@@ -122,75 +149,133 @@ export default function CustomerReturnsTab() {
             Yêu Cầu Trả Hàng &amp; Hoàn Tiền
           </h3>
           <p className="text-xs text-content-muted mt-0.5">
-            Theo dõi tiến trình xử lý, kiểm định chất lượng và lịch sử hoàn tiền
+            Theo dõi chi tiết sản phẩm trả lại, số tiền hoàn và trạng thái xử lý
           </p>
         </div>
-        <span className="text-xs font-semibold text-content-muted">
+        <span className="text-xs font-semibold text-content-muted whitespace-nowrap">
           Tổng cộng: <strong className="text-content-primary">{totalElements}</strong> yêu cầu
         </span>
       </div>
 
-      {/* Danh sách bảng phiếu trả hàng */}
+      {/* Danh sách thẻ yêu cầu trả hàng */}
       <div className="flex flex-col gap-4">
-        {items.map((ret: ReturnRequestResponse) => (
-          <div
-            key={ret.id}
-            className="border border-line-light bg-surface-body rounded-card p-5 hover:shadow-dropdown transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-          >
-            <div className="flex flex-col gap-2 flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="text-sm font-bold text-content-primary">
-                  Mã phiếu: {ret.returnCode}
+        {items.map((ret: ReturnRequestResponse) => {
+          const returnItems = ret.items || [];
+          const estimatedTotalItems = returnItems.reduce((sum, it) => {
+            if (it.itemRefundAmount && it.itemRefundAmount > 0) {
+              return sum + it.itemRefundAmount;
+            }
+            const unitPrice = orderItemPriceMap[it.orderItemId] || 0;
+            return sum + unitPrice * (it.quantity || 0);
+          }, 0);
+
+          const isFinalized = Boolean(ret.inspectedAt) || ret.status === 'REFUNDED';
+          const displayTotalRefund =
+            ret.refundAmount && ret.refundAmount > 0
+              ? ret.refundAmount
+              : Math.max(0, estimatedTotalItems - (ret.returnShippingFee || 0));
+
+          return (
+            <div
+              key={ret.id}
+              className="border border-line-light bg-surface-body rounded-card p-5 hover:shadow-dropdown transition-all flex flex-col gap-4"
+            >
+              {/* Header thẻ: Thông tin đơn hàng & Trạng thái nổi bật 1 dòng */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-light pb-3">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-content-muted">
+                  <span className="flex items-center gap-1.5 font-semibold text-content-primary">
+                    <Package size={14} className="shrink-0" />
+                    <span>Đơn hàng #{ret.orderCode || ret.orderId}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 whitespace-nowrap">
+                    <Calendar size={13} className="shrink-0" />
+                    <span>Ngày gửi: {formatDateTime(ret.createdAt)}</span>
+                  </span>
+                </div>
+
+                <ReturnStatusBadge status={ret.status} prominent />
+              </div>
+
+              {/* Danh sách chi tiết sản phẩm trả, số lượng trả & tiền hoàn từng món */}
+              {returnItems.length > 0 && (
+                <div className="flex flex-col divide-y divide-line-light rounded-sm border border-line-light bg-surface px-3.5 py-1">
+                  {returnItems.map((it) => {
+                    const itemRefund =
+                      it.itemRefundAmount && it.itemRefundAmount > 0
+                        ? it.itemRefundAmount
+                        : (orderItemPriceMap[it.orderItemId] || 0) * (it.quantity || 0);
+
+                    return (
+                      <div
+                        key={it.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2.5 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-sm text-content-primary truncate">
+                            {it.productName}
+                          </div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-content-muted">
+                            <span>{it.variantInfo || 'Tiêu chuẩn'}</span>
+                            <span className="font-semibold text-content-primary">
+                              SL trả: {it.quantity}
+                            </span>
+                            {it.acceptedQuantity !== null && it.acceptedQuantity !== undefined && (
+                              <span className="font-semibold text-status-success">
+                                Duyệt hoàn: {it.acceptedQuantity}/{it.quantity}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-left sm:text-right shrink-0">
+                          <span className="text-content-muted mr-1.5 sm:block sm:mr-0 text-[11px]">
+                            Tiền hoàn món:
+                          </span>
+                          <span className="font-bold text-sm text-content-primary whitespace-nowrap">
+                            {formatVND(itemRefund)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Lý do ngắn gọn */}
+              <div className="text-xs text-content-secondary break-words [overflow-wrap:anywhere]">
+                <span className="text-content-muted">Lý do: </span>
+                <span className="font-semibold text-content-primary">
+                  {getReturnReasonLabel(ret.reason)}
                 </span>
-
-                <ReturnStatusBadge status={ret.status} />
-
-                {/* Cảnh báo quá hạn SLA nếu có */}
-                {ret.isOverdue && (
-                  <Badge variant="warning" className="flex items-center gap-1">
-                    <AlertTriangle size={12} />
-                    <span>Quá hạn xử lý</span>
-                  </Badge>
+                {ret.reasonDetail && (
+                  <span className="text-content-secondary"> — {ret.reasonDetail}</span>
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-content-muted">
-                <span className="flex items-center gap-1">
-                  <Package size={13} />
-                  <span>Đơn hàng: #{ret.orderCode || ret.orderId}</span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <Calendar size={13} />
-                  <span>Ngày tạo: {formatDateTime(ret.createdAt)}</span>
-                </span>
-              </div>
-
-              <div className="text-xs text-content-secondary mt-1 break-words [overflow-wrap:anywhere]">
-                Lý do: <span className="font-medium text-content-primary">{ret.reasonDetail || ret.reason}</span>
-              </div>
-            </div>
-
-            {/* Cột thông tin tiền hoàn & nút xem chi tiết */}
-            <div className="flex items-center justify-between sm:justify-end gap-5 shrink-0 border-t sm:border-t-0 border-line-light pt-3 sm:pt-0">
-              <div className="text-left sm:text-right">
-                <div className="text-xs text-content-muted">Tiền hoàn dự kiến:</div>
-                <div className="text-base font-bold text-accent-red">
-                  {formatVND(ret.refundAmount)}
+              {/* Footer thẻ: Tổng tiền hoàn & Nút xem chi tiết */}
+              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line-light pt-3.5">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-medium text-content-muted whitespace-nowrap">
+                    {isFinalized ? 'Tổng tiền hoàn:' : 'Tổng tiền hoàn dự kiến:'}
+                  </span>
+                  <span className="text-lg font-bold text-accent-red whitespace-nowrap">
+                    {formatVND(displayTotalRefund)}
+                  </span>
                 </div>
-              </div>
 
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleViewDetail(ret.id)}
-                className="flex items-center gap-1.5"
-              >
-                <span>Xem Chi Tiết</span>
-                <ChevronRight size={14} />
-              </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleViewDetail(ret.id)}
+                  className="flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                >
+                  <span>Xem Chi Tiết</span>
+                  <ChevronRight size={14} />
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Phân trang kết quả 1-based */}

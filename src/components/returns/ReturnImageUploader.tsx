@@ -42,6 +42,41 @@ export interface ReturnImageUploaderProps {
 }
 
 /**
+ * Chức năng: Kiểm tra magic bytes đầu tệp để phát hiện file giả mạo (VD: file text đổi đuôi .jpg).
+ *
+ * @param file Đầu vào: Tệp ảnh cần kiểm tra chữ ký nhị phân.
+ * @returns Đầu ra: Promise<boolean> true nếu đúng chữ ký JPEG, PNG hoặc WebP.
+ */
+async function hasValidImageSignature(file: File): Promise<boolean> {
+  try {
+    const buffer = await file.slice(0, 12).arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    if (bytes.length < 4) return false;
+
+    // JPEG: FF D8 FF
+    const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    // PNG: 89 50 4E 47
+    const isPng =
+      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    // WebP: "RIFF" (0..3) + "WEBP" (8..11)
+    const isWebp =
+      bytes.length >= 12 &&
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 &&
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50;
+
+    return isJpeg || isPng || isWebp;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Chức năng: Cho phép người dùng chọn, xem trước và quản lý tối đa 5 ảnh minh chứng trả hàng.
  *
  * @param props Đầu vào: ReturnImageUploaderProps.
@@ -70,8 +105,8 @@ export default function ReturnImageUploader({
     };
   }, [files]);
 
-  // Xử lý khi người dùng chọn thêm tệp từ input file
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Xử lý khi người dùng chọn thêm tệp từ input file (kèm kiểm tra magic bytes chống file giả mạo)
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (selectedFiles.length === 0) return;
 
@@ -95,6 +130,13 @@ export default function ReturnImageUploader({
     const validation = validateReturnImageFiles(combinedFiles, reason);
     if (!validation.isValid) {
       setInternalError(validation.error || 'Tệp tải lên không hợp lệ.');
+      return;
+    }
+
+    // Kiểm tra chữ ký nhị phân của từng tệp mới chọn
+    const signatures = await Promise.all(selectedFiles.map((f) => hasValidImageSignature(f)));
+    if (signatures.some((ok) => !ok)) {
+      setInternalError('Định dạng ảnh không hợp lệ. Hệ thống chỉ hỗ trợ JPG, JPEG, PNG và WebP.');
       return;
     }
 

@@ -15,7 +15,7 @@
  * - Thẻ nhật ký liên hệ CSKH và niêm phong lưu kho với nút mở modal ghi chú nhanh.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -36,6 +36,8 @@ import {
   DollarSign,
   UserCheck,
   RefreshCw,
+  UploadCloud,
+  X,
 } from 'lucide-react';
 import type { ReturnRequestResponse } from '../types/return';
 import { returnAdminService } from '../services/returnAdminService';
@@ -46,10 +48,14 @@ import {
   formatVND,
   formatDateTime,
   getReturnReasonLabel,
+  validateReturnImageFiles,
+  ACCEPTED_IMAGE_EXTENSIONS,
 } from '../utils/returnHelpers';
+import { buildDynamicVietQrUrl } from '../constants/banks';
 import ReturnStatusBadge from '../components/returns/ReturnStatusBadge';
 import ReturnTimeline from '../components/returns/ReturnTimeline';
 import ReturnImageGallery from '../components/returns/ReturnImageGallery';
+import ReturnShippingInfoCard from '../components/returns/ReturnShippingInfoCard';
 import {
   ReturnApproveModal,
   ReturnRejectModal,
@@ -151,6 +157,34 @@ export default function AdminReturnDetailPage() {
   // State điều khiển modal đang mở
   const [activeModal, setActiveModal] = useState<AdminActionType | null>(null);
 
+  // State hoàn tiền trực tiếp (inline VietQR + upload ảnh biên lai) khi trạng thái là WAITING_REFUND
+  const inlineRefundFileRef = useRef<HTMLInputElement>(null);
+  const [inlineProofImage, setInlineProofImage] = useState<File | null>(null);
+  const [inlineProofPreviewUrl, setInlineProofPreviewUrl] = useState<string>('');
+  const [inlineRefundNote, setInlineRefundNote] = useState<string>('');
+  const [debouncedInlineNote, setDebouncedInlineNote] = useState<string>('');
+  const [inlineRefundError, setInlineRefundError] = useState<string>('');
+  const [isInlineRefunding, setIsInlineRefunding] = useState<boolean>(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedInlineNote(inlineRefundNote);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [inlineRefundNote]);
+
+  useEffect(() => {
+    if (!inlineProofImage) {
+      setInlineProofPreviewUrl('');
+      return;
+    }
+    const url = URL.createObjectURL(inlineProofImage);
+    setInlineProofPreviewUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [inlineProofImage]);
+
   // Tải thông tin chi tiết phiếu trả hàng
   const loadDetail = useCallback(async () => {
     if (!id || isNaN(Number(id))) {
@@ -215,8 +249,79 @@ export default function AdminReturnDetailPage() {
     );
   }
 
-  // Danh sách các hành động quản trị khả dụng tại trạng thái hiện tại
-  const availableActions = getAdminAvailableActions(returnRequest);
+  const handleInlineProofFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (inlineRefundFileRef.current) {
+      inlineRefundFileRef.current.value = '';
+    }
+    if (!file) return;
+
+    const validation = validateReturnImageFiles([file], 'CHANGE_OF_MIND');
+    if (!validation.isValid) {
+      setInlineRefundError(validation.error || 'Tệp ảnh biên lai không hợp lệ.');
+      return;
+    }
+    setInlineRefundError('');
+    setInlineProofImage(file);
+  };
+
+  const handleInlineRefundSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!returnRequest) return;
+    if (!inlineProofImage) {
+      setInlineRefundError('Vui lòng tải lên ảnh chụp màn hình biên lai chuyển khoản.');
+      return;
+    }
+    if (isInlineRefunding) return;
+
+    setIsInlineRefunding(true);
+    setInlineRefundError('');
+    try {
+      await returnAdminService.refundReturn(
+        returnRequest.id,
+        { note: inlineRefundNote.trim() || undefined },
+        inlineProofImage
+      );
+      setInlineProofImage(null);
+      setInlineRefundNote('');
+      await loadDetail();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi xác nhận hoàn tiền.';
+      setInlineRefundError(msg);
+    } finally {
+      setIsInlineRefunding(false);
+    }
+  };
+
+  // Chỉ hiển thị các nút điều phối thực sự khả dụng ở bước hiện tại (tránh làm nhân viên rối)
+  const rawAvailableActions = getAdminAvailableActions(returnRequest);
+  const availableActions = rawAvailableActions.filter((actionKey) => {
+    if (actionKey === 'contactLog') return false;
+    if (actionKey === 'overdueNote' && !returnRequest.isOverdue) return false;
+    if (returnRequest.status === 'WAITING_CUSTOMER_FEEDBACK') {
+      if (actionKey === 'restock') return false;
+      if ((actionKey === 'inspect' || actionKey === 'reject') && returnRequest.customerConfirmedPlan !== false) {
+        return false;
+      }
+    }
+    if (returnRequest.status === 'WAITING_REFUND' && actionKey === 'restock') {
+      return false;
+    }
+    return true;
+  });
+
+  const inlineQrInfo = buildDynamicVietQrUrl({
+    baseQrUrl: returnRequest.refundVietQrUrl,
+    bankName: returnRequest.bankName,
+    accountNumber: returnRequest.accountNumber || returnRequest.bankAccountNumber,
+    accountHolder: returnRequest.accountHolderName || returnRequest.bankAccountHolder,
+    refundAmount: returnRequest.refundAmount,
+    returnCode: returnRequest.returnCode,
+    customNote: debouncedInlineNote,
+  });
+  const liveInlineQrNote =
+    inlineRefundNote.trim() || inlineQrInfo.defaultNote;
 
   return (
     <div className="container py-8 max-w-7xl">
@@ -262,25 +367,6 @@ export default function AdminReturnDetailPage() {
             </span>
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/admin/returns')}
-            icon={ArrowLeft}
-          >
-            Quay Lại
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadDetail}
-            icon={RefreshCw}
-          >
-            Tải Lại
-          </Button>
-        </div>
       </div>
 
       {/* THANH TÁC VỤ ĐIỀU PHỐI (DYNAMIC ACTION BAR) */}
@@ -294,6 +380,15 @@ export default function AdminReturnDetailPage() {
             <strong>{RETURN_STATUS_META[returnRequest.status]?.label || returnRequest.status}</strong>
           </span>
         </div>
+
+        {returnRequest.status === 'WAITING_CUSTOMER_FEEDBACK' &&
+          returnRequest.customerConfirmedPlan === false && (
+            <div className="mb-3 rounded-sm border border-status-warning bg-surface px-3 py-2 text-xs text-content-primary">
+              Khách hàng đã bấm <strong>Không đồng ý phương án</strong>
+              {returnRequest.customerNote ? ` ("${returnRequest.customerNote}")` : ''}. Quản lý có thể trao đổi và bấm{' '}
+              <strong>Kiểm định QC</strong> để điều chỉnh lại phương án xử lý.
+            </div>
+          )}
 
         {availableActions.length === 0 ? (
           <p className="text-xs text-content-muted italic">
@@ -309,6 +404,7 @@ export default function AdminReturnDetailPage() {
               return (
                 <Button
                   key={actionKey}
+                  data-testid={`btn-open-${actionKey}`}
                   variant={cfg.variant}
                   size="sm"
                   onClick={() => setActiveModal(actionKey)}
@@ -422,32 +518,32 @@ export default function AdminReturnDetailPage() {
             </div>
           </div>
 
-          {/* Thẻ đối soát tài chính */}
+          {/* Thẻ chi tiết tiền hoàn */}
           <div className="p-5 bg-surface border border-line-light rounded-sm">
             <div className="flex items-center gap-2 mb-3 pb-2 border-b border-line-light">
               <DollarSign size={18} className="text-content-primary" />
               <h2 className="text-sm font-bold uppercase tracking-wider text-content-primary">
-                Đối soát tài chính hoàn tiền
+                Chi tiết tiền hoàn
               </h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs mb-4">
               <div className="p-3 bg-surface-body border border-line-light rounded-sm">
-                <span className="text-content-muted block mb-1">Tổng tiền hàng được duyệt:</span>
+                <span className="text-content-muted block mb-1">Tiền hàng chấp nhận hoàn:</span>
                 <span className="font-mono font-bold text-base text-content-primary">
                   {formatVND(returnRequest.itemsRefundAmount || 0)}
                 </span>
               </div>
 
               <div className="p-3 bg-surface-body border border-line-light rounded-sm">
-                <span className="text-content-muted block mb-1">Phí vận chuyển khách chịu:</span>
+                <span className="text-content-muted block mb-1">Trừ phí gửi trả hàng:</span>
                 <span className="font-mono font-bold text-base text-status-error">
                   - {formatVND(returnRequest.returnShippingFee || 0)}
                 </span>
               </div>
 
               <div className="p-3 bg-surface-body border border-line-light rounded-sm">
-                <span className="text-content-muted block mb-1">Số tiền thực hoàn cho khách:</span>
+                <span className="text-content-muted block mb-1">Tổng tiền hoàn cho khách:</span>
                 <span className="font-mono font-bold text-lg text-accent-red">
                   {formatVND(returnRequest.refundAmount || 0)}
                 </span>
@@ -456,8 +552,8 @@ export default function AdminReturnDetailPage() {
 
             {returnRequest.proposedChangeOfMind && (
               <div className="p-2.5 bg-surface-body border-l-2 border-line text-xs text-content-secondary">
-                Lưu ý: Hồ sơ này đã được đề xuất chuyển sang lý do <strong>Đổi ý</strong> sau kiểm định QC,
-                khấu trừ phí vận chuyển {formatVND(returnRequest.returnShippingFee || 0)} vào tổng tiền hoàn.
+                Đơn trả được tính theo trường hợp <strong>Khách đổi ý</strong>, trừ phí gửi trả{' '}
+                {formatVND(returnRequest.returnShippingFee || 0)} vào tiền hoàn.
               </div>
             )}
           </div>
@@ -471,8 +567,11 @@ export default function AdminReturnDetailPage() {
           </div>
         </div>
 
-        {/* CỘT PHẢI (4 CỘT): TÀI KHOẢN NGÂN HÀNG, DẤU VẾT NHÂN SỰ & CSKH LOG */}
+        {/* CỘT PHẢI (4 CỘT): VẬN CHUYỂN CHIỀU HOÀN, TÀI KHOẢN NGÂN HÀNG, DẤU VẾT NHÂN SỰ & CSKH LOG */}
         <div className="lg:col-span-4 space-y-6">
+          {/* Thông tin vận chuyển chiều hoàn (GHN) */}
+          <ReturnShippingInfoCard returnRequest={returnRequest} viewerRole="admin" />
+
           {/* Thông tin tài khoản ngân hàng */}
           <div className="p-5 bg-surface border border-line-light rounded-sm">
             <div className="flex items-center gap-2 mb-3 pb-2 border-b border-line-light">
@@ -523,11 +622,136 @@ export default function AdminReturnDetailPage() {
                     href={returnRequest.refundProofImageUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-primary underline break-all"
+                    className="inline-block"
                   >
-                    Xem biên lai chuyển tiền
+                    <img
+                      src={returnRequest.refundProofImageUrl}
+                      alt="Biên lai hoàn tiền"
+                      className="mt-2 max-h-48 rounded-sm border border-line-light object-contain"
+                    />
                   </a>
                 </div>
+              )}
+
+              {/* Khu vực quét VietQR & upload biên lai hoàn tiền trực tiếp khi phiếu ở WAITING_REFUND */}
+              {returnRequest.status === 'WAITING_REFUND' && (
+                <form
+                  onSubmit={handleInlineRefundSubmit}
+                  className="pt-3 mt-3 border-t border-line-light space-y-3"
+                >
+                  <div className="p-3 bg-surface-body border border-line-light rounded-sm text-center">
+                    {inlineQrInfo.qrUrl ? (
+                      <>
+                        <img
+                          data-testid="img-refund-vietqr"
+                          src={inlineQrInfo.qrUrl}
+                          alt="Mã VietQR hoàn tiền"
+                          className="mx-auto w-48 h-48 object-contain border border-line-light rounded-sm bg-surface-body"
+                        />
+                        <p className="text-[11px] text-content-secondary mt-1.5">
+                          Quét mã bằng ứng dụng ngân hàng để chuyển khoản
+                        </p>
+                        <p className="text-[11px] text-content-muted mt-1">
+                          Nội dung QR:{' '}
+                          <span className="font-mono font-semibold text-content-primary">
+                            {liveInlineQrNote}
+                          </span>
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-content-muted italic">
+                        Chưa có mã VietQR (khách chưa cung cấp đủ STK)
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-content-primary mb-1">
+                      Ảnh biên lai chuyển khoản <span className="text-status-error">*</span>
+                    </label>
+                    <input
+                      ref={inlineRefundFileRef}
+                      data-testid="upload-refund-proof"
+                      type="file"
+                      accept={ACCEPTED_IMAGE_EXTENSIONS.join(', ')}
+                      onChange={handleInlineProofFileChange}
+                      disabled={isInlineRefunding}
+                      className="hidden"
+                    />
+                    {inlineProofPreviewUrl && inlineProofImage ? (
+                      <div className="p-2 bg-surface-body border border-line-light rounded-sm flex items-center gap-2.5">
+                        <img
+                          src={inlineProofPreviewUrl}
+                          alt="Xem trước biên lai"
+                          className="w-14 h-14 object-contain rounded-sm border border-line-light shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate text-content-primary">
+                            {inlineProofImage.name}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => inlineRefundFileRef.current?.click()}
+                            className="text-[11px] text-primary underline cursor-pointer mt-0.5"
+                          >
+                            Đổi ảnh
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setInlineProofImage(null)}
+                          className="p-1 text-content-muted hover:text-status-error cursor-pointer"
+                          aria-label="Xóa ảnh biên lai"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => inlineRefundFileRef.current?.click()}
+                        disabled={isInlineRefunding}
+                        className="w-full p-3 border border-dashed border-line rounded-sm bg-surface-body hover:border-line-focus transition-colors flex flex-col items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <UploadCloud size={18} className="text-content-muted" />
+                        <span className="font-semibold text-content-primary">
+                          Chọn ảnh biên lai chuyển khoản
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      value={inlineRefundNote}
+                      onChange={(e) => setInlineRefundNote(e.target.value)}
+                      maxLength={500}
+                      placeholder="Ghi chú hoàn tiền (tùy chọn)..."
+                      disabled={isInlineRefunding}
+                      className="h-9 w-full rounded-sm border border-line bg-surface-body px-2.5 text-xs text-content-primary focus:border-line-focus focus:outline-none"
+                    />
+                  </div>
+
+                  {inlineRefundError && (
+                    <div className="flex items-center gap-1.5 p-2 bg-surface-body border border-line-error rounded-sm text-status-error text-xs">
+                      <AlertCircle size={14} className="shrink-0" />
+                      <span>{inlineRefundError}</span>
+                    </div>
+                  )}
+
+                  <Button
+                    data-testid="btn-confirm-refund"
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    loading={isInlineRefunding}
+                    icon={CreditCard}
+                    className="w-full"
+                  >
+                    Xác Nhận Đã Hoàn Tiền
+                  </Button>
+                </form>
               )}
             </div>
           </div>
@@ -553,6 +777,22 @@ export default function AdminReturnDetailPage() {
                 <span>Thời điểm duyệt:</span>
                 <span className="text-content-primary font-mono">
                   {returnRequest.approvedAt ? formatDateTime(returnRequest.approvedAt) : '—'}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Hạn bàn giao:</span>
+                <span className="text-content-primary font-mono">
+                  {returnRequest.handoverDeadline ? formatDateTime(returnRequest.handoverDeadline) : '—'}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Đã nhắc bàn giao:</span>
+                <span className="text-content-primary font-mono">
+                  {returnRequest.handoverReminderSentAt
+                    ? formatDateTime(returnRequest.handoverReminderSentAt)
+                    : 'Chưa gửi'}
                 </span>
               </div>
 
@@ -630,7 +870,7 @@ export default function AdminReturnDetailPage() {
                   Nhật ký CSKH
                 </h2>
               </div>
-              {availableActions.includes('contactLog') && (
+              {rawAvailableActions.includes('contactLog') && (
                 <Button
                   variant="outline"
                   size="sm"

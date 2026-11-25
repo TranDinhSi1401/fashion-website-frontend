@@ -33,13 +33,14 @@ import OrderReviewModal from '../components/product/OrderReviewModal';
 import { cn } from '../utils/cn';
 import { extractErrorMessage } from '../utils/format';
 
-type CustomerOrderFilter = 'ALL' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED';
+type CustomerOrderFilter = 'ALL' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'RETURNED';
 
 const CUSTOMER_ORDER_FILTERS: { value: CustomerOrderFilter; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
   { value: 'PROCESSING', label: 'Đang xử lý' },
   { value: 'SHIPPING', label: 'Đang giao' },
   { value: 'DELIVERED', label: 'Giao thành công' },
+  { value: 'RETURNED', label: 'Đã trả hàng' },
 ];
 
 function groupReviewableItemsByOrder(
@@ -315,7 +316,8 @@ export default function CustomerOrdersTab() {
     (order) =>
       order.orderStatus === 'PROCESSING' ||
       order.orderStatus === 'SHIPPING' ||
-      order.orderStatus === 'DELIVERED'
+      order.orderStatus === 'DELIVERED' ||
+      order.orderStatus === 'RETURNED'
   );
   const filteredOrders =
     activeFilter === 'ALL'
@@ -466,14 +468,20 @@ export default function CustomerOrdersTab() {
                         ? 'Chờ xác nhận'
                         : order.orderStatus === 'COMPLETED'
                         ? 'Hoàn thành'
+                        : order.orderStatus === 'RETURNED'
+                        ? 'Đã trả hàng'
                         : order.orderStatus === 'CANCELLED'
                         ? 'Đã hủy'
                         : order.orderStatus || 'Đang xử lý'}
                     </Badge>
 
                     {order.paymentStatus && (
-                      <Badge variant={order.paymentStatus === 'PAID' ? 'dark' : 'warning'}>
-                        {order.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                      <Badge variant={order.paymentStatus === 'PAID' ? 'dark' : order.paymentStatus === 'REFUNDED' ? 'success' : 'warning'}>
+                        {order.paymentStatus === 'PAID'
+                          ? 'Đã thanh toán'
+                          : order.paymentStatus === 'REFUNDED'
+                          ? 'Đã hoàn tiền'
+                          : 'Chưa thanh toán'}
                       </Badge>
                     )}
                   </div>

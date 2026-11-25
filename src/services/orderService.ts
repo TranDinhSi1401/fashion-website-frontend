@@ -153,7 +153,24 @@ export const orderService = {
   },
 
   /**
-   * Lấy thông tin chi tiết một đơn hàng theo mã ID (phục vụ màn C2 khi mở bằng link trực tiếp ?orderId=).
+   * Lấy chi tiết một đơn hàng của chính khách hàng đang đăng nhập từ /orders/my-orders
+   * (tránh gọi GET /orders/{id} vốn chỉ mở cho ADMIN/STAFF nên sẽ bị 403 trên role CUSTOMER).
+   *
+   * @param id Đầu vào: Mã ID đơn hàng cần tìm.
+   * @returns Đầu ra: Promise đơn hàng OrderWithItems kèm orderItems thực tế từ Backend.
+   */
+  async getMyOrderById(id: number): Promise<OrderWithItems> {
+    const myOrders = await orderService.getMyOrders();
+    const found = myOrders.find((o) => Number(o.id) === Number(id));
+    if (found) {
+      return found;
+    }
+    throw new Error(`Không tìm thấy đơn hàng với mã ID ${id}.`);
+  },
+
+  /**
+   * Lấy thông tin chi tiết một đơn hàng theo mã ID (dành cho ADMIN/STAFF gọi GET /orders/{id},
+   * có fallback về my-orders nếu gọi thất bại).
    */
   async getOrderById(id: number): Promise<OrderWithItems> {
     try {

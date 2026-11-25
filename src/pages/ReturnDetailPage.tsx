@@ -40,6 +40,7 @@ import {
 import ReturnStatusBadge from '../components/returns/ReturnStatusBadge';
 import ReturnTimeline from '../components/returns/ReturnTimeline';
 import ReturnImageGallery from '../components/returns/ReturnImageGallery';
+import ReturnShippingInfoCard from '../components/returns/ReturnShippingInfoCard';
 import {
   ReturnEditModal,
   ReturnBankModal,
@@ -62,6 +63,7 @@ export default function ReturnDetailPage() {
 
   const [returnRequest, setReturnRequest] = useState<ReturnRequestResponse | null>(null);
   const [orderDeliveredAt, setOrderDeliveredAt] = useState<string | null>(null);
+  const [orderItemPriceMap, setOrderItemPriceMap] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -79,13 +81,28 @@ export default function ReturnDetailPage() {
       const res = await returnService.getMyRequestById(requestId);
       if (res.data) {
         setReturnRequest(res.data);
-        // Nếu phiếu đang chờ duyệt thì tra cứu thêm ngày giao hàng của đơn gốc để kiểm tra hạn sửa 7 ngày trên UI
-        if (res.data.status === 'PENDING_APPROVAL' && res.data.orderId) {
+        // Tra cứu đơn gốc khi cần kiểm tra hạn sửa 7 ngày hoặc ước tính đơn giá hoàn tiền trước khi kho kiểm định
+        if (
+          res.data.orderId &&
+          (res.data.status === 'PENDING_APPROVAL' ||
+            !res.data.inspectedAt ||
+            !res.data.refundAmount)
+        ) {
           try {
-            const ord = await orderService.getOrderById(res.data.orderId);
+            const ord = await orderService.getMyOrderById(res.data.orderId);
             setOrderDeliveredAt(ord?.deliveredAt || null);
+            const priceMap: Record<number, number> = {};
+            (ord?.orderItems || []).forEach((oi) => {
+              if (oi.unitPrice > 0) {
+                priceMap[oi.id] = oi.unitPrice;
+              } else if (oi.totalPrice > 0 && oi.quantity > 0) {
+                priceMap[oi.id] = Math.round(oi.totalPrice / oi.quantity);
+              }
+            });
+            setOrderItemPriceMap(priceMap);
           } catch {
             setOrderDeliveredAt(null);
+            setOrderItemPriceMap({});
           }
         }
       }
@@ -148,6 +165,25 @@ export default function ReturnDetailPage() {
   const canConfirmPlan = canCustomerConfirmPlan(returnRequest);
   const canCancel = canCustomerCancelReturn(returnRequest);
 
+  // Tính tiền hoàn dự kiến trước khi kho kiểm định (khi backend chưa chốt itemsRefundAmount)
+  const estimatedItemsRefund = (returnRequest.items || []).reduce((sum, item) => {
+    if (item.itemRefundAmount && item.itemRefundAmount > 0) {
+      return sum + item.itemRefundAmount;
+    }
+    const unitPrice = orderItemPriceMap[item.orderItemId] || 0;
+    return sum + unitPrice * item.quantity;
+  }, 0);
+  const isShowingEstimatedRefund =
+    !returnRequest.inspectedAt &&
+    (returnRequest.itemsRefundAmount || 0) === 0 &&
+    estimatedItemsRefund > 0;
+  const displayedItemsRefund = isShowingEstimatedRefund
+    ? estimatedItemsRefund
+    : returnRequest.itemsRefundAmount || 0;
+  const displayedNetRefund = isShowingEstimatedRefund
+    ? Math.max(0, estimatedItemsRefund - (returnRequest.returnShippingFee || 0))
+    : returnRequest.refundAmount || 0;
+
   return (
     <div className="pt-8 pb-20">
       <div className="container max-w-5xl">
@@ -176,10 +212,7 @@ export default function ReturnDetailPage() {
                 <h1 className="text-2xl font-bold uppercase tracking-wide text-content-primary">
                   {returnRequest.returnCode}
                 </h1>
-                <ReturnStatusBadge status={returnRequest.status} />
-                {returnRequest.isOverdue && (
-                  <Badge variant="warning">Quá hạn SLA</Badge>
-                )}
+                <ReturnStatusBadge status={returnRequest.status} prominent />
               </div>
 
               <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-content-muted mt-2">
@@ -189,7 +222,7 @@ export default function ReturnDetailPage() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Calendar size={14} />
-                  <span>Ngày gửi yêu cầu: {formatDateTime(returnRequest.createdAt)}</span>
+                  <span>Ngày gửi: {formatDateTime(returnRequest.createdAt)}</span>
                 </span>
               </div>
             </div>
@@ -204,11 +237,11 @@ export default function ReturnDetailPage() {
                   className="flex items-center gap-1.5"
                 >
                   <Edit3 size={14} />
-                  <span>Chỉnh Sửa</span>
+                  <span>Sửa Yêu Cầu</span>
                 </Button>
               )}
 
-              {canUpdateBank && (
+              {canUpdateBank && !canEdit && (
                 <Button
                   variant="secondary"
                   size="sm"
@@ -218,8 +251,8 @@ export default function ReturnDetailPage() {
                   <CreditCard size={14} />
                   <span>
                     {returnRequest.accountNumber || returnRequest.bankAccountNumber
-                      ? 'Đổi STK Hoàn'
-                      : 'Bổ Sung STK'}
+                      ? 'Đổi TK Ngân Hàng'
+                      : 'Thêm TK Ngân Hàng'}
                   </span>
                 </Button>
               )}
@@ -243,22 +276,21 @@ export default function ReturnDetailPage() {
                 className="flex items-center gap-1.5"
               >
                 <ArrowLeft size={14} />
-                <span>Danh Sách</span>
+                <span>Quay Lại</span>
               </Button>
             </div>
           </div>
 
-          {/* Banner nổi bật khi đang chờ khách xác nhận phương án sau kiểm định QC */}
+          {/* Banner nổi bật khi đang chờ khách xác nhận phương án sau kiểm tra hàng */}
           {canConfirmPlan && (
             <div className={cn('mt-6 animate-fade-in', pageStyles.alertGold)}>
               <Clock size={22} className="text-accent-gold shrink-0 mt-0.5" />
               <div className="flex-1">
                 <h4 className="text-sm font-bold text-content-primary mb-1">
-                  Đề Xuất Phương Án Xử Lý Mới Từ Kho
+                  Cửa hàng đề xuất phương án hoàn tiền mới
                 </h4>
                 <p className="text-xs text-content-secondary mb-3">
-                  Kiểm định kho đã có cập nhật đối với số lượng hoặc phân loại phí vận chuyển của yêu cầu trả hàng.
-                  Vui lòng xem thông tin đối soát và bấm xác nhận để tiếp tục quy trình hoàn tiền.
+                  Kho đã kiểm tra hàng trả về và cập nhật số tiền hoàn lại. Bạn vui lòng kiểm tra và xác nhận bên dưới.
                 </p>
                 <Button
                   variant="primary"
@@ -267,25 +299,32 @@ export default function ReturnDetailPage() {
                   className="flex items-center gap-1.5"
                 >
                   <CheckCircle2 size={14} />
-                  <span>Xem &amp; Xác Nhận Phương Án</span>
+                  <span>Xem &amp; Xác Nhận</span>
                 </Button>
               </div>
             </div>
           )}
         </div>
 
-        {/* 1. TIẾN TRÌNH VÒNG ĐỜI 6 BƯỚC */}
+        {/* 1. TIẾN ĐỘ XỬ LÝ */}
         <div className="mb-8">
           <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-3">
-            Tiến Trình Xử Lý
+            Tiến Độ Xử Lý
           </h2>
           <ReturnTimeline returnRequest={returnRequest} />
         </div>
 
-        {/* 2. BẢNG CHI TIẾT SẢN PHẨM TRẢ & KẾT QUẢ KIỂM ĐỊNH QC */}
+        {/* 1b. THÔNG TIN GỬI HÀNG TRẢ */}
+        <ReturnShippingInfoCard
+          returnRequest={returnRequest}
+          viewerRole="customer"
+          className="mb-8"
+        />
+
+        {/* 2. BẢNG CHI TIẾT SẢN PHẨM TRẢ */}
         <div className="bg-surface-body border border-line-light rounded-card p-6 mb-8">
           <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-1">
-            Danh Sách Sản Phẩm Yêu Cầu Trả
+            Sản Phẩm Trả Lại
           </h2>
           <p className="text-xs text-content-muted mb-4 break-words [overflow-wrap:anywhere]">
             Lý do:{' '}
@@ -295,12 +334,12 @@ export default function ReturnDetailPage() {
           </p>
           {returnRequest.rejectionReason && returnRequest.status !== 'REJECTED' && (
             <p className="text-xs text-content-secondary mb-4 break-words [overflow-wrap:anywhere]">
-              Ghi chú kiểm định chung: <strong className="text-content-primary">{returnRequest.rejectionReason}</strong>
+              Phản hồi từ shop: <strong className="text-content-primary">{returnRequest.rejectionReason}</strong>
             </p>
           )}
           {returnRequest.extensionReason && (
             <p className="text-xs text-content-secondary mb-4 break-words [overflow-wrap:anywhere]">
-              Lý do gia hạn bàn giao: <strong className="text-content-primary">{returnRequest.extensionReason}</strong>
+              Gia hạn thời gian gửi hàng: <strong className="text-content-primary">{returnRequest.extensionReason}</strong>
             </p>
           )}
 
@@ -309,9 +348,9 @@ export default function ReturnDetailPage() {
               <thead>
                 <tr className={pageStyles.tableHeader}>
                   <th className="py-3 px-4">Sản Phẩm</th>
-                  <th className="py-3 px-4 text-center">SL Gửi</th>
-                  <th className="py-3 px-4 text-center">SL Duyệt QC</th>
-                  <th className="py-3 px-4">Ghi Chú Kiểm Định</th>
+                  <th className="py-3 px-4 text-center">SL Trả</th>
+                  <th className="py-3 px-4 text-center">Được Duyệt</th>
+                  <th className="py-3 px-4">Ghi Chú Từ Shop</th>
                   <th className="py-3 px-4 text-right">Tiền Hoàn</th>
                 </tr>
               </thead>
@@ -343,7 +382,17 @@ export default function ReturnDetailPage() {
                       {item.inspectionNote || '-'}
                     </td>
                     <td className="py-3.5 px-4 text-right font-bold text-content-primary">
-                      {formatVND(item.itemRefundAmount || 0)}
+                      {item.itemRefundAmount && item.itemRefundAmount > 0 ? (
+                        formatVND(item.itemRefundAmount)
+                      ) : !returnRequest.inspectedAt &&
+                        (orderItemPriceMap[item.orderItemId] || 0) > 0 ? (
+                        <span>
+                          {formatVND(orderItemPriceMap[item.orderItemId] * item.quantity)}{' '}
+                          <span className="text-[11px] font-normal text-content-muted">(Dự kiến)</span>
+                        </span>
+                      ) : (
+                        formatVND(0)
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -352,45 +401,67 @@ export default function ReturnDetailPage() {
           </div>
         </div>
 
-        {/* 3. ĐỐI SOÁT TÀI CHÍNH & THÔNG TIN NGÂN HÀNG HOÀN TIỀN */}
+        {/* 3. CHI TIẾT TIỀN HOÀN & TÀI KHOẢN NHẬN TIỀN */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* Cột 1: Bảng đối soát tài chính */}
+          {/* Cột 1: Bảng chi tiết tiền hoàn */}
           <div className={pageStyles.reconciliationCard}>
             <h3 className="text-sm font-bold uppercase tracking-wide text-content-primary mb-4 flex items-center gap-2">
               <DollarSign size={16} />
-              <span>Đối Soát Tài Chính Hoàn Tiền</span>
+              <span>Chi Tiết Tiền Hoàn</span>
             </h3>
 
             <div className="flex flex-col gap-3 text-sm">
               <div className="flex justify-between items-center text-content-secondary">
-                <span>Tổng tiền sản phẩm duyệt hoàn:</span>
+                <span>
+                  {isShowingEstimatedRefund ? 'Tiền hàng trả lại (tạm tính):' : 'Tiền hàng được hoàn:'}
+                </span>
                 <span className="font-semibold text-content-primary">
-                  {formatVND(returnRequest.itemsRefundAmount || 0)}
+                  {formatVND(displayedItemsRefund)}
                 </span>
               </div>
 
               <div className="flex justify-between items-center text-content-secondary">
-                <span>Phí vận chuyển trả hàng (nếu có):</span>
+                <span>Phí gửi trả hàng:</span>
                 <span className="font-semibold text-content-primary">
                   {returnRequest.returnShippingFee && returnRequest.returnShippingFee > 0
                     ? `- ${formatVND(returnRequest.returnShippingFee)}`
-                    : 'Miễn phí'}
+                    : 'Miễn phí (0₫)'}
                 </span>
               </div>
 
               <div className="border-t border-line-light pt-3 flex justify-between items-center">
-                <span className="font-bold text-content-primary">Tổng tiền thực tế hoàn lại:</span>
+                <span className="font-bold text-content-primary">
+                  {isShowingEstimatedRefund ? 'Số tiền nhận lại (tạm tính):' : 'Số tiền bạn nhận lại:'}
+                </span>
                 <span className={pageStyles.refundAmountHighlight}>
-                  {formatVND(returnRequest.refundAmount)}
+                  {formatVND(displayedNetRefund)}
                 </span>
               </div>
 
-              {returnRequest.refundTransactionCode && (
+              {returnRequest.status === 'REFUNDED' && returnRequest.refundTransactionCode && (
                 <div className="mt-2 p-2.5 bg-surface-body border border-line-light rounded-sm text-xs">
                   <span className="text-content-muted">Mã giao dịch ngân hàng:</span>{' '}
                   <strong className="text-content-primary font-mono">
                     {returnRequest.refundTransactionCode}
                   </strong>
+                </div>
+              )}
+
+              {returnRequest.status === 'REFUNDED' && returnRequest.refundProofImageUrl && (
+                <div className="mt-2 p-2.5 bg-surface-body border border-line-light rounded-sm text-xs">
+                  <span className="text-content-muted block mb-1.5">Ảnh biên lai chuyển khoản:</span>
+                  <a
+                    href={returnRequest.refundProofImageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block"
+                  >
+                    <img
+                      src={returnRequest.refundProofImageUrl}
+                      alt="Biên lai hoàn tiền"
+                      className="mt-2 max-h-48 rounded-sm border border-line-light object-contain"
+                    />
+                  </a>
                 </div>
               )}
             </div>
@@ -401,9 +472,9 @@ export default function ReturnDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold uppercase tracking-wide text-content-primary flex items-center gap-2">
                 <Building2 size={16} />
-                <span>Tài Khoản Nhận Tiền</span>
+                <span>Tài Khoản Nhận Tiền Hoàn</span>
               </h3>
-              {canUpdateBank && (
+              {canUpdateBank && !canEdit && (
                 <button
                   type="button"
                   onClick={() => setIsBankModalOpen(true)}
@@ -440,7 +511,7 @@ export default function ReturnDetailPage() {
                 <p className="text-xs text-content-muted mb-3">
                   Bạn chưa cung cấp thông tin tài khoản ngân hàng nhận tiền hoàn.
                 </p>
-                {canUpdateBank && (
+                {canUpdateBank && !canEdit && (
                   <Button variant="secondary" size="sm" onClick={() => setIsBankModalOpen(true)}>
                     Bổ Sung Tài Khoản Ngay
                   </Button>

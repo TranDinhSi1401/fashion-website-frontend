@@ -8,18 +8,31 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, Info, Building2, CreditCard, User } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  Building2,
+  CreditCard,
+  User,
+  X,
+} from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import QuantityStepper from '../ui/QuantityStepper';
 import ReturnImageUploader from './ReturnImageUploader';
+import BankSelect from './BankSelect';
+import { getSelfDropOffFlag, setSelfDropOffFlag } from '../../constants/banks';
 import { RETURN_REASON_OPTIONS } from '../../constants/returnMeta';
 import {
   buildUpdateReturnPayload,
   buildConfirmPlanPayload,
   isValidBankAccountNumber,
+  isValidPickupPhone,
+  formatPickupAddress,
   validateReturnImageFiles,
   normalizeReturnReason,
   formatVND,
@@ -29,11 +42,34 @@ import {
   canCustomerCancelReturn,
 } from '../../utils/returnHelpers';
 import { returnService } from '../../services/returnService';
+import { userService } from '../../services/userService';
+import { orderService } from '../../services/orderService';
+import type { UserAddressResponse } from '../../types/user';
 import type {
   ReturnRequestResponse,
+  ReturnRequestImageResponse,
   ReturnReason,
 } from '../../types/return';
 import { cn } from '../../utils/cn';
+
+/**
+ * Chức năng: Chuyển đổi ảnh minh chứng đã lưu trên Cloudinary/server thành đối tượng File
+ * khi khách hàng xóa bớt ảnh cũ hoặc tải thêm ảnh mới trong modal chỉnh sửa.
+ *
+ * @param url   Đầu vào: Đường dẫn URL của ảnh hiện có.
+ * @param index Đầu vào: Chỉ số ảnh dùng để đặt tên tệp.
+ * @returns Đầu ra: Promise<File> chứa dữ liệu ảnh tương ứng.
+ */
+async function fetchImageUrlAsFile(url: string, index: number): Promise<File> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error('Không thể tải lại ảnh minh chứng hiện có từ máy chủ.');
+  }
+  const blob = await res.blob();
+  const mime = blob.type || 'image/jpeg';
+  const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+  return new File([blob], `existing-return-image-${index + 1}.${ext}`, { type: mime });
+}
 
 // ============================================================================
 // 1. MODAL C5A: CHỈNH SỬA YÊU CẦU TRẢ HÀNG (RETURN EDIT MODAL)
@@ -63,8 +99,10 @@ export function ReturnEditModal({
   );
   const [reasonDetail, setReasonDetail] = useState<string>(returnRequest.reasonDetail || '');
   const [itemQuantities, setItemQuantities] = useState<Record<number, number>>({});
+  const [keptImages, setKeptImages] = useState<ReturnRequestImageResponse[]>(
+    returnRequest.images || []
+  );
   const [newImages, setNewImages] = useState<File[]>([]);
-  const [replaceImages, setReplaceImages] = useState<boolean>(false);
 
   const [bankName, setBankName] = useState<string>(returnRequest.bankName || '');
   const [accountNumber, setAccountNumber] = useState<string>(
@@ -74,27 +112,112 @@ export function ReturnEditModal({
     returnRequest.accountHolderName || returnRequest.bankAccountHolder || ''
   );
 
+  // Thông tin lấy hàng chiều hoàn (GHN)
+  const [addresses, setAddresses] = useState<UserAddressResponse[]>([]);
+  const [orderItemMeta, setOrderItemMeta] = useState<
+    Record<number, { maxQuantity: number; unitPrice: number }>
+  >({});
+  const [pickupAddressId, setPickupAddressId] = useState<string>('');
+  const [pickupContactName, setPickupContactName] = useState<string>(
+    returnRequest.pickupContactName || ''
+  );
+  const [pickupPhone, setPickupPhone] = useState<string>(returnRequest.pickupPhone || '');
+  const [isSelfDropOff, setIsSelfDropOff] = useState<boolean>(() =>
+    getSelfDropOffFlag(returnRequest.id)
+  );
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [fieldErrors, setFieldErrors] = useState<{
+    reasonDetail?: string;
+    images?: string;
+    pickupContactName?: string;
+    pickupPhone?: string;
+    accountNumber?: string;
+  }>({});
 
-  // Khởi tạo state số lượng sản phẩm từ phiếu hiện tại
+  // Khởi tạo state số lượng sản phẩm, tải sổ địa chỉ & tính số lượng tối đa còn lại có thể trả
   useEffect(() => {
-    if (isOpen) {
-      setReason(normalizeReturnReason(returnRequest.reason));
-      setReasonDetail(returnRequest.reasonDetail || '');
-      setBankName(returnRequest.bankName || '');
-      setAccountNumber(returnRequest.accountNumber || returnRequest.bankAccountNumber || '');
-      setAccountHolderName(returnRequest.accountHolderName || returnRequest.bankAccountHolder || '');
-      setNewImages([]);
-      setReplaceImages(false);
-      setErrorMessage('');
+    if (!isOpen) return;
+    let isMounted = true;
 
-      const initialQtys: Record<number, number> = {};
-      (returnRequest.items || []).forEach((item) => {
-        initialQtys[item.orderItemId] = item.quantity;
+    setReason(normalizeReturnReason(returnRequest.reason));
+    setReasonDetail(returnRequest.reasonDetail || '');
+    setBankName(returnRequest.bankName || '');
+    setAccountNumber(returnRequest.accountNumber || returnRequest.bankAccountNumber || '');
+    setAccountHolderName(returnRequest.accountHolderName || returnRequest.bankAccountHolder || '');
+    setPickupAddressId('');
+    setPickupContactName(returnRequest.pickupContactName || '');
+    setPickupPhone(returnRequest.pickupPhone || '');
+    setIsSelfDropOff(getSelfDropOffFlag(returnRequest.id));
+    setKeptImages(returnRequest.images || []);
+    setNewImages([]);
+    setErrorMessage('');
+    setFieldErrors({});
+
+    const initialQtys: Record<number, number> = {};
+    (returnRequest.items || []).forEach((item) => {
+      initialQtys[item.orderItemId] = item.quantity;
+    });
+    setItemQuantities(initialQtys);
+
+    userService
+      .getAddresses()
+      .then((res) => {
+        if (isMounted && Array.isArray(res?.data)) {
+          setAddresses(res.data);
+        }
+      })
+      .catch(() => {
+        // Bỏ qua lỗi tải sổ địa chỉ; vẫn cho phép giữ địa chỉ hiện tại hoặc nhập liên hệ
       });
-      setItemQuantities(initialQtys);
+
+    if (returnRequest.orderId) {
+      Promise.all([
+        orderService.getMyOrderById(returnRequest.orderId).catch(() => orderService.getOrderById(returnRequest.orderId)),
+        returnService.getMyRequests(0, 100).catch(() => null),
+      ])
+        .then(([order, myReturnsRes]) => {
+          if (!isMounted || !order?.orderItems?.length) return;
+          const otherUsedMap: Record<number, number> = {};
+          const reqList = myReturnsRes?.data?.content || [];
+          reqList.forEach((req) => {
+            if (
+              req.id === returnRequest.id ||
+              Number(req.orderId) !== Number(returnRequest.orderId) ||
+              req.status === 'CANCELLED' ||
+              req.status === 'REJECTED'
+            ) {
+              return;
+            }
+            (req.items || []).forEach((it) => {
+              otherUsedMap[it.orderItemId] = (otherUsedMap[it.orderItemId] || 0) + (it.quantity || 0);
+            });
+          });
+
+          const metaMap: Record<number, { maxQuantity: number; unitPrice: number }> = {};
+          order.orderItems.forEach((oi) => {
+            const currentItem = (returnRequest.items || []).find((ri) => ri.orderItemId === oi.id);
+            const currentQty = currentItem?.quantity || 1;
+            const remainingAvailable = Math.max(
+              currentQty,
+              (oi.quantity || currentQty) - (otherUsedMap[oi.id] || 0)
+            );
+            metaMap[oi.id] = {
+              maxQuantity: remainingAvailable,
+              unitPrice: oi.unitPrice || 0,
+            };
+          });
+          setOrderItemMeta(metaMap);
+        })
+        .catch(() => {
+          // Bỏ qua lỗi tải đơn hàng gốc; vẫn giữ fallback từ dữ liệu phiếu hiện tại
+        });
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, returnRequest]);
 
   // Kiểm tra quyền chỉnh sửa
@@ -105,36 +228,57 @@ export function ReturnEditModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setFieldErrors({});
+
+    const nextErrors: {
+      reasonDetail?: string;
+      images?: string;
+      pickupContactName?: string;
+      pickupPhone?: string;
+      accountNumber?: string;
+    } = {};
 
     if (!reasonDetail.trim()) {
-      setErrorMessage('Vui lòng nhập mô tả chi tiết lý do trả hàng.');
-      return;
+      nextErrors.reasonDetail = 'Vui lòng nhập mô tả chi tiết lý do trả hàng.';
+    } else if (reasonDetail.trim().length > 1000) {
+      nextErrors.reasonDetail = 'Mô tả chi tiết không được vượt quá 1000 ký tự.';
     }
 
-    if (reasonDetail.trim().length > 1000) {
-      setErrorMessage('Mô tả chi tiết không được vượt quá 1000 ký tự.');
-      return;
-    }
-
-    // Kiểm tra ảnh mới khi khách tick "thay thế toàn bộ ảnh minh chứng"
-    if (replaceImages) {
-      if (newImages.length === 0) {
-        setErrorMessage(
-          'Vui lòng tải lên ít nhất 1 ảnh mới khi chọn thay thế toàn bộ ảnh minh chứng.'
-        );
-        return;
-      }
-      const imageValidation = validateReturnImageFiles(newImages, reason);
+    // Kiểm tra tổng số ảnh giữ lại + ảnh mới thêm
+    const totalImagesCount = keptImages.length + newImages.length;
+    if (totalImagesCount > 5) {
+      nextErrors.images = 'Mỗi yêu cầu chỉ được gửi tối đa 5 ảnh minh chứng.';
+    } else if ((reason === 'DEFECTIVE' || reason === 'WRONG_ITEM') && totalImagesCount === 0) {
+      nextErrors.images =
+        'Vui lòng giữ lại hoặc tải lên từ 1 đến 5 ảnh minh chứng cho sản phẩm lỗi hoặc giao sai.';
+    } else if (newImages.length > 0) {
+      const imageValidation = validateReturnImageFiles(newImages, 'CHANGE_OF_MIND');
       if (!imageValidation.isValid) {
-        setErrorMessage(imageValidation.error || 'Tệp ảnh minh chứng không hợp lệ.');
-        return;
+        nextErrors.images = imageValidation.error || 'Tệp ảnh minh chứng không hợp lệ.';
       }
+    }
+
+    // Kiểm tra thông tin lấy hàng GHN (chỉ khi không tự mang đến cửa hàng)
+    const trimmedPickupName = isSelfDropOff ? '' : pickupContactName.trim();
+    if (!isSelfDropOff && trimmedPickupName.length > 100) {
+      nextErrors.pickupContactName = 'Tên người liên hệ lấy hàng không được vượt quá 100 ký tự.';
+    }
+
+    const trimmedPickupPhone = isSelfDropOff ? '' : pickupPhone.trim();
+    if (!isSelfDropOff && trimmedPickupPhone !== '' && !isValidPickupPhone(trimmedPickupPhone)) {
+      nextErrors.pickupPhone =
+        'Số điện thoại lấy hàng không hợp lệ (bắt đầu bằng 0 hoặc +84, gồm 10–11 chữ số).';
     }
 
     // Kiểm tra định dạng số tài khoản ngân hàng nếu có nhập
     const trimmedAccount = accountNumber.trim();
     if (trimmedAccount !== '' && !isValidBankAccountNumber(trimmedAccount)) {
-      setErrorMessage('Số tài khoản ngân hàng không hợp lệ (phải gồm từ 6 đến 30 chữ số).');
+      nextErrors.accountNumber =
+        'Số tài khoản ngân hàng không hợp lệ (phải gồm từ 6 đến 30 chữ số).';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
       return;
     }
 
@@ -159,18 +303,30 @@ export function ReturnEditModal({
       bankName,
       accountNumber: trimmedAccount,
       accountHolderName,
+      pickupAddressId: isSelfDropOff ? null : pickupAddressId || null,
+      pickupContactName: trimmedPickupName,
+      pickupPhone: trimmedPickupPhone,
     });
 
     setIsLoading(true);
     try {
-      // Nếu khách chọn thay thế ảnh mới thì truyền kèm newImages để gửi Multipart
-      const res = await returnService.updateReturn(
-        returnRequest.id,
-        cleanPayload,
-        replaceImages && newImages.length > 0 ? newImages : undefined
-      );
+      const originalImagesCount = returnRequest.images?.length || 0;
+      const hasRemovedExisting = keptImages.length < originalImagesCount;
+      let filesToSend: File[] | undefined;
+
+      if (hasRemovedExisting || newImages.length > 0) {
+        const keptFiles =
+          keptImages.length > 0
+            ? await Promise.all(keptImages.map((img, idx) => fetchImageUrlAsFile(img.imageUrl, idx)))
+            : [];
+        const combined = [...keptFiles, ...newImages];
+        filesToSend = combined.length > 0 ? combined : undefined;
+      }
+
+      const res = await returnService.updateReturn(returnRequest.id, cleanPayload, filesToSend);
 
       if (res.data) {
+        setSelfDropOffFlag(res.data.id, isSelfDropOff);
         onSuccess(res.data);
         onClose();
       }
@@ -220,11 +376,22 @@ export function ReturnEditModal({
           <textarea
             rows={3}
             value={reasonDetail}
-            onChange={(e) => setReasonDetail(e.target.value)}
+            onChange={(e) => {
+              setReasonDetail(e.target.value);
+              setFieldErrors((prev) =>
+                prev.reasonDetail ? { ...prev, reasonDetail: undefined } : prev
+              );
+            }}
             maxLength={1000}
             placeholder="Mô tả cụ thể tình trạng sản phẩm hoặc vấn đề gặp phải..."
-            className="w-full rounded-input border border-line bg-surface-body p-3 text-base text-content-primary focus:border-line-focus focus:outline-none"
+            className={cn(
+              'w-full rounded-input border bg-surface-body p-3 text-base text-content-primary focus:border-line-focus focus:outline-none',
+              fieldErrors.reasonDetail ? 'border-line-error' : 'border-line'
+            )}
           />
+          {fieldErrors.reasonDetail && (
+            <p className="mt-1 text-xs italic text-status-error">{fieldErrors.reasonDetail}</p>
+          )}
           <span className="text-xs text-content-muted">{reasonDetail.length}/1000 ký tự</span>
         </div>
 
@@ -234,91 +401,211 @@ export function ReturnEditModal({
             Sản phẩm yêu cầu trả
           </label>
           <div className="flex flex-col gap-2.5 border border-line-light rounded-sm p-3 bg-surface">
-            {(returnRequest.items || []).map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-4 border-b border-line-light pb-2.5 last:border-b-0 last:pb-0"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-content-primary truncate">
-                    {item.productName}
+            {(returnRequest.items || []).map((item) => {
+              const meta = orderItemMeta[item.orderItemId];
+              const displayPrice =
+                item.itemRefundAmount != null && item.itemRefundAmount > 0
+                  ? item.itemRefundAmount
+                  : meta?.unitPrice || 0;
+              const maxQty = Math.max(item.quantity || 1, meta?.maxQuantity || item.quantity || 1);
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-4 border-b border-line-light pb-2.5 last:border-b-0 last:pb-0"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-content-primary truncate">
+                      {item.productName}
+                    </div>
+                    <div className="text-xs text-content-muted">{item.variantInfo || 'Tiêu chuẩn'}</div>
+                    <div className="text-xs text-content-secondary mt-0.5">
+                      Giá:{' '}
+                      {displayPrice > 0 ? formatVND(displayPrice) : 'Theo đơn hàng gốc'} •{' '}
+                      <strong className="text-content-primary">
+                        Tối đa có thể trả: {maxQty}
+                      </strong>
+                    </div>
                   </div>
-                  <div className="text-xs text-content-muted">{item.variantInfo || 'Tiêu chuẩn'}</div>
-                  <div className="text-xs text-content-secondary mt-0.5">
-                    Giá: {formatVND(item.itemRefundAmount || 0)}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-content-muted">SL trả:</span>
+                    <QuantityStepper
+                      min={1}
+                      max={maxQty}
+                      value={itemQuantities[item.orderItemId] || item.quantity}
+                      onChange={(val) =>
+                        setItemQuantities((prev) => ({
+                          ...prev,
+                          [item.orderItemId]: val,
+                        }))
+                      }
+                    />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-content-muted">Số lượng:</span>
-                  <QuantityStepper
-                    min={1}
-                    max={item.quantity || 1}
-                    value={itemQuantities[item.orderItemId] || item.quantity}
-                    onChange={(val) =>
-                      setItemQuantities((prev) => ({
-                        ...prev,
-                        [item.orderItemId]: val,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
-        {/* 4. Cập nhật ảnh minh chứng */}
-        <div className="border-t border-line-light pt-4">
-          <div className="mb-3">
-            <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-content-primary">
-              <input
-                type="checkbox"
-                checked={replaceImages}
-                onChange={(e) => setReplaceImages(e.target.checked)}
-                className="w-4 h-4 rounded-sm border-line text-primary focus:ring-0"
-              />
-              <span>Tôi muốn thay thế toàn bộ ảnh minh chứng hiện tại bằng bộ ảnh mới</span>
-            </label>
+        {/* 4. Ảnh minh chứng: hiển thị ảnh đã tải lên kèm nút X xóa và cho phép tải thêm ảnh mới */}
+        <div className="border-t border-line-light pt-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-bold text-content-primary">
+              Ảnh Minh Chứng Hiện Tại &amp; Bổ Sung
+            </h4>
+            <span className="text-xs text-content-muted">
+              Tổng cộng: <strong>{keptImages.length + newImages.length}</strong>/5 ảnh
+            </span>
           </div>
 
-          {replaceImages ? (
-            <div className="p-3 bg-surface border border-line-light rounded-sm flex flex-col gap-3">
-              <div className="flex items-center gap-2 text-xs text-status-warning font-medium">
-                <AlertTriangle size={15} className="shrink-0" />
-                <span>
-                  Lưu ý: Bộ ảnh mới này sẽ thay thế hoàn toàn danh sách ảnh cũ đang lưu trên hệ thống.
-                </span>
-              </div>
-              <ReturnImageUploader
-                files={newImages}
-                onChange={setNewImages}
-                reason={reason}
-              />
+          {keptImages.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {keptImages.map((imgItem, idx) => (
+                <div
+                  key={imgItem.id}
+                  className="relative aspect-square border border-line-light rounded-sm overflow-hidden bg-surface"
+                >
+                  <img
+                    src={imgItem.imageUrl}
+                    alt={`Ảnh đã tải ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKeptImages((prev) => prev.filter((it) => it.id !== imgItem.id));
+                      setFieldErrors((prev) => (prev.images ? { ...prev, images: undefined } : prev));
+                    }}
+                    aria-label={`Xóa ảnh hiện tại ${idx + 1}`}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-surface-dark text-content-inverse flex items-center justify-center opacity-85 hover:opacity-100 transition-opacity cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                  <div className="absolute bottom-1 left-1.5 text-[10px] bg-surface-dark text-content-inverse px-1 py-0.5 rounded-sm opacity-75">
+                    Đã lưu
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : (
+          )}
+
+          <ReturnImageUploader
+            files={newImages}
+            onChange={(files) => {
+              if (keptImages.length + files.length > 5) {
+                setFieldErrors((prev) => ({
+                  ...prev,
+                  images: 'Tổng số ảnh giữ lại và ảnh mới không được vượt quá 5 ảnh.',
+                }));
+                return;
+              }
+              setNewImages(files);
+              setFieldErrors((prev) => (prev.images ? { ...prev, images: undefined } : prev));
+            }}
+            reason={reason}
+            error={fieldErrors.images}
+            disabled={keptImages.length + newImages.length >= 5}
+          />
+        </div>
+
+        {/* 5. Hình thức gửi trả hàng (GHN hoặc Tự mang đến cửa hàng) */}
+        <div className="border-t border-line-light pt-4 flex flex-col gap-3">
+          <h4 className="text-sm font-bold text-content-primary">
+            Hình Thức Gửi Trả Hàng
+          </h4>
+
+          <label className="flex items-center gap-2.5 p-3 border border-line-light rounded-sm bg-surface cursor-pointer text-xs font-medium text-content-primary">
+            <input
+              type="checkbox"
+              checked={isSelfDropOff}
+              onChange={(e) => setIsSelfDropOff(e.target.checked)}
+              className="w-4 h-4 rounded-sm border-line text-primary focus:ring-0 shrink-0"
+            />
+            <span>Tôi tự mang sản phẩm đến cửa hàng (không cần shipper GHN đến lấy)</span>
+          </label>
+
+          {isSelfDropOff ? (
             <p className="text-xs text-content-muted">
-              Hệ thống đang giữ nguyên {returnRequest.images?.length || 0} ảnh minh chứng đã tải lên trước đó.
+              Sau khi yêu cầu được duyệt, bạn vui lòng mang sản phẩm trực tiếp đến cửa hàng gần nhất.
             </p>
+          ) : (
+            <>
+              <div>
+                <Select
+                  label="Chọn địa chỉ lấy hàng mới (nếu muốn đổi)"
+                  value={pickupAddressId}
+                  onChange={(e) => setPickupAddressId(e.target.value)}
+                >
+                  <option value="">Giữ địa chỉ lấy hàng hiện tại / đơn gốc</option>
+                  {addresses.map((addr) => (
+                    <option key={addr.id} value={String(addr.id)}>
+                      {[addr.fullAddress, addr.wardName, addr.provinceName].filter(Boolean).join(', ')}
+                      {addr.isDefault ? ' (Mặc định)' : ''}
+                    </option>
+                  ))}
+                </Select>
+                {formatPickupAddress(returnRequest) && (
+                  <p className="text-xs text-content-muted mt-1 break-words [overflow-wrap:anywhere]">
+                    Địa chỉ hiện tại: {formatPickupAddress(returnRequest)}
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Người liên hệ lấy hàng"
+                  placeholder="VD: Nguyễn Văn A"
+                  maxLength={100}
+                  value={pickupContactName}
+                  error={fieldErrors.pickupContactName}
+                  onChange={(e) => {
+                    setPickupContactName(e.target.value);
+                    setFieldErrors((prev) =>
+                      prev.pickupContactName ? { ...prev, pickupContactName: undefined } : prev
+                    );
+                  }}
+                />
+                <Input
+                  label="SĐT lấy hàng"
+                  placeholder="VD: 0901234567"
+                  maxLength={20}
+                  value={pickupPhone}
+                  error={fieldErrors.pickupPhone}
+                  onChange={(e) => {
+                    setPickupPhone(e.target.value);
+                    setFieldErrors((prev) =>
+                      prev.pickupPhone ? { ...prev, pickupPhone: undefined } : prev
+                    );
+                  }}
+                />
+              </div>
+            </>
           )}
         </div>
 
-        {/* 5. Thông tin ngân hàng nhận tiền hoàn */}
+        {/* 6. Thông tin ngân hàng nhận tiền hoàn */}
         <div className="border-t border-line-light pt-4 flex flex-col gap-3">
           <h4 className="text-sm font-bold text-content-primary">
             Thông Tin Tài Khoản Nhận Hoàn Tiền (Tùy chọn)
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input
-              label="Tên ngân hàng"
-              placeholder="VD: Vietcombank, MBBank..."
+            <BankSelect
+              label="Ngân hàng"
               value={bankName}
-              onChange={(e) => setBankName(e.target.value)}
+              onChange={setBankName}
+              allowClear
+              placeholder="Chọn ngân hàng..."
             />
             <Input
               label="Số tài khoản"
               placeholder="6 - 30 chữ số"
               value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value)}
+              error={fieldErrors.accountNumber}
+              onChange={(e) => {
+                setAccountNumber(e.target.value);
+                setFieldErrors((prev) =>
+                  prev.accountNumber ? { ...prev, accountNumber: undefined } : prev
+                );
+              }}
             />
             <Input
               label="Tên chủ tài khoản"
@@ -453,12 +740,12 @@ export function ReturnBankModal({
         </div>
 
         <div>
-          <Input
-            label="Tên ngân hàng"
-            placeholder="Ví dụ: Vietcombank, Techcombank, MB..."
+          <BankSelect
+            label="Ngân hàng"
             value={bankName}
-            onChange={(e) => setBankName(e.target.value)}
+            onChange={setBankName}
             required
+            placeholder="Chọn ngân hàng tiếp nhận..."
           />
         </div>
 
@@ -646,7 +933,7 @@ export function ReturnConfirmPlanModal({
           <div className="border-t border-line-light pt-2.5 flex flex-col gap-1.5 text-sm">
             {typeof returnRequest.itemsRefundAmount === 'number' && (
               <div className="flex items-center justify-between text-xs text-content-secondary">
-                <span>Tiền hàng được duyệt hoàn:</span>
+                <span>Tiền hàng được hoàn:</span>
                 <span className="font-semibold text-content-primary">
                   {formatVND(returnRequest.itemsRefundAmount)}
                 </span>
@@ -654,12 +941,12 @@ export function ReturnConfirmPlanModal({
             )}
             {typeof returnRequest.returnShippingFee === 'number' && returnRequest.returnShippingFee > 0 && (
               <div className="flex items-center justify-between text-xs text-status-error">
-                <span>Khấu trừ phí vận chuyển trả hàng:</span>
+                <span>Trừ phí gửi trả hàng:</span>
                 <span className="font-semibold">- {formatVND(returnRequest.returnShippingFee)}</span>
               </div>
             )}
             <div className="flex items-center justify-between pt-1 border-t border-line-light">
-              <span className="text-content-secondary font-medium">Tổng tiền thực hoàn đề xuất:</span>
+              <span className="text-content-secondary font-medium">Số tiền bạn nhận lại:</span>
               <span className="text-base font-bold text-accent-red">
                 {formatVND(returnRequest.refundAmount)}
               </span>
@@ -733,12 +1020,12 @@ export function ReturnConfirmPlanModal({
               Thông tin ngân hàng nhận tiền hoàn <span className="text-accent-red">*</span>
             </h5>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Input
-                label="Ngân hàng *"
-                placeholder="Vietcombank"
+              <BankSelect
+                label="Ngân hàng"
                 value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
+                onChange={setBankName}
                 required
+                placeholder="Chọn ngân hàng..."
               />
               <Input
                 label="Số tài khoản *"
@@ -840,10 +1127,7 @@ export function ReturnCancelModal({
             <p className="font-bold text-content-primary mb-1">
               Bạn có chắc chắn muốn hủy yêu cầu trả hàng này không?
             </p>
-            <p className="text-content-secondary">
-              Mã yêu cầu: <strong className="text-content-primary">{returnRequest.returnCode}</strong>
-            </p>
-            <p className="text-content-muted mt-2 text-xs">
+            <p className="text-content-muted mt-1 text-xs">
               Sau khi hủy, yêu cầu sẽ chuyển sang trạng thái <strong>Đã hủy</strong> và bạn sẽ không thể mở lại yêu cầu này.
             </p>
           </div>
