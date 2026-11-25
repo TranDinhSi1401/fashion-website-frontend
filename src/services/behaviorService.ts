@@ -1,4 +1,4 @@
-import apiClient, { TOKEN_KEY } from './apiClient';
+import apiClient, { getAuthStorageItem, TOKEN_KEY } from './apiClient';
 import { 
   TrackBehaviorRequest, 
   UserPreferenceScoreResponse, 
@@ -9,7 +9,7 @@ import { ApiResponse } from '../types/api';
 
 // Bắn đơn lẻ (Fire-and-forget): không chặn giao diện, nuốt lỗi, bỏ qua nếu chưa đăng nhập
 export function trackBehavior(payload: TrackBehaviorRequest): void {
-  if (!localStorage.getItem(TOKEN_KEY)) return;
+  if (!getAuthStorageItem(TOKEN_KEY)) return;
   apiClient.post<ApiResponse<void>>('/behaviors', payload).catch(() => {
     /* bỏ qua lỗi theo dõi hành vi ngầm */
   });
@@ -17,7 +17,7 @@ export function trackBehavior(payload: TrackBehaviorRequest): void {
 
 // Bắn hàng loạt (Event Batching): gửi mảng tối đa 20 sự kiện qua POST /behaviors/batch
 export async function trackBehaviorBatch(requests: TrackBehaviorRequest[]): Promise<void> {
-  if (!localStorage.getItem(TOKEN_KEY) || !requests.length) return;
+  if (!getAuthStorageItem(TOKEN_KEY) || !requests.length) return;
   try {
     await apiClient.post<ApiResponse<void>>('/behaviors/batch', requests);
   } catch {
@@ -32,7 +32,7 @@ let batchQueue: TrackBehaviorRequest[] = [];
 let batchTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function queueBehavior(request: TrackBehaviorRequest): void {
-  if (!localStorage.getItem(TOKEN_KEY)) return;
+  if (!getAuthStorageItem(TOKEN_KEY)) return;
   batchQueue.push(request);
 
   // Nếu hàng đợi đạt 10 sự kiện thì flush ngay lập tức

@@ -1,10 +1,26 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Lock, Mail, Phone, UserCheck, Calendar, AlertCircle, CheckCircle2, Gift } from 'lucide-react';
+import {
+  User,
+  Lock,
+  Mail,
+  Phone,
+  UserCheck,
+  Calendar,
+  AlertCircle,
+  CheckCircle2,
+  Sparkles,
+  Eye,
+  EyeOff,
+  ShoppingBag,
+  Heart,
+  ShieldCheck,
+  Gift,
+} from 'lucide-react';
 import { authService } from '../services/authService';
-import { Button, Input, Select } from '../components/ui';
 import { isValidVietnamPhone, validateDateOfBirth, extractErrorMessage } from '../utils/format';
 import { cn } from '../utils/cn';
+import loginAtelierImg from '../assets/login-atelier.jpg';
 import styles from './AuthPages.module.css';
 
 export default function RegisterPage() {
@@ -21,6 +37,8 @@ export default function RegisterPage() {
     phone: '',
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -107,175 +125,345 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className={cn(styles.authViewport, styles.authViewportAmbient)}>
-      {/* Background Ambience */}
-      <div className={styles.ambientOrbRight} />
-
-      <div className={cn('animate-slide-up max-w-[520px]', styles.lightGlassCard)}>
-        <div className={styles.lightCardTopBar} />
-
-        <div className="text-center mb-5">
-          <h2 className="text-[1.65rem] font-extrabold tracking-[0.06em] uppercase text-primary mb-2">
-            Tạo Tài Khoản
-          </h2>
-          <p className="text-[0.85rem] text-content-secondary">
-            Gia nhập cộng đồng thành viên để nhận ưu đãi đặc quyền
-          </p>
-        </div>
-
-        <div className="mb-5 flex items-center gap-3 rounded-sm border border-accent-gold/40 bg-accent-gold/10 px-3.5 py-2.5 text-left">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-gold text-black">
-            <Gift size={18} />
-          </div>
-          <div className="text-xs leading-snug text-content-primary">
-            <strong className="uppercase tracking-wide text-primary">Quà chào mừng thành viên mới:</strong>{' '}
-            Nhận tự động voucher <strong className="font-mono">WELCOME50K</strong> (Giảm 50.000₫ cho đơn từ 300.000₫) vào Ví Voucher ngay khi đăng ký!
-          </div>
-        </div>
-
-        {errorMessage && (
-          <div className={cn('animate-fade-in', styles.lightAlertError)}>
-            <AlertCircle size={18} className="shrink-0" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
-        {successMessage && (
-          <div className={cn('animate-fade-in', styles.lightAlertSuccess)}>
-            <CheckCircle2 size={18} className="shrink-0" />
-            <span>{successMessage}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Họ và tên"
-              name="fullname"
-              placeholder="Ví dụ: Nguyễn Văn A"
-              value={formData.fullname}
-              onChange={handleChange}
-              error={errors.fullname}
-              icon={UserCheck}
-              required
-            />
-
-            <Input
-              label="Tên đăng nhập"
-              name="username"
-              placeholder="Ví dụ: nguyenvana (3-50 ký tự)"
-              value={formData.username}
-              onChange={handleChange}
-              error={errors.username}
-              icon={User}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Giới tính"
-              name="gender"
-              value={formData.gender}
-              onChange={(e) => {
-                setFormData((prev) => ({ ...prev, gender: e.target.value }));
-                if (errors.gender) {
-                  setErrors((prev) => ({ ...prev, gender: '' }));
-                }
-              }}
-              error={errors.gender}
-              options={[
-                { value: 'MALE', label: 'Nam' },
-                { value: 'FEMALE', label: 'Nữ' },
-                { value: 'OTHER', label: 'Khác' },
-              ]}
-              required
-            />
-
-            <Input
-              label="Ngày sinh (Tùy chọn)"
-              name="dateOfBirth"
-              type="date"
-              value={formData.dateOfBirth}
-              onChange={handleChange}
-              error={errors.dateOfBirth}
-              icon={Calendar}
-              max={new Date().toISOString().split('T')[0]}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Email"
-              name="email"
-              type="email"
-              placeholder="email@example.com"
-              value={formData.email}
-              onChange={handleChange}
-              error={errors.email}
-              icon={Mail}
-              required
-            />
-
-            <Input
-              label="Số điện thoại"
-              name="phone"
-              placeholder="0912345678"
-              value={formData.phone}
-              onChange={handleChange}
-              error={errors.phone}
-              icon={Phone}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Mật khẩu"
-              name="password"
-              type="password"
-              placeholder="Tối thiểu 6 ký tự"
-              value={formData.password}
-              onChange={handleChange}
-              error={errors.password}
-              icon={Lock}
-              required
-            />
-
-            <Input
-              label="Xác nhận mật khẩu"
-              name="confirmPassword"
-              type="password"
-              placeholder="Nhập lại mật khẩu"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              error={errors.confirmPassword}
-              icon={Lock}
-              required
-            />
-          </div>
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            loading={isLoading}
-            className="w-full text-[0.88rem] font-bold mt-3 shadow-dropdown"
-          >
-            Đăng Ký Tài Khoản
-          </Button>
-        </form>
-
-        <div className="text-center mt-6 text-[0.85rem] text-content-secondary">
-          Đã có tài khoản?{' '}
-          <Link
-            to="/login"
-            className="font-bold text-primary underline tracking-[0.02em]"
-          >
-            Đăng nhập ngay
-          </Link>
+    <div className={styles.loginSplitViewport}>
+      {/* =========================================================================
+          SEAMLESS PANORAMIC ATELIER BACKGROUND
+          ========================================================================= */}
+      <div className={styles.loginAtelierShowcase} aria-hidden="true">
+        <div className={styles.loginAtelierFrame}>
+          <img
+            src={loginAtelierImg}
+            alt="Bộ sưu tập thời trang cao cấp FashionWeb"
+            className={styles.loginAtelierImg}
+          />
+          <div className={styles.loginAtelierOverlay} />
         </div>
       </div>
+
+      {/* =========================================================================
+          LEFT PANEL: Luxury Editorial Showcase
+          ========================================================================= */}
+      <aside className={styles.loginBrandPanel}>
+        <div className={styles.loginBrandTag}>
+          <Sparkles size={14} className={styles.goldIcon} />
+          <span>FASHIONWEB</span>
+          <span className={styles.loginSeasonBadge}>ATELIER</span>
+        </div>
+
+        <div className={styles.loginEditorialBlock}>
+          <h1 className={styles.loginEditorialTitle}>
+            Trở thành thành viên{' '}
+            <span className={cn(styles.loginEditorialItalic, 'whitespace-nowrap')}>FashionWeb</span>
+            <br />
+            ngay hôm nay
+          </h1>
+          <p className={styles.loginEditorialSub}>
+            Tạo tài khoản để mở khóa ưu đãi độc quyền, lưu trang phục yêu thích và theo dõi đơn hàng dễ dàng.
+          </p>
+
+          <div className={styles.loginFeaturePills}>
+            <span className={styles.loginFeaturePill}>
+              <ShieldCheck size={13} className={styles.goldIcon} />
+              Ưu đãi thành viên mới
+            </span>
+            <span className={styles.loginFeaturePill}>
+              <Heart size={13} className={styles.goldIcon} />
+              Lưu bộ sưu tập
+            </span>
+            <span className={styles.loginFeaturePill}>
+              <ShoppingBag size={13} className={styles.goldIcon} />
+              Theo dõi đơn hàng 24/7
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      {/* =========================================================================
+          RIGHT PANEL: Luxury Dark Register Card
+          ========================================================================= */}
+      <main className={styles.loginFormPanel}>
+        <div className={cn('animate-slide-up', styles.registerFormWrap)}>
+          <div className={styles.loginTopGleam} />
+
+          <div className="mb-6">
+            <span className={styles.loginFormEyebrow}>Đăng ký thành viên</span>
+            <h2 className={styles.loginFormHeading}>Tạo tài khoản</h2>
+            <p className={styles.subtitleDark}>
+              Gia nhập cộng đồng thành viên để nhận ưu đãi đặc quyền.
+            </p>
+          </div>
+
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-[#C9A961]/40 bg-[#C9A961]/10 px-3.5 py-2.5 text-left text-white shadow-sm">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C9A961] text-black">
+              <Gift size={18} />
+            </div>
+            <div className="text-xs leading-snug text-gray-200">
+              <strong className="uppercase tracking-wide text-[#C9A961]">Quà chào mừng thành viên mới:</strong>{' '}
+              Nhận tự động voucher <strong className="font-mono text-white">WELCOME50K</strong> (Giảm 50.000₫ cho đơn từ 300.000₫) vào Ví Voucher ngay khi đăng ký!
+            </div>
+          </div>
+
+          {errorMessage && (
+            <div className={cn('animate-fade-in', styles.darkAlertError)}>
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className={cn('animate-fade-in', styles.darkAlertSuccess)}>
+              <CheckCircle2 size={16} className="shrink-0" />
+              <span>{successMessage}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3.5" noValidate>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Fullname */}
+              <div>
+                <label htmlFor="reg-fullname" className={styles.labelDark}>
+                  Họ và tên
+                </label>
+                <div className="relative flex items-center">
+                  <span className={styles.inputIconDark}>
+                    <UserCheck size={16} />
+                  </span>
+                  <input
+                    id="reg-fullname"
+                    name="fullname"
+                    type="text"
+                    placeholder="Nguyễn Văn A"
+                    value={formData.fullname}
+                    onChange={handleChange}
+                    required
+                    className={cn(styles.loginInputModern, errors.fullname && styles.loginInputError)}
+                  />
+                </div>
+                {errors.fullname && <p className={styles.fieldErrorText}>{errors.fullname}</p>}
+              </div>
+
+              {/* Username */}
+              <div>
+                <label htmlFor="reg-username" className={styles.labelDark}>
+                  Tên đăng nhập
+                </label>
+                <div className="relative flex items-center">
+                  <span className={styles.inputIconDark}>
+                    <User size={16} />
+                  </span>
+                  <input
+                    id="reg-username"
+                    name="username"
+                    type="text"
+                    placeholder="nguyenvana"
+                    value={formData.username}
+                    onChange={handleChange}
+                    required
+                    autoComplete="username"
+                    className={cn(styles.loginInputModern, errors.username && styles.loginInputError)}
+                  />
+                </div>
+                {errors.username && <p className={styles.fieldErrorText}>{errors.username}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Gender */}
+              <div>
+                <label htmlFor="reg-gender" className={styles.labelDark}>
+                  Giới tính
+                </label>
+                <select
+                  id="reg-gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={(e) => {
+                    setFormData((prev) => ({ ...prev, gender: e.target.value }));
+                    if (errors.gender) {
+                      setErrors((prev) => ({ ...prev, gender: '' }));
+                    }
+                  }}
+                  required
+                  className={cn(
+                    styles.loginInputModern,
+                    styles.registerSelect,
+                    errors.gender && styles.loginInputError
+                  )}
+                >
+                  <option value="MALE">Nam</option>
+                  <option value="FEMALE">Nữ</option>
+                  <option value="OTHER">Khác</option>
+                </select>
+                {errors.gender && <p className={styles.fieldErrorText}>{errors.gender}</p>}
+              </div>
+
+              {/* Date of birth */}
+              <div>
+                <label htmlFor="reg-dob" className={styles.labelDark}>
+                  Ngày sinh (Tùy chọn)
+                </label>
+                <div className="relative flex items-center">
+                  <span className={styles.inputIconDark}>
+                    <Calendar size={16} />
+                  </span>
+                  <input
+                    id="reg-dob"
+                    name="dateOfBirth"
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={handleChange}
+                    max={new Date().toISOString().split('T')[0]}
+                    className={cn(
+                      styles.loginInputModern,
+                      styles.registerDateInput,
+                      errors.dateOfBirth && styles.loginInputError
+                    )}
+                  />
+                </div>
+                {errors.dateOfBirth && <p className={styles.fieldErrorText}>{errors.dateOfBirth}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Email */}
+              <div>
+                <label htmlFor="reg-email" className={styles.labelDark}>
+                  Email
+                </label>
+                <div className="relative flex items-center">
+                  <span className={styles.inputIconDark}>
+                    <Mail size={16} />
+                  </span>
+                  <input
+                    id="reg-email"
+                    name="email"
+                    type="email"
+                    placeholder="email@example.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    autoComplete="email"
+                    className={cn(styles.loginInputModern, errors.email && styles.loginInputError)}
+                  />
+                </div>
+                {errors.email && <p className={styles.fieldErrorText}>{errors.email}</p>}
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label htmlFor="reg-phone" className={styles.labelDark}>
+                  Số điện thoại
+                </label>
+                <div className="relative flex items-center">
+                  <span className={styles.inputIconDark}>
+                    <Phone size={16} />
+                  </span>
+                  <input
+                    id="reg-phone"
+                    name="phone"
+                    type="tel"
+                    placeholder="0912345678"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    required
+                    autoComplete="tel"
+                    className={cn(styles.loginInputModern, errors.phone && styles.loginInputError)}
+                  />
+                </div>
+                {errors.phone && <p className={styles.fieldErrorText}>{errors.phone}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Password */}
+              <div>
+                <label htmlFor="reg-password" className={styles.labelDark}>
+                  Mật khẩu
+                </label>
+                <div className="relative flex items-center">
+                  <span className={styles.inputIconDark}>
+                    <Lock size={16} />
+                  </span>
+                  <input
+                    id="reg-password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Tối thiểu 6 ký tự"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    autoComplete="new-password"
+                    className={cn(
+                      styles.loginInputModern,
+                      styles.loginPasswordInput,
+                      errors.password && styles.loginInputError
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className={styles.eyeToggleDark}
+                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  >
+                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
+                {errors.password && <p className={styles.fieldErrorText}>{errors.password}</p>}
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label htmlFor="reg-confirm-password" className={styles.labelDark}>
+                  Xác nhận mật khẩu
+                </label>
+                <div className="relative flex items-center">
+                  <span className={styles.inputIconDark}>
+                    <Lock size={16} />
+                  </span>
+                  <input
+                    id="reg-confirm-password"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Nhập lại mật khẩu"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    autoComplete="new-password"
+                    className={cn(
+                      styles.loginInputModern,
+                      styles.loginPasswordInput,
+                      errors.confirmPassword && styles.loginInputError
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className={styles.eyeToggleDark}
+                    aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  >
+                    {showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
+                {errors.confirmPassword && <p className={styles.fieldErrorText}>{errors.confirmPassword}</p>}
+              </div>
+            </div>
+
+            <button type="submit" disabled={isLoading} className={cn(styles.goldSubmitBtnModern, 'mt-2')}>
+              {isLoading ? 'Đang tạo tài khoản...' : 'Đăng ký tài khoản'}
+            </button>
+          </form>
+
+          <div className={styles.registerPromptDark}>
+            Đã có tài khoản?{' '}
+            <Link
+              to="/login"
+              className={cn('font-semibold hover:underline tracking-[0.01em]', styles.goldAccentText)}
+            >
+              Đăng nhập ngay
+            </Link>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

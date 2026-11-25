@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { stompService } from './stompService';
 import { useAuth } from '../context/AuthContext';
-import { TOKEN_KEY } from '../services/apiClient';
+import { getAuthStorageItem, TOKEN_KEY } from '../services/apiClient';
 import { WsConnectionStatus } from '../types/realtime';
 
 const WsStatusContext = createContext<WsConnectionStatus>('DISCONNECTED');
@@ -16,7 +16,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isAuthenticated) {
-      stompService.connect(() => localStorage.getItem(TOKEN_KEY));
+      stompService.connect(() => getAuthStorageItem(TOKEN_KEY));
     } else {
       stompService.disconnect();
     }
