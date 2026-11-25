@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Package, Tag, RotateCcw, Info } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { notificationService } from '../../services/notificationService';
-import { useStompSubscription } from '../../ws/useStompSubscription';
 import { useWsStatus } from '../../ws/WebSocketProvider';
 import { NotificationResponse, NotificationType } from '../../types/realtime';
+import { useNotifications } from '../../context/NotificationContext';
 import { IconButton } from '../ui';
 import { cn } from '../../utils/cn';
 
@@ -34,112 +33,15 @@ function formatNotificationTime(iso?: string): string {
   }).format(date);
 }
 
-/**
- * Chức năng: Kiểm tra hai thông báo có đại diện cho cùng một sự kiện realtime hay không
- * để chống trùng lặp khi Admin/Staff nhận đồng thời từ /user/queue/notifications và /topic/admin/returns.
- */
-function isDuplicateBroadcast(a: NotificationResponse, b: NotificationResponse): boolean {
-  if (a.id != null && b.id != null) {
-    return a.id === b.id;
-  }
-  if (a.type !== b.type || a.title !== b.title) {
-    return false;
-  }
-  if (a.referenceId == null || b.referenceId == null || a.referenceId !== b.referenceId) {
-    return false;
-  }
-  const timeA = a.createdAt ? new Date(a.createdAt).getTime() : NaN;
-  const timeB = b.createdAt ? new Date(b.createdAt).getTime() : NaN;
-  if (!Number.isNaN(timeA) && !Number.isNaN(timeB)) {
-    return Math.abs(timeA - timeB) <= 60_000;
-  }
-  return true;
-}
-
-/**
- * Component phụ trợ lắng nghe broadcast realtime trên /topic/admin/returns dành riêng cho ADMIN/STAFF,
- * giúp tránh gọi hook useStompSubscription có điều kiện trong NotificationBell.
- */
-function AdminReturnsWsListener({
-  onMessage,
-}: {
-  onMessage: (notification: NotificationResponse) => void;
-}) {
-  useStompSubscription<NotificationResponse>('/topic/admin/returns', onMessage);
-  return null;
-}
-
 export default function NotificationBell() {
   const { isAdmin, isStaff } = useAuth();
   const navigate = useNavigate();
   const status = useWsStatus();
-  const [items, setItems] = useState<NotificationResponse[]>([]);
-  const [unread, setUnread] = useState<number>(0);
+  const { items, unread, loading, markRead, markAll } = useNotifications();
   const [open, setOpen] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const canManageReturns = Boolean(isAdmin || isStaff);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [listRes, countRes] = await Promise.all([
-        notificationService.getMyNotifications(0, 20),
-        notificationService.getUnreadCount(),
-      ]);
-      if (listRes?.data?.content) {
-        setItems(listRes.data.content);
-      }
-      if (typeof countRes?.data?.count === 'number') {
-        setUnread(countRes.data.count);
-      }
-    } catch (err) {
-      console.warn('Could not load notifications:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Tải lần đầu và tải lại mỗi khi (re)connect để không sót thông báo lúc mất mạng
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    if (status === 'CONNECTED') {
-      void load();
-    }
-  }, [status, load]);
-
-  const handleIncomingNotification = useCallback((n: NotificationResponse) => {
-    let shouldIncrementUnread = false;
-    setItems((prev) => {
-      if (n.id != null && prev.some((x) => x.id === n.id)) {
-        return prev;
-      }
-
-      // Nếu thông báo mới khớp một bản ghi broadcast/tạm trước đó (id == null) thì cập nhật thay thế, không nhân đôi
-      const dupIndex = prev.findIndex((x) => isDuplicateBroadcast(x, n));
-      if (dupIndex !== -1) {
-        const existing = prev[dupIndex];
-        if (existing.id == null && n.id != null) {
-          const next = [...prev];
-          next[dupIndex] = n;
-          return next;
-        }
-        return prev;
-      }
-
-      shouldIncrementUnread = !n.seen;
-      return [n, ...prev];
-    });
-    if (shouldIncrementUnread) {
-      setUnread((c) => c + 1);
-    }
-  }, []);
-
-  useStompSubscription<NotificationResponse>('/user/queue/notifications', handleIncomingNotification);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -160,19 +62,7 @@ export default function NotificationBell() {
 
   const handleNotificationClick = async (n: NotificationResponse) => {
     if (!n.seen) {
-      try {
-        if (n.id != null) {
-          await notificationService.markAsRead(n.id);
-        }
-        setItems((p) =>
-          p.map((x) =>
-            (n.id != null ? x.id === n.id : x === n) ? { ...x, seen: true } : x
-          )
-        );
-        setUnread((c) => Math.max(0, c - 1));
-      } catch (err) {
-        console.warn('Could not mark notification as read:', err);
-      }
+      await markRead(n);
     }
 
     setOpen(false);
@@ -191,20 +81,8 @@ export default function NotificationBell() {
     }
   };
 
-  const markAll = async () => {
-    if (unread === 0) return;
-    try {
-      await notificationService.markAllAsRead();
-      setItems((p) => p.map((x) => ({ ...x, seen: true })));
-      setUnread(0);
-    } catch (err) {
-      console.warn('Could not mark all notifications as read:', err);
-    }
-  };
-
   return (
     <div className="relative" ref={containerRef}>
-      {canManageReturns && <AdminReturnsWsListener onMessage={handleIncomingNotification} />}
       <IconButton
         aria-label="Thông báo"
         title="Thông báo"
@@ -244,7 +122,7 @@ export default function NotificationBell() {
             {unread > 0 && (
               <button
                 type="button"
-                onClick={markAll}
+                onClick={() => void markAll()}
                 className="flex items-center gap-1 text-[0.72rem] font-semibold text-accent-gold hover:underline"
               >
                 <CheckCheck size={13} />

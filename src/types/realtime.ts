@@ -1,4 +1,4 @@
-export type NotificationType = 'ORDER_STATUS' | 'RETURN_REQUEST' | 'PROMOTION' | 'SYSTEM';
+export type NotificationType = string;
 
 export type ChatRole = 'CUSTOMER' | 'ADMIN';
 
@@ -9,7 +9,7 @@ export interface NotificationResponse {
   type: NotificationType;
   title: string;
   content: string;
-  referenceId?: number | null;
+  referenceId: number | null;
   seen: boolean;
   createdAt: string;
 }

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Sparkles, Send, X, Bot, RefreshCw } from 'lucide-react';
+import { Sparkles, Send, X, Bot, RefreshCw, GripVertical } from 'lucide-react';
 import { aiService } from '../../services/aiService';
 import { ChatMessage } from '../../types/ai';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +30,67 @@ export default function AiAdvisorWidget() {
   const [inputQuestion, setInputQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Draggable state cho nút AI Stylist
+  const [btnPos, setBtnPos] = useState<{ x: number; y: number } | null>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const isDraggingBtn = useRef(false);
+  const hasMovedBtn = useRef(false);
+  const btnStartRef = useRef({ pointerX: 0, pointerY: 0, elemX: 0, elemY: 0 });
+
+  const handleLauncherPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    const btn = launcherRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    btnStartRef.current = {
+      pointerX: e.clientX,
+      pointerY: e.clientY,
+      elemX: rect.left,
+      elemY: rect.top,
+    };
+    isDraggingBtn.current = true;
+    hasMovedBtn.current = false;
+    btn.setPointerCapture(e.pointerId);
+  };
+
+  const handleLauncherPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!isDraggingBtn.current) return;
+    const dx = e.clientX - btnStartRef.current.pointerX;
+    const dy = e.clientY - btnStartRef.current.pointerY;
+
+    if (Math.hypot(dx, dy) > 4) {
+      hasMovedBtn.current = true;
+    }
+
+    if (hasMovedBtn.current && launcherRef.current) {
+      const w = launcherRef.current.offsetWidth || 180;
+      const h = launcherRef.current.offsetHeight || 52;
+      const maxX = window.innerWidth - w - 8;
+      const maxY = window.innerHeight - h - 8;
+
+      const newX = Math.max(8, Math.min(maxX, btnStartRef.current.elemX + dx));
+      const newY = Math.max(8, Math.min(maxY, btnStartRef.current.elemY + dy));
+      setBtnPos({ x: newX, y: newY });
+    }
+  };
+
+  const handleLauncherPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!isDraggingBtn.current) return;
+    isDraggingBtn.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handleLauncherClick = (e: React.MouseEvent) => {
+    if (hasMovedBtn.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    setIsOpen(true);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,14 +153,22 @@ export default function AiAdvisorWidget() {
 
   return (
     <>
-      {/* Nút bấm mở Floating AI Stylist */}
+      {/* Nút bấm mở Floating AI Stylist (Hỗ trợ kéo thả di chuyển mọi nơi) */}
       {!isOpen && (
         <button
+          ref={launcherRef}
           type="button"
-          onClick={() => setIsOpen(true)}
-          className={styles.launcherBtn}
-          aria-label="Tư vấn thời trang AI"
+          onClick={handleLauncherClick}
+          onPointerDown={handleLauncherPointerDown}
+          onPointerMove={handleLauncherPointerMove}
+          onPointerUp={handleLauncherPointerUp}
+          onPointerCancel={handleLauncherPointerUp}
+          style={btnPos ? { left: `${btnPos.x}px`, top: `${btnPos.y}px`, bottom: 'auto', right: 'auto' } : undefined}
+          className={`${styles.launcherBtn} select-none touch-none cursor-grab active:cursor-grabbing flex items-center gap-2`}
+          title="Bấm để mở hoặc kéo thả để di chuyển đến vị trí mong muốn"
+          aria-label="Tư vấn thời trang AI (Kéo thả để di chuyển)"
         >
+          <GripVertical size={13} className="text-content-muted opacity-60 shrink-0 cursor-grab" />
           <div className="w-7 h-7 rounded-full bg-accent-gold flex items-center justify-center text-content-inverse shrink-0">
             <Sparkles size={16} />
           </div>

@@ -25,13 +25,14 @@ import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminPromotionsPage from './pages/AdminPromotionsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminChatPage from './pages/AdminChatPage';
-import AdminNotificationsPage from './pages/AdminNotificationsPage';
 import AdminReturnsPage from './pages/AdminReturnsPage';
 import AdminReturnDetailPage from './pages/AdminReturnDetailPage';
 import AdminDormantReviewsPage from './pages/AdminDormantReviewsPage';
 import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
 import AdminOrderStatisticsPage from './pages/AdminOrderStatisticsPage';
+import AdminReviewStatisticsPage from './pages/AdminReviewStatisticsPage';
 import AdminStatisticsPlaceholderPage from './pages/AdminStatisticsPlaceholderPage';
+import AboutUsPage from './pages/AboutUsPage';
 
 export default function App() {
   const { pathname } = useLocation();
@@ -50,6 +51,8 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
+          <Route path="/ve-chung-toi" element={<AboutUsPage />} />
+          <Route path="/about" element={<Navigate to="/ve-chung-toi" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -162,6 +165,14 @@ export default function App() {
                 </ProtectedRoute>
                 }
             />
+            <Route
+                path="/admin/statistics/reviews"
+                element={
+                <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
+                    <AdminReviewStatisticsPage />
+                </ProtectedRoute>
+                }
+            />
 
             <Route
                 path="/admin/promotions"
@@ -184,14 +195,6 @@ export default function App() {
             element={
               <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
                 <AdminChatPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/notifications"
-            element={
-              <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
-                <AdminNotificationsPage />
               </ProtectedRoute>
             }
           />
