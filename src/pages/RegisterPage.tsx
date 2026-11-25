@@ -15,7 +15,6 @@ import {
   ShoppingBag,
   Heart,
   ShieldCheck,
-  Gift,
 } from 'lucide-react';
 import { authService } from '../services/authService';
 import { isValidVietnamPhone, validateDateOfBirth, extractErrorMessage } from '../utils/format';
@@ -191,16 +190,6 @@ export default function RegisterPage() {
             <p className={styles.subtitleDark}>
               Gia nhập cộng đồng thành viên để nhận ưu đãi đặc quyền.
             </p>
-          </div>
-
-          <div className="mb-5 flex items-center gap-3 rounded-xl border border-[#C9A961]/40 bg-[#C9A961]/10 px-3.5 py-2.5 text-left text-white shadow-sm">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C9A961] text-black">
-              <Gift size={18} />
-            </div>
-            <div className="text-xs leading-snug text-gray-200">
-              <strong className="uppercase tracking-wide text-[#C9A961]">Quà chào mừng thành viên mới:</strong>{' '}
-              Nhận tự động voucher <strong className="font-mono text-white">WELCOME50K</strong> (Giảm 50.000₫ cho đơn từ 300.000₫) vào Ví Voucher ngay khi đăng ký!
-            </div>
           </div>
 
           {errorMessage && (
