@@ -4,20 +4,20 @@ import { categoryFacets, filterCatalog, paginateCatalog, searchColors, matchesVa
 
 test('pagination covers every result once, including the partial last page', () => {
   const products = Array.from({length: 68}, (_, id) => id + 1);
-  const pages = Array.from({length: 6}, (_, index) => paginateCatalog(products, String(index + 1), '12'));
+  const pages = Array.from({length: 6}, (_, index) => paginateCatalog(products, String(index + 1)));
   assert.deepEqual(pages.flatMap(page => page.items), products);
   assert.deepEqual([pages[5].from, pages[5].to, pages[5].pageCount], [61, 68, 6]);
-  assert.equal(paginateCatalog(products, '2', '24').from, 25);
-  assert.equal(paginateCatalog(products, '2', '48').items.length, 20);
+  assert.equal(paginateCatalog(products, '2').from, 13);
+  assert.equal(paginateCatalog(products, '2').items.length, 12);
 });
 
 test('pagination handles invalid links, shrinking result sets and zero results', () => {
   const products = Array.from({length: 25}, (_, id) => id);
-  for (const value of [null, '0', '-1', '1.5', 'abc', 'Infinity']) assert.equal(paginateCatalog(products, value, '12').page, 1);
-  assert.equal(paginateCatalog(products, '999', '12').page, 3);
-  assert.equal(paginateCatalog(products.slice(0, 2), '3', '12').page, 1);
-  assert.equal(paginateCatalog(products, '1', '99999').pageSize, 12);
-  assert.deepEqual(paginateCatalog([], '2', '12'), {page: 1, pageSize: 12, pageCount: 1, items: [], from: 0, to: 0});
+  for (const value of [null, '0', '-1', '1.5', 'abc', 'Infinity']) assert.equal(paginateCatalog(products, value).page, 1);
+  assert.equal(paginateCatalog(products, '999').page, 3);
+  assert.equal(paginateCatalog(products.slice(0, 2), '3').page, 1);
+  assert.equal(paginateCatalog(products, '1').pageSize, 12);
+  assert.deepEqual(paginateCatalog([], '2'), {page: 1, pageSize: 12, pageCount: 1, items: [], from: 0, to: 0});
 });
 
 test('color search accepts accents, case and multiple words without changing the original options', () => {

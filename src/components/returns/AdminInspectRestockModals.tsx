@@ -26,7 +26,7 @@ import type {
 } from '../../types/return';
 import { returnAdminService } from '../../services/returnAdminService';
 import { orderService } from '../../services/orderService';
-import { formatVND, getReturnReasonLabel } from '../../utils/returnHelpers';
+import { formatVND, getReturnReasonLabel, isSelfDropOffReturn } from '../../utils/returnHelpers';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -35,6 +35,9 @@ import Checkbox from '../ui/Checkbox';
 // ============================================================================
 // 1. MODAL 10: KIỂM ĐỊNH CHẤT LƯỢNG QC (RETURN INSPECT MODAL - 920PX)
 // ============================================================================
+
+const AUTO_RECLASSIFY_NOTE =
+  'Sau khi kiểm tra thực tế, kho xác nhận sản phẩm không bị lỗi từ nhà sản xuất hoặc giao sai. Shop đề xuất chuyển yêu cầu sang diện đổi ý để tiếp tục hoàn tiền cho bạn (phí vận chuyển gửi trả sẽ được trừ vào số tiền hoàn).';
 
 export interface ReturnInspectModalProps {
   isOpen: boolean;
@@ -75,7 +78,8 @@ export function ReturnInspectModal({
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const isInitialChangeOfMind = returnRequest.reason === 'CHANGE_OF_MIND';
-  const isShippingFeeEditable = reclassifyToChangeOfMind || isInitialChangeOfMind;
+  const isSelfDropOff = isSelfDropOffReturn(returnRequest);
+  const isShippingFeeEditable = !isSelfDropOff && (reclassifyToChangeOfMind || isInitialChangeOfMind);
   const ghnFee = Math.max(0, returnRequest.ghnShippingFee ?? returnRequest.returnShippingFee ?? 0);
 
   // Khởi tạo state khi mở modal và tự động tra cứu đơn giá gốc từ đơn hàng nếu phiếu chưa có itemRefundAmount
@@ -117,7 +121,9 @@ export function ReturnInspectModal({
     setReclassifyToChangeOfMind(Boolean(returnRequest.proposedChangeOfMind));
     setReturnShippingFee(returnRequest.returnShippingFee ?? 0);
     setIsFeeDirty(false);
-    setRejectionReason(returnRequest.rejectionReason || '');
+    setRejectionReason(
+      returnRequest.generalInspectionNote || returnRequest.rejectionReason || ''
+    );
     setHasOrderDiscount(false);
     setErrorMessage('');
     setIsSubmitting(false);
@@ -226,10 +232,9 @@ export function ReturnInspectModal({
         reclassifyToChangeOfMind: reclassifyToChangeOfMind ? true : undefined,
         // Nếu không sửa phí GHN khi được phép thu phí đổi ý, gửi null để Backend giữ nguyên phí GHN đã tính ở bước Duyệt
         returnShippingFee: !isShippingFeeEditable ? 0 : isFeeDirty ? effectiveShippingFee : null,
-        rejectionReason:
-          totalAcceptedQuantity === 0
-            ? rejectionReason.trim()
-            : rejectionReason.trim() || undefined,
+        rejectionReason: totalAcceptedQuantity === 0 ? rejectionReason.trim() : undefined,
+        generalInspectionNote:
+          totalAcceptedQuantity === 0 ? undefined : rejectionReason.trim() || undefined,
       };
 
       await returnAdminService.inspectReturn(returnRequest.id, payload);
@@ -247,30 +252,30 @@ export function ReturnInspectModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Kiểm định chất lượng sản phẩm"
+      title="Kiểm tra chất lượng sản phẩm"
       size="quick-view"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Banner thông tin kiểm định */}
+        {/* Banner thông tin kiểm tra */}
         <div className="flex items-start gap-3 p-3.5 bg-surface border border-line-light rounded-sm">
           <ClipboardCheck size={22} className="text-content-primary shrink-0 mt-0.5" />
           <div className="text-xs text-content-primary leading-relaxed">
             <p className="font-semibold text-sm">
-              Phiếu kiểm định: <span className="font-mono">{returnRequest.returnCode}</span> — Lý do: {getReturnReasonLabel(returnRequest.reason)}
+              Phiếu kiểm tra: <span className="font-mono">{returnRequest.returnCode}</span> — Lý do: {getReturnReasonLabel(returnRequest.reason)}
             </p>
           </div>
         </div>
 
-        {/* Bảng danh sách sản phẩm kiểm định (Kích thước 920px) */}
+        {/* Bảng danh sách sản phẩm kiểm tra (Kích thước 920px) */}
         <div className="overflow-x-auto border border-line-light rounded-sm">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-surface border-b border-line-light text-content-muted font-bold uppercase tracking-wider">
                 <th className="py-2.5 px-3">Sản phẩm</th>
                 <th className="py-2.5 px-3 text-center w-24">SL Khách trả</th>
-                <th className="py-2.5 px-3 text-center w-28">SL QC Duyệt</th>
+                <th className="py-2.5 px-3 text-center w-28">SL đồng ý hoàn</th>
                 <th className="py-2.5 px-3 w-32 text-right">Đơn giá hoàn</th>
-                <th className="py-2.5 px-3">Ghi chú kiểm định QC</th>
+                <th className="py-2.5 px-3">Ghi chú kiểm tra</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line-light">
@@ -321,37 +326,63 @@ export function ReturnInspectModal({
           </table>
         </div>
 
-        {/* Phân loại lại sang Đổi ý & Phí vận chuyển */}
+        {/* Phân loại lý do & Phí vận chuyển gửi trả */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3.5 bg-surface border border-line-light rounded-sm">
-          <div>
-            <Checkbox
-              id="reclassify-change-of-mind"
-              label="Khách đổi ý (chuyển sang thu phí vận chuyển gửi trả)"
-              checked={reclassifyToChangeOfMind}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setReclassifyToChangeOfMind(checked);
-                if (checked && !isFeeDirty && returnShippingFee === 0 && ghnFee > 0) {
-                  setReturnShippingFee(ghnFee);
-                }
-              }}
-              disabled={isSubmitting}
-            />
-            <p className="text-xs text-content-muted mt-1.5 ml-6">
-              Chọn cờ này nếu kiểm tra thực tế sản phẩm không có lỗi sản xuất mà là do khách hàng
-              thay đổi ý định, cần trừ phí vận chuyển vào tiền hoàn.
-            </p>
+          <div className="flex flex-col justify-center">
+            {isSelfDropOff ? (
+              <div className="text-xs text-content-secondary leading-relaxed">
+                <p className="font-semibold text-content-primary">
+                  Khách tự mang hàng đến cửa hàng
+                </p>
+                <p className="text-content-muted mt-1">
+                  Không phát sinh phí gửi trả (0₫), khách được hoàn đủ tiền hàng.
+                </p>
+              </div>
+            ) : isInitialChangeOfMind ? (
+              <div className="text-xs text-content-secondary leading-relaxed">
+                <p className="font-semibold text-content-primary">
+                  Khách trả hàng do đổi ý — Trừ phí vận chuyển gửi trả vào tiền hoàn
+                </p>
+                <p className="text-content-muted mt-1">
+                  Khách hàng chịu phí gửi trả hàng qua GHN. Bạn có thể kiểm tra lại hoặc chỉnh sửa mức phí ở ô bên cạnh.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <Checkbox
+                  id="reclassify-change-of-mind"
+                  label="Chuyển sang diện khách đổi ý (trừ phí vận chuyển gửi trả)"
+                  checked={reclassifyToChangeOfMind}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setReclassifyToChangeOfMind(checked);
+                    if (checked && !isFeeDirty && returnShippingFee === 0 && ghnFee > 0) {
+                      setReturnShippingFee(ghnFee);
+                    }
+                    if (checked && !rejectionReason.trim()) {
+                      setRejectionReason(AUTO_RECLASSIFY_NOTE);
+                    } else if (!checked && rejectionReason.trim() === AUTO_RECLASSIFY_NOTE) {
+                      setRejectionReason('');
+                    }
+                  }}
+                  disabled={isSubmitting}
+                />
+                <p className="text-xs text-content-muted mt-1.5 ml-6">
+                  Tích chọn nếu kiểm tra thực tế thấy sản phẩm không bị lỗi / không giao sai, cần trừ phí vận chuyển vào tiền hoàn.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-content-primary mb-1">
-              Phí vận chuyển hoàn hàng (VND):
+              Phí vận chuyển gửi trả (VND):
             </label>
             <div className="flex items-center gap-2">
               <input
                 type="number"
                 min={0}
-                step={1000}
+                step={1}
                 value={effectiveShippingFee}
                 onChange={(e) => {
                   setReturnShippingFee(Math.max(0, parseInt(e.target.value, 10) || 0));
@@ -360,11 +391,13 @@ export function ReturnInspectModal({
                 disabled={!isShippingFeeEditable || isSubmitting}
                 className="h-9 w-full rounded-sm border border-line bg-surface-body px-3 text-sm font-mono text-content-primary disabled:bg-surface-disabled disabled:text-content-disabled focus:border-line-focus focus:outline-none"
               />
-              <span className="text-xs text-content-muted shrink-0">
-                {isShippingFeeEditable ? '(Được chỉnh sửa)' : '(Bằng 0 do lỗi từ Shop)'}
-              </span>
+              {!isSelfDropOff && (
+                <span className="text-xs text-content-muted shrink-0">
+                  {isShippingFeeEditable ? '(Có thể chỉnh sửa)' : '(Miễn phí do lỗi từ shop)'}
+                </span>
+              )}
             </div>
-            {ghnFee > 0 && (
+            {ghnFee > 0 && !isSelfDropOff && (
               <p className="text-xs text-content-muted mt-1">
                 Phí GHN đã tính ở bước duyệt: <strong className="text-content-primary">{formatVND(ghnFee)}</strong>
               </p>

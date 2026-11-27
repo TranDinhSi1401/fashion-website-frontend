@@ -37,15 +37,18 @@ import Pagination from '../components/ui/Pagination';
  *
  * @returns Đầu ra: Thẻ JSX trang quản lý danh sách phiếu trả hàng.
  */
+type StatusFilterValue = ReturnRequestStatus | 'REFUNDED_UNRESTOCKED' | '';
+
 export default function AdminReturnsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // State bộ lọc (đồng bộ khởi tạo từ query params để hỗ trợ deep-link từ Dashboard)
   const initialStatusParam = searchParams.get('status');
-  const [statusFilter, setStatusFilter] = useState<ReturnRequestStatus | ''>(() =>
-    initialStatusParam && initialStatusParam in RETURN_STATUS_META
-      ? (initialStatusParam as ReturnRequestStatus)
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>(() =>
+    initialStatusParam === 'REFUNDED_UNRESTOCKED' ||
+    (initialStatusParam && initialStatusParam in RETURN_STATUS_META)
+      ? (initialStatusParam as StatusFilterValue)
       : ''
   );
   const [searchInput, setSearchInput] = useState<string>('');
@@ -75,7 +78,7 @@ export default function AdminReturnsPage() {
   }, [searchInput]);
 
   // Reset trang về 1 khi thay đổi trạng thái hoặc cờ quá hạn
-  const syncFilterParams = (nextStatus: ReturnRequestStatus | '', nextOverdue: boolean) => {
+  const syncFilterParams = (nextStatus: StatusFilterValue, nextOverdue: boolean) => {
     const next = new URLSearchParams(searchParams);
     if (nextStatus) {
       next.set('status', nextStatus);
@@ -91,7 +94,7 @@ export default function AdminReturnsPage() {
   };
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value as ReturnRequestStatus | '';
+    const val = e.target.value as StatusFilterValue;
     setStatusFilter(val);
     setCurrentPage(1);
     syncFilterParams(val, isOverdueOnly);
@@ -113,17 +116,63 @@ export default function AdminReturnsPage() {
       setErrorMessage('');
 
       try {
-        const springPageIndex = pageToSpring(currentPage);
-        const res = await returnAdminService.searchReturns({
-          status: statusFilter || undefined,
-          orderCode: debouncedOrderCode || undefined,
-          isOverdue: isOverdueOnly ? true : undefined,
-          page: springPageIndex,
-          size: pageSize,
-        });
+        if (statusFilter === 'REFUNDED_UNRESTOCKED') {
+          const allRefunded: ReturnRequestResponse[] = [];
+          const firstRes = await returnAdminService.searchReturns({
+            status: 'REFUNDED',
+            orderCode: debouncedOrderCode || undefined,
+            isOverdue: isOverdueOnly ? true : undefined,
+            page: 0,
+            size: 100,
+          });
+          if (firstRes.data?.content) {
+            allRefunded.push(...firstRes.data.content);
+          }
+          const serverTotalPages = firstRes.data?.totalPages || 1;
+          for (let p = 1; p < serverTotalPages; p++) {
+            const nextRes = await returnAdminService.searchReturns({
+              status: 'REFUNDED',
+              orderCode: debouncedOrderCode || undefined,
+              isOverdue: isOverdueOnly ? true : undefined,
+              page: p,
+              size: 100,
+            });
+            if (nextRes.data?.content) {
+              allRefunded.push(...nextRes.data.content);
+            }
+          }
 
-        if (isMounted && res.data) {
-          setPageData(res.data);
+          const unrestocked = allRefunded.filter((ret) => !ret.restockedAt);
+          const totalElements = unrestocked.length;
+          const totalPages = Math.max(1, Math.ceil(totalElements / pageSize));
+          const safePage = Math.min(currentPage, totalPages);
+          const startIdx = (safePage - 1) * pageSize;
+          const sliced = unrestocked.slice(startIdx, startIdx + pageSize);
+
+          if (isMounted) {
+            setPageData({
+              content: sliced,
+              totalElements,
+              totalPages: totalElements === 0 ? 0 : totalPages,
+              number: safePage - 1,
+              size: pageSize,
+              first: safePage <= 1,
+              last: safePage >= totalPages,
+            });
+          }
+        } else {
+          const springPageIndex = pageToSpring(currentPage);
+          const res = await returnAdminService.searchReturns({
+            status: statusFilter || undefined,
+            orderCode: debouncedOrderCode || undefined,
+            isOverdue: isOverdueOnly ? true : undefined,
+            page: springPageIndex,
+            size: pageSize,
+          });
+
+          if (isMounted && res.data) {
+            setPageData(res.data);
+          }
         }
       } catch (err: any) {
         if (isMounted) {
@@ -217,9 +266,14 @@ export default function AdminReturnsPage() {
             >
               <option value="">Tất cả trạng thái (8 trạng thái)</option>
               {Object.entries(RETURN_STATUS_META).map(([statusKey, meta]) => (
-                <option key={statusKey} value={statusKey}>
-                  {meta.label}
-                </option>
+                <React.Fragment key={statusKey}>
+                  <option value={statusKey}>{meta.label}</option>
+                  {statusKey === 'REFUNDED' && (
+                    <option value="REFUNDED_UNRESTOCKED">
+                      Đã hoàn tiền (Chưa nhập lại kho)
+                    </option>
+                  )}
+                </React.Fragment>
               ))}
             </Select>
           </div>
@@ -333,7 +387,14 @@ export default function AdminReturnsPage() {
                   </td>
 
                   <td className="py-3 px-2.5">
-                    <ReturnStatusBadge status={ret.status} />
+                    <div className="flex flex-col items-start gap-1">
+                      <ReturnStatusBadge status={ret.status} />
+                      {ret.status === 'REFUNDED' && !ret.restockedAt && (
+                        <span className="text-[11px] font-semibold text-status-warning whitespace-nowrap">
+                          Chưa nhập lại kho
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   <td className="py-3 px-2.5">

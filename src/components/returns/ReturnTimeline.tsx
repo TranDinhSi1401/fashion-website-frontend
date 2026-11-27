@@ -14,12 +14,14 @@ import styles from './ReturnTimeline.module.css';
 export interface ReturnTimelineProps {
   returnRequest: ReturnRequestResponse;
   viewerRole?: 'customer' | 'admin';
+  hideStatusSummary?: boolean;
   className?: string;
 }
 
 export default function ReturnTimeline({
   returnRequest,
   viewerRole = 'customer',
+  hideStatusSummary = false,
   className = '',
 }: ReturnTimelineProps) {
   const {
@@ -35,7 +37,11 @@ export default function ReturnTimeline({
     handoverDeadline,
     receivedAt,
     inspectedAt,
+    inspectionResultSentAt,
+    customerRespondedAt,
+    refundEligibleAt,
     refundedAt,
+    resolvedAt,
     completedAt,
   } = returnRequest;
 
@@ -101,7 +107,10 @@ export default function ReturnTimeline({
         handedOverAt ? `Đã gửi hàng: ${formatDateTime(handedOverAt)}` : null,
         receivedAt ? `Kho đã nhận: ${formatDateTime(receivedAt)}` : null,
         inspectedAt ? `Kiểm tra xong: ${formatDateTime(inspectedAt)}` : null,
+        inspectionResultSentAt ? `Đã gửi kết quả: ${formatDateTime(inspectionResultSentAt)}` : null,
+        customerRespondedAt ? `Bạn đã phản hồi: ${formatDateTime(customerRespondedAt)}` : null,
         refundedAt ? `Đã hoàn tiền: ${formatDateTime(refundedAt)}` : null,
+        (isRejected || isCancelled) && resolvedAt ? `Đã đóng yêu cầu: ${formatDateTime(resolvedAt)}` : null,
       ].filter((entry): entry is string => Boolean(entry))
     : [
         createdAt ? `Tạo yêu cầu: ${formatDateTime(createdAt)}` : null,
@@ -112,14 +121,27 @@ export default function ReturnTimeline({
         handedOverAt ? `Bàn giao VC: ${formatDateTime(handedOverAt)}` : null,
         receivedAt ? `Nhận tại kho: ${formatDateTime(receivedAt)}` : null,
         inspectedAt ? `Kiểm định QC: ${formatDateTime(inspectedAt)}` : null,
+        inspectionResultSentAt ? `Gửi KQ kiểm tra: ${formatDateTime(inspectionResultSentAt)}` : null,
+        customerRespondedAt ? `Khách phản hồi: ${formatDateTime(customerRespondedAt)}` : null,
+        refundEligibleAt ? `Đủ ĐK hoàn tiền: ${formatDateTime(refundEligibleAt)}` : null,
         refundedAt ? `Hoàn tiền: ${formatDateTime(refundedAt)}` : null,
+        resolvedAt && resolvedAt !== completedAt ? `Giải quyết xong: ${formatDateTime(resolvedAt)}` : null,
         completedAt ? `Hoàn tất: ${formatDateTime(completedAt)}` : null,
       ].filter((entry): entry is string => Boolean(entry));
+
+  const hasOverdueBanner = Boolean(isOverdue || overdueReason);
+  const hasFeedbackBanner =
+    status === 'WAITING_CUSTOMER_FEEDBACK' && Boolean(customerConfirmedPlan);
+  const hasAnyBanner = hasOverdueBanner || isRejected || hasFeedbackBanner;
+
+  if (hideStatusSummary && !hasAnyBanner) {
+    return null;
+  }
 
   return (
     <div className={cn(styles.timelineContainer, className)}>
       {/* 1. Banner thông báo tiến độ (chỉ hiện ngắn gọn với khách hàng, chi tiết SLA với Admin) */}
-      {(isOverdue || overdueReason) && (
+      {hasOverdueBanner && (
         <div className={cn('animate-fade-in', styles.bannerOverdue)}>
           <div className="flex items-start gap-3">
             <AlertTriangle size={20} className="text-status-warning shrink-0 mt-0.5" />
@@ -185,7 +207,7 @@ export default function ReturnTimeline({
       )}
 
       {/* 3. Banner chờ phản hồi: phía khách chỉ hiện khi cần bổ sung STK (tránh trùng lặp với banner xác nhận ở header C4) */}
-      {status === 'WAITING_CUSTOMER_FEEDBACK' && (!isCustomer || Boolean(customerConfirmedPlan)) && (
+      {hasFeedbackBanner && (
         <div className={cn('animate-fade-in', styles.bannerFeedback)}>
           <div className="flex items-start gap-3">
             <Clock size={20} className="text-accent-gold shrink-0 mt-0.5" />
@@ -217,27 +239,29 @@ export default function ReturnTimeline({
       )}
 
       {/* 4. Thẻ tóm tắt trạng thái hiện tại */}
-      <div className="p-4 bg-surface border border-line-light rounded-sm flex items-start gap-3">
-        {isRejected || isCancelled ? (
-          <XCircle size={20} className="text-status-error shrink-0 mt-0.5" />
-        ) : status === 'REFUNDED' ? (
-          <CheckCircle2 size={20} className="text-status-success shrink-0 mt-0.5" />
-        ) : (
-          <Clock size={20} className="text-accent-gold shrink-0 mt-0.5" />
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold text-content-primary">
-            {getPlainStatusSummary()}
-          </div>
-          {timestampEntries.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-content-muted">
-              {timestampEntries.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
-            </div>
+      {!hideStatusSummary && (
+        <div className="p-4 bg-surface border border-line-light rounded-sm flex items-start gap-3">
+          {isRejected || isCancelled ? (
+            <XCircle size={20} className="text-status-error shrink-0 mt-0.5" />
+          ) : status === 'REFUNDED' ? (
+            <CheckCircle2 size={20} className="text-status-success shrink-0 mt-0.5" />
+          ) : (
+            <Clock size={20} className="text-accent-gold shrink-0 mt-0.5" />
           )}
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold text-content-primary">
+              {getPlainStatusSummary()}
+            </div>
+            {timestampEntries.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-content-muted">
+                {timestampEntries.map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

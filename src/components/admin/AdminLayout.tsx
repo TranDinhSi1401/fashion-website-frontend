@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
   Package,
   ShoppingCart,
   Tag,
@@ -31,7 +30,6 @@ import NotificationBell from '../layout/NotificationBell';
 import styles from './AdminLayout.module.css';
 
 const modules = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/products', label: 'Quản lý sản phẩm', icon: Package },
   { to: '/admin/orders', label: 'Quản lý đơn hàng', icon: ShoppingCart },
   { to: '/admin/returns', label: 'Quản lý trả hàng', icon: RotateCcw },
@@ -49,6 +47,10 @@ export default function AdminLayout() {
   const [showAccount, setShowAccount] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (pathname.startsWith('/admin/statistics')) setStatisticsExpanded(true);
+  }, [pathname]);
+
   const handleLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
@@ -64,23 +66,23 @@ export default function AdminLayout() {
           <button type="button" className={styles.mobileToggle} aria-expanded={expanded} aria-controls="admin-sidebar-links" onClick={() => setExpanded(v => !v)}><Menu size={18} /> Menu quản trị <ChevronDown size={16} /></button>
           <nav id="admin-sidebar-links" aria-label="Điều hướng quản trị" className={`${styles.navigation} ${expanded ? styles.expanded : ''}`}>
             <p className={styles.sectionLabel}>KHÔNG GIAN LÀM VIỆC</p>
-            {modules.map(({ to, label, icon: Icon }) => {
-              const active = pathname === to || pathname.startsWith(to + '/');
-              return <Link key={to} to={to} onClick={() => setExpanded(false)} aria-current={active ? 'page' : undefined} className={`${styles.navLink} ${active ? styles.active : ''}`}><Icon size={18} /><span>{label}</span></Link>;
-            })}
             <div className={styles.statisticsMenu}>
               <button type="button" className={`${styles.navLink} ${styles.statisticsToggle} ${pathname.startsWith('/admin/statistics') ? styles.active : ''}`} aria-expanded={statisticsExpanded} onClick={() => setStatisticsExpanded(value => !value)}>
                 <ChartNoAxesCombined size={18} /><span>Thống kê</span><ChevronDown size={15} className={statisticsExpanded ? styles.chevronOpen : ''} />
               </button>
               {statisticsExpanded && (
                 <div className={styles.statisticsLinks}>
+                  <Link to="/admin/statistics/products" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/products' ? 'page' : undefined} className={pathname === '/admin/statistics/products' ? styles.subActive : ''}><ClipboardCheck size={16} /><span>Thống kê sản phẩm</span></Link>
                   <Link to="/admin/statistics/orders" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/orders' ? 'page' : undefined} className={pathname === '/admin/statistics/orders' ? styles.subActive : ''}><ShoppingCart size={16} /><span>Thống kê đơn hàng</span></Link>
-                  <Link to="/admin/statistics/products" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/products' ? 'page' : undefined}><ClipboardCheck size={16} /><span>Thống kê sản phẩm</span></Link>
                   <Link to="/admin/statistics/returns" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/returns' ? 'page' : undefined}><RotateCcw size={16} /><span>Thống kê phiếu trả</span></Link>
                   <Link to="/admin/statistics/reviews" onClick={() => setExpanded(false)} aria-current={pathname === '/admin/statistics/reviews' ? 'page' : undefined} className={pathname === '/admin/statistics/reviews' ? styles.subActive : ''}><Star size={16} /><span>Thống kê đánh giá</span></Link>
                 </div>
               )}
             </div>
+            {modules.map(({ to, label, icon: Icon }) => {
+              const active = pathname === to || pathname.startsWith(to + '/');
+              return <Link key={to} to={to} onClick={() => setExpanded(false)} aria-current={active ? 'page' : undefined} className={`${styles.navLink} ${active ? styles.active : ''}`}><Icon size={18} /><span>{label}</span></Link>;
+            })}
             <button type="button" className={styles.accountButton} onClick={() => { setShowAccount(true); setExpanded(false); }}>
               <UserRound size={17} /><span>Thông tin tài khoản</span>
             </button>

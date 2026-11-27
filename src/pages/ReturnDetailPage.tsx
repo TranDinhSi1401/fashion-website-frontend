@@ -26,12 +26,13 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { returnService } from '../services/returnService';
-import { orderService } from '../services/orderService';
 import type { ReturnRequestResponse, ReturnRequestItemResponse } from '../types/return';
 import {
   formatVND,
   formatDateTime,
+  formatReturnShippingFeeDisplay,
   getReturnReasonLabel,
+  getGeneralInspectionNote,
   canCustomerEditReturn,
   canCustomerUpdateBank,
   canCustomerConfirmPlan,
@@ -62,8 +63,6 @@ export default function ReturnDetailPage() {
   const navigate = useNavigate();
 
   const [returnRequest, setReturnRequest] = useState<ReturnRequestResponse | null>(null);
-  const [orderDeliveredAt, setOrderDeliveredAt] = useState<string | null>(null);
-  const [orderItemPriceMap, setOrderItemPriceMap] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -81,30 +80,6 @@ export default function ReturnDetailPage() {
       const res = await returnService.getMyRequestById(requestId);
       if (res.data) {
         setReturnRequest(res.data);
-        // Tra cứu đơn gốc khi cần kiểm tra hạn sửa 7 ngày hoặc ước tính đơn giá hoàn tiền trước khi kho kiểm định
-        if (
-          res.data.orderId &&
-          (res.data.status === 'PENDING_APPROVAL' ||
-            !res.data.inspectedAt ||
-            !res.data.refundAmount)
-        ) {
-          try {
-            const ord = await orderService.getMyOrderById(res.data.orderId);
-            setOrderDeliveredAt(ord?.deliveredAt || null);
-            const priceMap: Record<number, number> = {};
-            (ord?.orderItems || []).forEach((oi) => {
-              if (oi.unitPrice > 0) {
-                priceMap[oi.id] = oi.unitPrice;
-              } else if (oi.totalPrice > 0 && oi.quantity > 0) {
-                priceMap[oi.id] = Math.round(oi.totalPrice / oi.quantity);
-              }
-            });
-            setOrderItemPriceMap(priceMap);
-          } catch {
-            setOrderDeliveredAt(null);
-            setOrderItemPriceMap({});
-          }
-        }
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Không thể tải thông tin phiếu trả hàng.';
@@ -157,32 +132,15 @@ export default function ReturnDetailPage() {
   }
 
   // Quyền tác vụ hành động của khách
-  const canEdit = canCustomerEditReturn({
-    ...returnRequest,
-    deliveredAt: orderDeliveredAt,
-  });
+  const canEdit = canCustomerEditReturn(returnRequest);
   const canUpdateBank = canCustomerUpdateBank(returnRequest);
   const canConfirmPlan = canCustomerConfirmPlan(returnRequest);
   const canCancel = canCustomerCancelReturn(returnRequest);
 
-  // Tính tiền hoàn dự kiến trước khi kho kiểm định (khi backend chưa chốt itemsRefundAmount)
-  const estimatedItemsRefund = (returnRequest.items || []).reduce((sum, item) => {
-    if (item.itemRefundAmount && item.itemRefundAmount > 0) {
-      return sum + item.itemRefundAmount;
-    }
-    const unitPrice = orderItemPriceMap[item.orderItemId] || 0;
-    return sum + unitPrice * item.quantity;
-  }, 0);
-  const isShowingEstimatedRefund =
-    !returnRequest.inspectedAt &&
-    (returnRequest.itemsRefundAmount || 0) === 0 &&
-    estimatedItemsRefund > 0;
-  const displayedItemsRefund = isShowingEstimatedRefund
-    ? estimatedItemsRefund
-    : returnRequest.itemsRefundAmount || 0;
-  const displayedNetRefund = isShowingEstimatedRefund
-    ? Math.max(0, estimatedItemsRefund - (returnRequest.returnShippingFee || 0))
-    : returnRequest.refundAmount || 0;
+  const isShowingEstimatedRefund = !returnRequest.inspectedAt;
+  const displayedItemsRefund = returnRequest.itemsRefundAmount || 0;
+  const displayedNetRefund = returnRequest.refundAmount || 0;
+  const generalNote = getGeneralInspectionNote(returnRequest);
 
   return (
     <div className="pt-8 pb-20">
@@ -224,6 +182,16 @@ export default function ReturnDetailPage() {
                   <Calendar size={14} />
                   <span>Ngày gửi: {formatDateTime(returnRequest.createdAt)}</span>
                 </span>
+                {returnRequest.inspectionResultSentAt && (
+                  <span>Đã gửi kết quả: {formatDateTime(returnRequest.inspectionResultSentAt)}</span>
+                )}
+                {returnRequest.customerRespondedAt && (
+                  <span>Bạn đã phản hồi: {formatDateTime(returnRequest.customerRespondedAt)}</span>
+                )}
+                {(returnRequest.status === 'REJECTED' || returnRequest.status === 'CANCELLED') &&
+                  returnRequest.resolvedAt && (
+                    <span>Đã đóng yêu cầu: {formatDateTime(returnRequest.resolvedAt)}</span>
+                  )}
               </div>
             </div>
 
@@ -241,7 +209,7 @@ export default function ReturnDetailPage() {
                 </Button>
               )}
 
-              {canUpdateBank && !canEdit && (
+              {canUpdateBank && !canEdit && returnRequest.status !== 'WAITING_REFUND' && (
                 <Button
                   variant="secondary"
                   size="sm"
@@ -306,13 +274,12 @@ export default function ReturnDetailPage() {
           )}
         </div>
 
-        {/* 1. TIẾN ĐỘ XỬ LÝ */}
-        <div className="mb-8">
-          <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-3">
-            Tiến Độ Xử Lý
-          </h2>
-          <ReturnTimeline returnRequest={returnRequest} />
-        </div>
+        {/* Chỉ hiển thị banner cảnh báo/thông báo quan trọng nếu có, bỏ khung Tiến Độ Xử Lý dư thừa */}
+        <ReturnTimeline
+          returnRequest={returnRequest}
+          hideStatusSummary
+          className="mb-8"
+        />
 
         {/* 1b. THÔNG TIN GỬI HÀNG TRẢ */}
         <ReturnShippingInfoCard
@@ -326,20 +293,50 @@ export default function ReturnDetailPage() {
           <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-1">
             Sản Phẩm Trả Lại
           </h2>
-          <p className="text-xs text-content-muted mb-4 break-words [overflow-wrap:anywhere]">
-            Lý do:{' '}
-            <strong className="text-content-primary">
-              {returnRequest.reasonDetail || getReturnReasonLabel(returnRequest.reason)}
-            </strong>
-          </p>
-          {returnRequest.rejectionReason && returnRequest.status !== 'REJECTED' && (
+          <div className="text-xs text-content-muted mb-4 break-words [overflow-wrap:anywhere] space-y-1">
+            <p>
+              Lý do:{' '}
+              <strong className="text-content-primary">
+                {getReturnReasonLabel(returnRequest.reason)}
+              </strong>
+            </p>
+            {returnRequest.reasonDetail?.trim() && (
+              <p className="text-content-secondary">
+                Chi tiết: {returnRequest.reasonDetail.trim()}
+              </p>
+            )}
+          </div>
+          {generalNote && (
             <p className="text-xs text-content-secondary mb-4 break-words [overflow-wrap:anywhere]">
-              Phản hồi từ shop: <strong className="text-content-primary">{returnRequest.rejectionReason}</strong>
+              Phản hồi từ shop: <strong className="text-content-primary">{generalNote}</strong>
             </p>
           )}
           {returnRequest.extensionReason && (
             <p className="text-xs text-content-secondary mb-4 break-words [overflow-wrap:anywhere]">
               Gia hạn thời gian gửi hàng: <strong className="text-content-primary">{returnRequest.extensionReason}</strong>
+              {(returnRequest.previousHandoverDeadline || returnRequest.handoverDeadline) && (
+                <span className="ml-1.5 text-content-muted">
+                  (
+                  {returnRequest.previousHandoverDeadline && (
+                    <>
+                      Hạn cũ:{' '}
+                      <span className="line-through">
+                        {formatDateTime(returnRequest.previousHandoverDeadline)}
+                      </span>
+                      {returnRequest.handoverDeadline ? ' → ' : ''}
+                    </>
+                  )}
+                  {returnRequest.handoverDeadline && (
+                    <>
+                      Hạn mới:{' '}
+                      <strong className="text-content-primary">
+                        {formatDateTime(returnRequest.handoverDeadline)}
+                      </strong>
+                    </>
+                  )}
+                  )
+                </span>
+              )}
             </p>
           )}
 
@@ -382,16 +379,9 @@ export default function ReturnDetailPage() {
                       {item.inspectionNote || '-'}
                     </td>
                     <td className="py-3.5 px-4 text-right font-bold text-content-primary">
-                      {item.itemRefundAmount && item.itemRefundAmount > 0 ? (
-                        formatVND(item.itemRefundAmount)
-                      ) : !returnRequest.inspectedAt &&
-                        (orderItemPriceMap[item.orderItemId] || 0) > 0 ? (
-                        <span>
-                          {formatVND(orderItemPriceMap[item.orderItemId] * item.quantity)}{' '}
-                          <span className="text-[11px] font-normal text-content-muted">(Dự kiến)</span>
-                        </span>
-                      ) : (
-                        formatVND(0)
+                      {formatVND(item.itemRefundAmount ?? 0)}
+                      {isShowingEstimatedRefund && (item.itemRefundAmount ?? 0) > 0 && (
+                        <span className="ml-1 text-[11px] font-normal text-content-muted">(Tạm tính)</span>
                       )}
                     </td>
                   </tr>
@@ -422,11 +412,19 @@ export default function ReturnDetailPage() {
 
               <div className="flex justify-between items-center text-content-secondary">
                 <span>Phí gửi trả hàng:</span>
-                <span className="font-semibold text-content-primary">
-                  {returnRequest.returnShippingFee && returnRequest.returnShippingFee > 0
-                    ? `- ${formatVND(returnRequest.returnShippingFee)}`
-                    : 'Miễn phí (0₫)'}
-                </span>
+                {(() => {
+                  const feeDisplay = formatReturnShippingFeeDisplay(returnRequest);
+                  return (
+                    <span
+                      className={cn(
+                        'font-semibold',
+                        feeDisplay.isDeduction ? 'text-status-error' : 'text-content-primary'
+                      )}
+                    >
+                      {feeDisplay.text}
+                    </span>
+                  );
+                })()}
               </div>
 
               <div className="border-t border-line-light pt-3 flex justify-between items-center">
@@ -474,7 +472,7 @@ export default function ReturnDetailPage() {
                 <Building2 size={16} />
                 <span>Tài Khoản Nhận Tiền Hoàn</span>
               </h3>
-              {canUpdateBank && !canEdit && (
+              {canUpdateBank && !canEdit && returnRequest.status !== 'WAITING_REFUND' && (
                 <button
                   type="button"
                   onClick={() => setIsBankModalOpen(true)}
@@ -505,13 +503,18 @@ export default function ReturnDetailPage() {
                     {returnRequest.accountHolderName || returnRequest.bankAccountHolder}
                   </strong>
                 </div>
+                {returnRequest.status === 'WAITING_REFUND' && (
+                  <p className="mt-1 pt-2 border-t border-line-light text-xs text-content-muted">
+                    Đang chờ hoàn tiền — liên hệ CSKH nếu cần thay đổi STK.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="p-4 bg-surface-body border border-dashed border-line rounded-sm text-center">
                 <p className="text-xs text-content-muted mb-3">
                   Bạn chưa cung cấp thông tin tài khoản ngân hàng nhận tiền hoàn.
                 </p>
-                {canUpdateBank && !canEdit && (
+                {canUpdateBank && !canEdit && returnRequest.status !== 'WAITING_REFUND' && (
                   <Button variant="secondary" size="sm" onClick={() => setIsBankModalOpen(true)}>
                     Bổ Sung Tài Khoản Ngay
                   </Button>

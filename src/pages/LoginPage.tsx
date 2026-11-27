@@ -1,5 +1,5 @@
-import React, {useCallback, useEffect, useRef, useState} from "react";
-import {Link, useNavigate, useLocation} from "react-router-dom";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   User,
   Lock,
@@ -14,16 +14,16 @@ import {
   ShoppingBag,
   Heart,
 } from "lucide-react";
-import {GoogleLogin, CredentialResponse} from "@react-oauth/google";
-import {useAuth} from "../context/AuthContext";
-import {REMEMBERED_USERNAME_KEY} from "../services/apiClient";
-import {extractErrorMessage, parseJwt} from "../utils/format";
-import {cn} from "../utils/cn";
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
+import { useAuth } from "../context/AuthContext";
+import { REMEMBERED_USERNAME_KEY } from "../services/apiClient";
+import { extractErrorMessage, parseJwt } from "../utils/format";
+import { cn } from "../utils/cn";
 import loginAtelierImg from "../assets/login-atelier.jpg";
 import styles from "./AuthPages.module.css";
 
 export default function LoginPage() {
-  const {login, loginWithGoogle} = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -73,7 +73,7 @@ export default function LoginPage() {
   }, [isGoogleConfirmOpen, isLoading, handleCloseGoogleConfirm]);
 
   const redirectPath =
-    (location.state as {from?: {pathname?: string}})?.from?.pathname || "/";
+    (location.state as { from?: { pathname?: string } })?.from?.pathname || "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,12 +109,8 @@ export default function LoginPage() {
       const res = await login(trimmedUsername, password, rememberMe);
       setSuccessMessage("Đăng nhập thành công! Đang chuyển hướng...");
       setTimeout(() => {
-        if (
-          ["ADMIN", "STAFF", "ROLE_ADMIN", "ROLE_STAFF"].includes(
-            res?.user?.role || "",
-          )
-        ) {
-          navigate("/admin/dashboard", {replace: true});
+        if (['ADMIN', 'STAFF', 'ROLE_ADMIN', 'ROLE_STAFF'].includes(res?.user?.role || '')) {
+          navigate('/admin/statistics/products', { replace: true });
         } else {
           navigate(redirectPath);
         }
@@ -172,12 +168,8 @@ export default function LoginPage() {
       setSelectedGoogleAccount(null);
       setSuccessMessage("Đăng nhập Google thành công! Đang chuyển hướng...");
       setTimeout(() => {
-        if (
-          ["ADMIN", "STAFF", "ROLE_ADMIN", "ROLE_STAFF"].includes(
-            res?.user?.role || "",
-          )
-        ) {
-          navigate("/admin/dashboard", {replace: true});
+        if (['ADMIN', 'STAFF', 'ROLE_ADMIN', 'ROLE_STAFF'].includes(res?.user?.role || '')) {
+          navigate('/admin/dashboard', { replace: true });
         } else {
           navigate(redirectPath);
         }
