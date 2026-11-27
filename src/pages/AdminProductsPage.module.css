@@ -60,8 +60,6 @@
 .resultRange { color: var(--text-muted); font-size: var(--fs-xs); }
 .resultRange strong { font-weight: 600; color: var(--text-secondary); }
 .pageControls { display: flex; gap: 22px; align-items: center; }
-.pageSize { display: flex; align-items: center; gap: 9px; color: var(--text-muted); font-size: var(--fs-xs); white-space: nowrap; }
-.pageSize select { height: 40px; border: 1px solid var(--border-light); border-radius: var(--radius-input); background: var(--bg-body); padding: 0 8px; color: var(--text-secondary); }
 .pageButtons { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); }
 .pageButtons button { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--border-light); border-radius: var(--radius-sm); color: var(--text-secondary); background: var(--bg-body); }
 .pageButtons button:disabled { opacity: .35; cursor: not-allowed; }
@@ -93,7 +91,6 @@
 .page h1 { text-transform: uppercase; letter-spacing: var(--tracking-wide); }
 
 .pageButtons button:not(:disabled):hover { background: var(--bg-surface); border-color: var(--border-focus); color: var(--text-primary); }
-.pageSize select:hover { border-color: var(--border-focus); }
 .alertError, .alertSuccess { margin-block: 16px; padding: 12px 16px; border-left: 3px solid; font-size: var(--fs-base); }
 .alertError { border-color: var(--status-error); color: var(--status-error); background: rgba(208, 2, 27, .08); }
 .alertSuccess { border-color: var(--status-success); color: var(--status-success); background: rgba(31, 139, 76, .08); }

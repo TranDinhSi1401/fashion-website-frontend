@@ -157,7 +157,7 @@ export default function RegisterPage() {
             ngay hôm nay
           </h1>
           <p className={styles.loginEditorialSub}>
-            Tạo tài khoản để mở khóa ưu đãi độc quyền, lưu trang phục yêu thích và theo dõi đơn hàng dễ dàng.
+            Tạo tài khoản để mở khóa ưu đãi độc quyền và theo dõi đơn hàng dễ dàng.
           </p>
 
           <div className={styles.loginFeaturePills}>

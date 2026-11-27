@@ -1,5 +1,5 @@
-import { ReactNode, useState } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { ReactNode, useId, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 export interface FilterGroup {
@@ -20,32 +20,36 @@ export default function FilterSidebar({
   footer,
   className = '',
 }: FilterSidebarProps) {
-  const [openMap, setOpenMap] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(groups.map((group) => [group.id, group.defaultOpen ?? true]))
-  );
-
-  const toggleGroup = (id: string) => {
-    setOpenMap((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }));
-  };
+  const instanceId = useId();
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
 
   return (
     <aside className={cn('w-full max-w-[280px] shrink-0', className)}>
       {groups.map((group) => {
-        const isOpen = openMap[group.id] ?? true;
+        const isOpen = openMap[group.id] ?? group.defaultOpen ?? true;
+        const groupId = `${instanceId}-${group.id}`;
 
         return (
-          <div key={group.id} className="border-b border-line-light py-5 first:pt-0">
+          <div key={group.id} className="border-b border-line-light last:border-b-0">
             <button
+              id={groupId}
               type="button"
-              onClick={() => toggleGroup(group.id)}
+              onClick={() => setOpenMap(current => ({ ...current, [group.id]: !isOpen }))}
               aria-expanded={isOpen}
-              className="flex w-full items-center justify-between text-left text-base font-bold uppercase tracking-wide text-content-primary hover:text-content-secondary"
+              aria-controls={`${groupId}-options`}
+              className="flex w-full items-center justify-between gap-2 rounded-sm py-3.5 text-left text-sm font-semibold text-content-primary hover:text-content-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
               <span>{group.title}</span>
-              {isOpen ? <Minus size={16} /> : <Plus size={16} />}
+              <ChevronDown
+                size={15}
+                aria-hidden="true"
+                className={cn('shrink-0 text-content-muted transition-transform motion-reduce:transition-none', isOpen && 'rotate-180')}
+              />
             </button>
 
-            {isOpen && <div className="mt-4">{group.content}</div>}
+            <div id={`${groupId}-options`} role="group" aria-labelledby={groupId} className="pb-4" hidden={!isOpen}>
+              {group.content}
+            </div>
           </div>
         );
       })}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { ProductFilters, ProductResponse } from '../types/product';
@@ -22,8 +22,8 @@ import Breadcrumb from '../components/layout/Breadcrumb';
 import {
   Button,
   Checkbox,
-  FilterGroup,
   FilterSidebar,
+  type FilterGroup,
   Pagination,
   ProductCard,
   Select,
@@ -36,12 +36,6 @@ const errorMessage = (error: unknown) =>
     ? error.response?.data?.message ||
       'Không thể tải sản phẩm. Vui lòng kiểm tra kết nối và thử lại.'
     : 'Không thể tải sản phẩm. Vui lòng thử lại.';
-
-const PAGE_SIZE_OPTIONS = [
-  { value: 12, label: '12 / trang' },
-  { value: 24, label: '24 / trang' },
-  { value: 48, label: '48 / trang' },
-];
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Mới nhất' },
@@ -190,38 +184,23 @@ export default function ProductsPage() {
     const timer = window.setInterval(() => setOfferTime(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  const [showFilters, setShowFilters] = useState(false);
-  const filterDialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const dialog = filterDialog.current;
-    if (!showFilters || !dialog) return;
-    dialog.showModal();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      dialog.close();
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [showFilters]);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const priceForm = useRef<HTMLFormElement>(null);
   const resultsRef = useRef<HTMLElement>(null);
 
   const updateFilters = (changes: Record<string, string>) => {
     const pending: Record<string, string> = {};
-    for (const form of [priceForm.current]) {
-      if (form) {
-        new FormData(form).forEach((value, key) => {
-          pending[key] = String(value);
-        });
-      }
+    if (priceForm.current) {
+      new FormData(priceForm.current).forEach((value, key) => {
+        pending[key] = String(value);
+      });
     }
-    setSearchParams(mergeFilterParameters(paramsKey, pending, { ...changes, page: '' }), {
+    setSearchParams(mergeFilterParameters(paramsKey, pending, { ...changes, page: '', pageSize: '' }), {
       state: { keepScroll: true },
     });
   };
 
-  const toggleFilter = (key: string, value: string) => {
-    const selected = (searchParams.get(key) || '').split('|').filter(Boolean);
+  const toggleFilter = (key: string, value: string, selected: string[]) => {
     updateFilters({
       [key]: (selected.includes(value)
         ? selected.filter((item) => item !== value)
@@ -345,11 +324,11 @@ export default function ProductsPage() {
     [catalog, categories, selection, offerTime]
   );
 
-  const pagination = paginateCatalog(products, searchParams.get('page'), searchParams.get('pageSize'));
+  const pagination = paginateCatalog(products, searchParams.get('page'));
 
   const changePage = (page: number) => {
     setSearchParams(
-      mergeFilterParameters(paramsKey, {}, { page: page === 1 ? '' : String(page) }),
+      mergeFilterParameters(paramsKey, {}, { page: page === 1 ? '' : String(page), pageSize: '' }),
       { state: { keepScroll: true } }
     );
     resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -433,144 +412,68 @@ export default function ProductsPage() {
     activeFilters.push({ label: 'Mới trong 30 ngày', changes: { tag: '' } });
   }
 
+  const filterChoices = [
+    { key: 'audience', label: 'Đối tượng', values: audiences.map(value => ({ value, label: value })), selected: selection.audiences },
+    { key: 'type', label: 'Loại sản phẩm', values: types.map(([value, label]) => ({ value, label })), selected: selection.types },
+    { key: 'size', label: 'Kích cỡ', values: [...new Set([...sizes, ...selection.sizes])].map(value => ({ value, label: value })), selected: selection.sizes },
+    { key: 'color', label: 'Màu sắc', values: visibleColors.map(value => ({ value, label: value })), selected: selection.colors },
+  ];
+
   const filterGroups: FilterGroup[] = [
-    {
-      id: 'offers', title: 'Ưu đãi', defaultOpen: true,
-      content: <Checkbox label="Đang có ưu đãi" checked={searchParams.get('tag') === 'sale'}
-        onChange={event => updateFilters({ tag: event.target.checked ? 'sale' : '' })} />,
-    },
-    {
-      id: 'audience',
-      title: 'Đối tượng',
-      defaultOpen: true,
+    ...filterChoices.filter(({ values }) => values.length > 0).map(({ key, label, values, selected }) => ({
+      id: key,
+      title: label,
+      defaultOpen: false,
       content: (
-        <div className="flex flex-col gap-3">
-          {audiences.map((audience) => (
+        <div className="flex max-h-48 flex-col items-start gap-2.5 overflow-y-auto p-0.5">
+          {values.map(option => (
             <Checkbox
-              key={audience}
-              label={audience}
-              checked={selection.audiences.includes(audience)}
-              onChange={() => toggleFilter('audience', audience)}
+              key={option.value}
+              label={option.label}
+              checked={selected.includes(option.value)}
+              onChange={() => toggleFilter(key, option.value, selected)}
             />
           ))}
         </div>
       ),
-    },
+    })),
     {
-      id: 'type',
-      title: 'Loại sản phẩm',
-      defaultOpen: true,
+      id: 'tag',
+      title: 'Ưu đãi và hàng mới',
+      defaultOpen: false,
       content: (
-        <div className="flex flex-col gap-3">
-          {types.map(([key, label]) => (
-            <Checkbox
-              key={key}
-              label={label}
-              checked={selection.types.includes(key)}
-              onChange={() => toggleFilter('type', key)}
-            />
-          ))}
+        <div className="flex flex-col items-start gap-2.5">
+          <Checkbox
+            label="Đang có ưu đãi"
+            checked={searchParams.get('tag') === 'sale'}
+            onChange={event => updateFilters({ tag: event.target.checked ? 'sale' : '' })}
+          />
+          <Checkbox
+            label="Mới về trong 30 ngày"
+            checked={searchParams.get('tag') === 'new'}
+            onChange={event => updateFilters({ tag: event.target.checked ? 'new' : '' })}
+          />
         </div>
-      ),
-    },
-    {
-      id: 'new',
-      title: 'Hàng mới',
-      defaultOpen: true,
-      content: (
-        <Checkbox
-          label="Mới về trong 30 ngày"
-          checked={categoryTag === 'new'}
-          onChange={(event) => updateFilters({ tag: event.target.checked ? 'new' : '' })}
-        />
       ),
     },
     {
       id: 'price',
       title: 'Khoảng giá',
-      defaultOpen: true,
+      defaultOpen: false,
       content: (
         <form
           ref={priceForm}
           key={`prices-${searchParams.get('minPrice')}-${searchParams.get('maxPrice')}`}
-          onSubmit={(event) => {
+          onSubmit={event => {
             event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            updateFilters({
-              minPrice: String(data.get('minPrice') || ''),
-              maxPrice: String(data.get('maxPrice') || ''),
-            });
+            updateFilters({});
           }}
           className="flex flex-col gap-3"
         >
-          <MoneyInput
-            id="catalog-min-price"
-            label="Giá từ"
-            name="minPrice"
-            defaultValue={searchParams.get('minPrice') || ''}
-          />
-          <MoneyInput
-            id="catalog-max-price"
-            label="Giá đến"
-            name="maxPrice"
-            defaultValue={searchParams.get('maxPrice') || ''}
-          />
-          <Button type="submit" variant="secondary" size="sm">
-            Áp dụng giá
-          </Button>
+          <MoneyInput id="catalog-min-price" label="Giá từ" name="minPrice" defaultValue={searchParams.get('minPrice') || ''} />
+          <MoneyInput id="catalog-max-price" label="Giá đến" name="maxPrice" defaultValue={searchParams.get('maxPrice') || ''} />
+          <Button type="submit" variant="secondary" size="sm">Áp dụng giá</Button>
         </form>
-      ),
-    },
-    {
-      id: 'size',
-      title: 'Kích cỡ',
-      defaultOpen: true,
-      content: (
-        <>
-          <div className="flex flex-wrap gap-2.5">
-            {[...new Set([...sizes, ...selection.sizes])].map((size) => (
-              <label key={size} className={cn('relative cursor-pointer', styles.sizePill)}>
-                <input
-                  type="checkbox"
-                  checked={selection.sizes.includes(size)}
-                  onChange={() => toggleFilter('size', size)}
-                  className="sr-only"
-                />
-                <span className="inline-flex h-[38px] min-w-[44px] items-center justify-center rounded-sm border border-line bg-surface-body px-2.5 text-sm font-medium uppercase text-content-primary transition-colors hover:border-primary">
-                  {size}
-                </span>
-              </label>
-            ))}
-          </div>
-          {!sizes.length && (
-            <p className="mt-3 text-sm text-content-secondary">Chưa có kích cỡ còn hàng.</p>
-          )}
-        </>
-      ),
-    },
-    {
-      id: 'color',
-      title: 'Màu sắc',
-      defaultOpen: true,
-      content: (
-        <>
-          <div
-            id="catalog-color-choices"
-            className="flex max-h-60 flex-col gap-3 overflow-y-auto px-1"
-          >
-            {visibleColors.map((color) => (
-              <Checkbox
-                key={color}
-                label={color}
-                checked={selection.colors.includes(color)}
-                onChange={() => toggleFilter('color', color)}
-              />
-            ))}
-          </div>
-          {!colors.length && (
-            <p className="mt-3 text-sm text-content-secondary">Chưa có màu sắc còn hàng.</p>
-          )}
-        </>
       ),
     },
   ];
@@ -619,39 +522,28 @@ export default function ProductsPage() {
           }
         />
 
-        <div className="pb-20 pt-4">
-          <dialog
-            ref={filterDialog}
-            id="catalog-filter-drawer"
-            aria-labelledby="catalog-filter-title"
-            className={styles.filterDrawer}
-            onCancel={(event) => { event.preventDefault(); setShowFilters(false); }}
-            onClose={() => setShowFilters(false)}
-            onClick={(event) => { if (event.target === event.currentTarget) setShowFilters(false); }}
-          >
-            <div className={styles.filterPanel}>
-              <div className={styles.filterHeader}>
-                <h2 id="catalog-filter-title" className="text-base font-bold uppercase tracking-wide">Bộ lọc sản phẩm</h2>
-                <button type="button" onClick={() => setShowFilters(false)} aria-label="Đóng bộ lọc" className={styles.closeFilters}>
-                  <X size={20} />
-                </button>
-              </div>
-              <div className={styles.filterBody}>
-                <div className="mb-5 flex items-center justify-between gap-3">
-                  <p className="text-xs text-content-secondary">Có thể chọn nhiều mục trong mỗi nhóm.</p>
-                  <Button variant="ghost" size="sm" onClick={() => setSearchParams({}, { state: { keepScroll: true } })} disabled={!searchParams.size}>
-                    Xóa lọc
-                  </Button>
-                </div>
-                <FilterSidebar groups={filterGroups} className="max-w-none" />
-              </div>
-              <div className={styles.filterFooter}>
-                <Button variant="primary" className="w-full" onClick={() => { priceForm.current?.requestSubmit(); setShowFilters(false); }}>
-                  Xem kết quả
-                </Button>
-              </div>
+        <div className={cn('pb-20 pt-4', styles.catalogLayout)}>
+          <section aria-labelledby="catalog-filter-title" className="rounded-lg border border-line-light bg-surface-body">
+            <h2 className="m-0">
+              <button
+                id="catalog-filter-title"
+                type="button"
+                aria-expanded={filtersExpanded}
+                aria-controls="catalog-filter-options"
+                onClick={() => setFiltersExpanded(expanded => !expanded)}
+                className={styles.filterTrigger}
+              >
+                <span className={styles.filterIcon} aria-hidden="true">
+                  <SlidersHorizontal size={16} />
+                </span>
+                <span>Bộ lọc sản phẩm</span>
+                <ChevronDown size={17} className={styles.filterChevron} aria-hidden="true" />
+              </button>
+            </h2>
+            <div id="catalog-filter-options" hidden={!filtersExpanded} className="border-t border-line-light">
+              <FilterSidebar groups={filterGroups} className="max-w-none px-4" />
             </div>
-          </dialog>
+          </section>
 
           <section
             ref={resultsRef}
@@ -676,14 +568,13 @@ export default function ProductsPage() {
                     {filter.label} ×
                   </button>
                 ))}
+                <Button variant="ghost" onClick={() => setSearchParams({}, { state: { keepScroll: true } })}>
+                  Xóa tất cả
+                </Button>
               </div>
             )}
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-line-light pb-4 text-sm">
-              <div className="flex flex-wrap items-center gap-4">
-                <Button variant="secondary" icon={SlidersHorizontal} onClick={() => setShowFilters(true)} aria-haspopup="dialog" aria-controls="catalog-filter-drawer" aria-expanded={showFilters}>
-                  Bộ lọc{activeFilters.length > 0 ? ` (${activeFilters.length})` : ''}
-                </Button>
               <p role="status" className="text-content-secondary">
                 {isLoading
                   ? 'Đang tải sản phẩm…'
@@ -693,42 +584,15 @@ export default function ProductsPage() {
                       ? `Hiển thị ${pagination.from}–${pagination.to} / ${products.length} sản phẩm`
                       : '0 sản phẩm'}
               </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2.5">
-                  <label htmlFor="catalog-page-size" className="text-sm text-content-secondary">
-                    Hiển thị
-                  </label>
-                  <Select
-                    id="catalog-page-size"
-                    value={pagination.pageSize}
-                    options={PAGE_SIZE_OPTIONS}
-                    onChange={(event) =>
-                      setSearchParams(
-                        mergeFilterParameters(paramsKey, {}, {
-                          pageSize: event.target.value,
-                          page: '',
-                        }),
-                        { state: { keepScroll: true } }
-                      )
-                    }
-                    className="w-[130px]"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                  <label htmlFor="catalog-sort" className="text-sm text-content-secondary">
-                    Sắp xếp
-                  </label>
-                  <Select
-                    id="catalog-sort"
-                    value={selection.filters.sort}
-                    options={SORT_OPTIONS}
-                    onChange={(event) => updateFilters({ sort: event.target.value })}
-                    className="w-[180px]"
-                  />
-                </div>
+              <div className="flex items-center gap-2.5">
+                <label htmlFor="catalog-sort" className="text-sm text-content-secondary">Sắp xếp</label>
+                <Select
+                  id="catalog-sort"
+                  value={selection.filters.sort}
+                  options={SORT_OPTIONS}
+                  onChange={(event) => updateFilters({ sort: event.target.value })}
+                  className="w-[180px]"
+                />
               </div>
             </div>
 

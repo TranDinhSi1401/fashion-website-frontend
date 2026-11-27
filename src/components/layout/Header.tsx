@@ -341,7 +341,7 @@ export default function Header() {
                 onMouseLeave={() => setAdminDropdownOpen(false)}
               >
                 <Link
-                  to="/admin/dashboard"
+                  to="/admin/statistics/products"
                   onFocus={() => setAdminDropdownOpen(true)}
                   aria-haspopup="true"
                   aria-expanded={adminDropdownOpen}
@@ -365,17 +365,17 @@ export default function Header() {
                     </div>
 
                     <Link
-                      to="/admin/dashboard"
+                      to="/admin/statistics/products"
                       onClick={() => setAdminDropdownOpen(false)}
                       className={cn(
                         'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors',
-                        location.pathname === '/admin/dashboard'
+                        location.pathname === '/admin/statistics/products'
                           ? cn('bg-accent-gold/10', styles.accentText)
                           : 'text-content-primary hover:bg-surface'
                       )}
                     >
                       <LayoutDashboard size={15} className="text-accent-gold" />
-                      <span>Dashboard</span>
+                      <span>Thống kê sản phẩm</span>
                     </Link>
                     <Link
                       to="/admin/products"
@@ -627,13 +627,13 @@ export default function Header() {
                         </div>
 
                         <Link
-                          to="/admin/dashboard"
+                          to="/admin/statistics/products"
                           onClick={() => setDropdownOpen(false)}
                           className={cn('group flex items-center justify-between rounded-sm px-3 py-2 text-content-primary transition-colors hover:bg-accent-gold/10', styles.accentHover)}
                         >
                           <div className="flex items-center gap-2.5">
                             <LayoutDashboard size={15} className="text-accent-gold" />
-                            <span className="font-medium">Dashboard</span>
+                            <span className="font-medium">Thống kê sản phẩm</span>
                           </div>
                           <ChevronRight size={13} className="text-accent-gold/40 group-hover:text-accent-gold transition-colors" />
                         </Link>
@@ -1033,12 +1033,12 @@ export default function Header() {
                     Phân Hệ Quản Trị
                   </div>
                   <Link
-                    to="/admin/dashboard"
+                    to="/admin/statistics/products"
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-2.5 p-2.5 rounded text-xs font-semibold text-content-primary hover:bg-surface"
                   >
                     <LayoutDashboard size={16} className="text-accent-gold" />
-                    <span>Dashboard</span>
+                    <span>Thống kê sản phẩm</span>
                   </Link>
                   <Link
                     to="/admin/products"
