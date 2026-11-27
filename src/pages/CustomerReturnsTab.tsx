@@ -9,7 +9,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RotateCcw, ChevronRight, AlertCircle, Calendar, Package } from 'lucide-react';
 import { returnService } from '../services/returnService';
-import { orderService } from '../services/orderService';
 import type { ReturnRequestResponse, SpringPage } from '../types/return';
 import {
   pageToSpring,
@@ -24,37 +23,9 @@ import Pagination from '../components/ui/Pagination';
 export default function CustomerReturnsTab() {
   const navigate = useNavigate();
   const [returnsPage, setReturnsPage] = useState<SpringPage<ReturnRequestResponse> | null>(null);
-  const [orderItemPriceMap, setOrderItemPriceMap] = useState<Record<number, number>>({});
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>('');
-
-  // Tải đơn giá sản phẩm từ đơn hàng gốc để hiển thị tiền hoàn dự kiến từng món trước khi kho kiểm định
-  useEffect(() => {
-    let isMounted = true;
-    orderService
-      .getMyOrders()
-      .then((orders) => {
-        if (!isMounted || !Array.isArray(orders)) return;
-        const map: Record<number, number> = {};
-        orders.forEach((ord) => {
-          (ord.orderItems || []).forEach((oi) => {
-            if (oi.unitPrice > 0) {
-              map[oi.id] = oi.unitPrice;
-            } else if (oi.totalPrice > 0 && oi.quantity > 0) {
-              map[oi.id] = Math.round(oi.totalPrice / oi.quantity);
-            }
-          });
-        });
-        setOrderItemPriceMap(map);
-      })
-      .catch(() => {
-        // Bỏ qua lỗi phụ, vẫn hiển thị bình thường với dữ liệu từ phiếu trả
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Tải danh sách yêu cầu trả hàng theo trang
   useEffect(() => {
@@ -161,19 +132,8 @@ export default function CustomerReturnsTab() {
       <div className="flex flex-col gap-4">
         {items.map((ret: ReturnRequestResponse) => {
           const returnItems = ret.items || [];
-          const estimatedTotalItems = returnItems.reduce((sum, it) => {
-            if (it.itemRefundAmount && it.itemRefundAmount > 0) {
-              return sum + it.itemRefundAmount;
-            }
-            const unitPrice = orderItemPriceMap[it.orderItemId] || 0;
-            return sum + unitPrice * (it.quantity || 0);
-          }, 0);
-
           const isFinalized = Boolean(ret.inspectedAt) || ret.status === 'REFUNDED';
-          const displayTotalRefund =
-            ret.refundAmount && ret.refundAmount > 0
-              ? ret.refundAmount
-              : Math.max(0, estimatedTotalItems - (ret.returnShippingFee || 0));
+          const displayTotalRefund = ret.refundAmount ?? 0;
 
           return (
             <div
@@ -200,10 +160,7 @@ export default function CustomerReturnsTab() {
               {returnItems.length > 0 && (
                 <div className="flex flex-col divide-y divide-line-light rounded-sm border border-line-light bg-surface px-3.5 py-1">
                   {returnItems.map((it) => {
-                    const itemRefund =
-                      it.itemRefundAmount && it.itemRefundAmount > 0
-                        ? it.itemRefundAmount
-                        : (orderItemPriceMap[it.orderItemId] || 0) * (it.quantity || 0);
+                    const itemRefund = it.itemRefundAmount ?? 0;
 
                     return (
                       <div

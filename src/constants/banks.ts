@@ -175,9 +175,16 @@ export function findBankByName(value?: string | null): BankOption | undefined {
   );
 }
 
+export function formatVietQrTransferNote(defaultNote: string, customNote?: string | null): string {
+  const trimmedCustom = (customNote || '').trim();
+  if (!trimmedCustom) return defaultNote;
+  const normalizedBase = defaultNote.replace(/[.!?]+$/, '');
+  return `${normalizedBase}. ${trimmedCustom}`;
+}
+
 /**
  * Tạo URL mã VietQR động kèm nội dung chuyển khoản (addInfo) theo ghi chú kế toán nhập.
- * Nếu ghi chú trống, giữ nguyên nội dung mặc định từ URL gốc hoặc dùng "Hoan tien <returnCode>".
+ * Nếu có ghi chú, tự động chấm và nối tiếp sau câu mặc định.
  */
 export function buildDynamicVietQrUrl(params: {
   baseQrUrl?: string | null;
@@ -185,12 +192,14 @@ export function buildDynamicVietQrUrl(params: {
   accountNumber?: string | null;
   accountHolder?: string | null;
   refundAmount?: number | null;
+  orderCode?: string | null;
   returnCode?: string | null;
   customNote?: string | null;
 }): { qrUrl: string | null; activeNote: string; defaultNote: string } {
-  const fallbackDefaultNote = params.returnCode
-    ? `Hoan tien ${params.returnCode}`
-    : 'Hoan tien don hang';
+  const targetCode = (params.orderCode || params.returnCode || '').trim();
+  const fallbackDefaultNote = targetCode
+    ? `shop FashionWeb gui tien hoan cho don hang ${targetCode}`
+    : 'shop FashionWeb gui tien hoan cho don hang';
 
   let defaultNote = fallbackDefaultNote;
   const trimmedBase = (params.baseQrUrl || '').trim();
@@ -200,10 +209,14 @@ export function buildDynamicVietQrUrl(params: {
     try {
       const parsed = new URL(trimmedBase);
       const existingAddInfo = parsed.searchParams.get('addInfo');
-      if (existingAddInfo && existingAddInfo.trim() !== '') {
+      if (
+        existingAddInfo &&
+        existingAddInfo.trim() !== '' &&
+        !/^hoan tien\b/i.test(existingAddInfo.trim())
+      ) {
         defaultNote = existingAddInfo.trim();
       }
-      const activeNote = trimmedCustom || defaultNote;
+      const activeNote = formatVietQrTransferNote(defaultNote, trimmedCustom);
       parsed.searchParams.set('addInfo', activeNote);
       return {
         qrUrl: parsed.toString(),
@@ -215,7 +228,7 @@ export function buildDynamicVietQrUrl(params: {
     }
   }
 
-  const activeNote = trimmedCustom || defaultNote;
+  const activeNote = formatVietQrTransferNote(defaultNote, trimmedCustom);
 
   if (trimmedBase) {
     return {
@@ -248,35 +261,4 @@ export function buildDynamicVietQrUrl(params: {
     activeNote,
     defaultNote,
   };
-}
-
-// Lưu trạng thái "khách tự mang hàng đến cửa hàng" cục bộ theo mã phiếu để giữ trải nghiệm liền mạch khi sửa phiếu
-const SELF_DROPOFF_STORAGE_KEY = 'fashion_return_self_dropoff_map';
-
-export function getSelfDropOffFlag(returnId?: number | null): boolean {
-  if (!returnId) return false;
-  try {
-    const raw = localStorage.getItem(SELF_DROPOFF_STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw) as Record<string, boolean>;
-    return Boolean(parsed[String(returnId)]);
-  } catch {
-    return false;
-  }
-}
-
-export function setSelfDropOffFlag(returnId: number | undefined | null, isSelfDropOff: boolean): void {
-  if (!returnId) return;
-  try {
-    const raw = localStorage.getItem(SELF_DROPOFF_STORAGE_KEY);
-    const parsed: Record<string, boolean> = raw ? JSON.parse(raw) : {};
-    if (isSelfDropOff) {
-      parsed[String(returnId)] = true;
-    } else {
-      delete parsed[String(returnId)];
-    }
-    localStorage.setItem(SELF_DROPOFF_STORAGE_KEY, JSON.stringify(parsed));
-  } catch {
-    // Bỏ qua nếu trình duyệt chặn localStorage
-  }
 }

@@ -6,8 +6,11 @@
 import React from 'react';
 import { Truck, MapPin, Phone, User, ExternalLink, FileText } from 'lucide-react';
 import type { ReturnRequestResponse } from '../../types/return';
-import { buildGhnTrackingUrl, formatPickupAddress } from '../../utils/returnHelpers';
-import { getSelfDropOffFlag } from '../../constants/banks';
+import {
+  buildGhnTrackingUrl,
+  formatPickupAddress,
+  isSelfDropOffReturn,
+} from '../../utils/returnHelpers';
 import { cn } from '../../utils/cn';
 
 export interface ReturnShippingInfoCardProps {
@@ -21,15 +24,22 @@ export default function ReturnShippingInfoCard({
   viewerRole = 'customer',
   className = '',
 }: ReturnShippingInfoCardProps) {
-  const isSelfDropOff = getSelfDropOffFlag(returnRequest.id) && !returnRequest.returnTrackingCode;
-  const providerLabel = isSelfDropOff
-    ? 'Tự mang đến cửa hàng'
-    : returnRequest.returnShippingProvider === 'GHN'
+  const fullPickupAddress = formatPickupAddress(returnRequest);
+  const isSelfDropOff = isSelfDropOffReturn(returnRequest);
+  const isPending = returnRequest.status === 'PENDING_APPROVAL';
+
+  const providerLabel =
+    returnRequest.returnShippingProvider === 'GHN'
       ? 'Giao Hàng Nhanh (GHN)'
-      : returnRequest.returnShippingProvider || 'Khách tự gửi / mang đến cửa hàng';
+      : returnRequest.returnShippingProvider
+        ? returnRequest.returnShippingProvider
+        : isSelfDropOff
+          ? 'Khách tự mang đến cửa hàng'
+          : isPending
+            ? 'Giao Hàng Nhanh (GHN) — Chờ duyệt tạo đơn'
+            : 'Khách tự gửi / mang đến cửa hàng';
 
   const trackingUrl = buildGhnTrackingUrl(returnRequest.returnTrackingCode);
-  const fullPickupAddress = formatPickupAddress(returnRequest);
   const isCustomer = viewerRole === 'customer';
 
   return (

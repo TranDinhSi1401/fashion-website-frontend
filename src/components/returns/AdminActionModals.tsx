@@ -41,12 +41,12 @@ import {
   toLocalIsoDateTimeString,
   validateReturnImageFiles,
   ACCEPTED_IMAGE_EXTENSIONS,
+  isSelfDropOffReturn,
 } from '../../utils/returnHelpers';
 import { buildDynamicVietQrUrl } from '../../constants/banks';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import Checkbox from '../ui/Checkbox';
 
 /**
  * Hàm tiện ích chuyển đổi đối tượng Date sang chuỗi format của input type="datetime-local" (YYYY-MM-DDTHH:mm).
@@ -87,21 +87,22 @@ export function ReturnApproveModal({
   returnRequest,
   onSuccess,
 }: ReturnApproveModalProps) {
+  const isSelfDropOff = isSelfDropOffReturn(returnRequest);
   const [instructionNote, setInstructionNote] = useState<string>('');
-  const [autoCreateShippingOrder, setAutoCreateShippingOrder] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
       setInstructionNote(
-        'Quý khách vui lòng đóng gói sản phẩm nguyên vẹn vào hộp, dán kín miệng hộp và chờ shipper liên hệ lấy hàng trong vòng 7 ngày làm việc.'
+        isSelfDropOff
+          ? 'Quý khách vui lòng đóng gói sản phẩm nguyên vẹn và mang trực tiếp đến cửa hàng trong vòng 7 ngày làm việc.'
+          : 'Quý khách vui lòng đóng gói sản phẩm nguyên vẹn vào hộp, dán kín miệng hộp và chờ shipper liên hệ lấy hàng trong vòng 7 ngày làm việc.'
       );
-      setAutoCreateShippingOrder(true);
       setErrorMessage('');
       setIsSubmitting(false);
     }
-  }, [isOpen]);
+  }, [isOpen, isSelfDropOff]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +112,7 @@ export function ReturnApproveModal({
     try {
       await returnAdminService.approveReturn(returnRequest.id, {
         instructionNote: instructionNote.trim() || undefined,
-        autoCreateShippingOrder,
+        autoCreateShippingOrder: !isSelfDropOff,
       });
       onSuccess();
       onClose();
@@ -135,17 +136,10 @@ export function ReturnApproveModal({
           </div>
         </div>
 
-        <div className="p-3.5 bg-surface border border-line-light rounded-sm">
-          <Checkbox
-            id="auto-create-shipping-order"
-            label="Tự động tạo đơn lấy hàng GHN"
-            checked={autoCreateShippingOrder}
-            onChange={(e) => setAutoCreateShippingOrder(e.target.checked)}
-            disabled={isSubmitting}
-          />
-          <p className="text-xs text-content-muted mt-1 ml-7">
-            Bỏ chọn nếu khách tự mang hàng đến cửa hàng
-          </p>
+        <div className="p-3.5 bg-surface border border-line-light rounded-sm text-xs text-content-secondary">
+          {isSelfDropOff
+            ? 'Khách đã chọn tự mang hàng đến cửa hàng (phí ship 0đ)'
+            : 'Khách đã chọn gửi hàng qua Giao Hàng Nhanh (GHN) — Hệ thống sẽ tự động tạo đơn lấy hàng khi duyệt.'}
         </div>
 
         <div>

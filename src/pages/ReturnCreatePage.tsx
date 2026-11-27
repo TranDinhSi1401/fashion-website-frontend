@@ -27,7 +27,12 @@ import {
   isOrderEligibleForReturn,
   validateReturnImageFiles,
   buildCreateReturnPayload,
-  isValidBankAccountNumber,
+  sanitizeBankAccountNumberInput,
+  normalizeBankAccountHolderInput,
+  validateRequiredBankInfo,
+  getBankAccountHint,
+  getRealtimeBankAccountError,
+  validateBankAccountNumberForBank,
   isValidPickupPhone,
   formatVND,
 } from '../utils/returnHelpers';
@@ -37,7 +42,6 @@ import Select from '../components/ui/Select';
 import QuantityStepper from '../components/ui/QuantityStepper';
 import ReturnImageUploader from '../components/returns/ReturnImageUploader';
 import BankSelect from '../components/returns/BankSelect';
-import { setSelfDropOffFlag } from '../constants/banks';
 import { cn } from '../utils/cn';
 
 /**
@@ -93,11 +97,10 @@ export default function ReturnCreatePage() {
     images?: string;
     pickupContactName?: string;
     pickupPhone?: string;
+    bankName?: string;
     accountNumber?: string;
+    accountHolderName?: string;
   }>({});
-  const [alreadyRequestedByOrderItemId, setAlreadyRequestedByOrderItemId] = useState<
-    Record<number, number>
-  >({});
 
   // Tải sổ địa chỉ của khách hàng để chọn nơi shipper GHN tới lấy hàng
   useEffect(() => {
@@ -120,34 +123,24 @@ export default function ReturnCreatePage() {
     };
   }, []);
 
-  // Tải danh sách phiếu trả hiện có của khách hàng để tính chính xác số lượng còn có thể trả trên từng dòng sản phẩm
+  // Nếu đơn được truyền qua router state chưa có remainingReturnableQuantity từ API mới, gọi lại GET /orders/my-orders/{id} để đồng bộ chính xác
   useEffect(() => {
     if (!order?.id) return;
+    const missingRemainingField = (order.orderItems || []).some(
+      (it) => typeof it.remainingReturnableQuantity !== 'number'
+    );
+    if (!missingRemainingField) return;
     let isMounted = true;
-
-    returnService
-      .getMyRequests(0, 100)
-      .then((res) => {
-        if (!isMounted || !res?.data?.content) return;
-        const usedMap: Record<number, number> = {};
-        res.data.content.forEach((req) => {
-          if (
-            Number(req.orderId) !== Number(order.id) ||
-            req.status === 'CANCELLED' ||
-            req.status === 'REJECTED'
-          ) {
-            return;
-          }
-          (req.items || []).forEach((it) => {
-            usedMap[it.orderItemId] = (usedMap[it.orderItemId] || 0) + (it.quantity || 0);
-          });
-        });
-        setAlreadyRequestedByOrderItemId(usedMap);
+    orderService
+      .getMyOrderById(order.id)
+      .then((freshOrder) => {
+        if (isMounted && freshOrder) {
+          setOrder(freshOrder);
+        }
       })
       .catch(() => {
-        // Bỏ qua nếu không tải được lịch sử trả; Backend vẫn bảo vệ ở bước submit
+        // Giữ nguyên dữ liệu hiện có nếu không gọi được API lẻ
       });
-
     return () => {
       isMounted = false;
     };
@@ -262,7 +255,9 @@ export default function ReturnCreatePage() {
       images?: string;
       pickupContactName?: string;
       pickupPhone?: string;
+      bankName?: string;
       accountNumber?: string;
+      accountHolderName?: string;
     } = {};
 
     // 1. Kiểm tra danh sách sản phẩm được chọn và giới hạn còn có thể trả
@@ -271,7 +266,7 @@ export default function ReturnCreatePage() {
       .map((item: OrderItemResponse) => {
         const remainingQty = Math.max(
           0,
-          (item.quantity || 0) - (alreadyRequestedByOrderItemId[item.id] || 0)
+          item.remainingReturnableQuantity ?? item.quantity ?? 0
         );
         return {
           orderItemId: item.id,
@@ -310,12 +305,17 @@ export default function ReturnCreatePage() {
         'Số điện thoại lấy hàng không hợp lệ (bắt đầu bằng 0 hoặc +84, gồm 10–11 chữ số).';
     }
 
-    // 5. Kiểm tra tài khoản ngân hàng nếu có điền
+    // 5. Kiểm tra bắt buộc đầy đủ thông tin tài khoản ngân hàng nhận hoàn tiền
     const trimmedAccount = accountNumber.trim();
-    if (trimmedAccount !== '' && !isValidBankAccountNumber(trimmedAccount)) {
-      nextErrors.accountNumber =
-        'Số tài khoản ngân hàng không hợp lệ (phải gồm từ 6 đến 30 chữ số).';
-    }
+    const trimmedHolder = accountHolderName.trim();
+    const bankErrors = validateRequiredBankInfo({
+      bankName,
+      accountNumber: trimmedAccount,
+      accountHolderName: trimmedHolder,
+    });
+    if (bankErrors.bankName) nextErrors.bankName = bankErrors.bankName;
+    if (bankErrors.accountNumber) nextErrors.accountNumber = bankErrors.accountNumber;
+    if (bankErrors.accountHolderName) nextErrors.accountHolderName = bankErrors.accountHolderName;
 
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
@@ -331,6 +331,7 @@ export default function ReturnCreatePage() {
       bankName: bankName.trim(),
       accountNumber: trimmedAccount,
       accountHolderName: accountHolderName.trim(),
+      selfDropOff: isSelfDropOff,
       pickupAddressId: isSelfDropOff ? null : pickupAddressId || null,
       pickupContactName: trimmedPickupName,
       pickupPhone: trimmedPickupPhone,
@@ -345,7 +346,6 @@ export default function ReturnCreatePage() {
       );
 
       if (res.data) {
-        setSelfDropOffFlag(res.data.id, isSelfDropOff);
         // Chuyển hướng sang màn C4 chi tiết phiếu trả hàng vừa tạo
         navigate(`/account/returns/${res.data.id}`, {
           state: { newlyCreated: true },
@@ -433,6 +433,23 @@ export default function ReturnCreatePage() {
           </Button>
         </div>
 
+        {/* Banner cảnh báo khi toàn bộ sản phẩm đã yêu cầu trả đủ số lượng */}
+        {(() => {
+          const hasReturnableItems = (order.orderItems || []).some(
+            (item: OrderItemResponse) =>
+              Math.max(0, item.remainingReturnableQuantity ?? item.quantity ?? 0) > 0
+          );
+          if (hasReturnableItems) return null;
+          return (
+            <div className="flex items-center gap-2.5 p-4 bg-surface border-l-4 border-line-error text-status-error text-sm rounded-sm mb-6">
+              <AlertCircle size={20} className="shrink-0" />
+              <span>
+                Tất cả sản phẩm trong đơn hàng này đã được yêu cầu trả đủ số lượng. Bạn không thể gửi thêm yêu cầu trả hàng mới.
+              </span>
+            </div>
+          );
+        })()}
+
         {/* Banner thông báo lỗi nếu có */}
         {formError && (
           <div className="flex items-center gap-2.5 p-4 bg-surface border-l-4 border-line-error text-status-error text-sm rounded-sm mb-6">
@@ -455,7 +472,7 @@ export default function ReturnCreatePage() {
               {(order.orderItems || []).map((item: OrderItemResponse) => {
                 const remainingQty = Math.max(
                   0,
-                  (item.quantity || 0) - (alreadyRequestedByOrderItemId[item.id] || 0)
+                  item.remainingReturnableQuantity ?? item.quantity ?? 0
                 );
                 const isExhausted = remainingQty === 0;
                 const itemState = selectedItems[item.id] || { selected: false, quantity: 1 };
@@ -719,10 +736,10 @@ export default function ReturnCreatePage() {
           <div className="bg-surface-body border border-line-light p-6 rounded-card flex flex-col gap-4">
             <div>
               <h2 className="text-base font-bold uppercase tracking-wide text-content-primary mb-1">
-                5. Tài Khoản Ngân Hàng Nhận Hoàn Tiền (Tùy chọn)
+                5. Tài Khoản Ngân Hàng Nhận Hoàn Tiền <span className="text-accent-red">*</span>
               </h2>
               <p className="text-xs text-content-muted">
-                Bạn có thể bổ sung ngay bây giờ hoặc cập nhật sau khi yêu cầu được kiểm tra
+                Vui lòng nhập chính xác thông tin tài khoản ngân hàng chính chủ để cửa hàng hoàn tiền sau khi kiểm tra sản phẩm
               </p>
             </div>
 
@@ -730,81 +747,129 @@ export default function ReturnCreatePage() {
               <BankSelect
                 label="Ngân hàng"
                 value={bankName}
-                onChange={setBankName}
-                allowClear
+                onChange={(val) => {
+                  setBankName(val);
+                  setFieldErrors((prev) => ({
+                    ...prev,
+                    bankName: undefined,
+                    accountNumber: accountNumber.trim()
+                      ? validateBankAccountNumberForBank(accountNumber, val)
+                      : undefined,
+                  }));
+                }}
+                error={fieldErrors.bankName}
+                required
                 placeholder="Chọn ngân hàng..."
               />
               <Input
-                label="Số tài khoản"
-                placeholder="6–30 chữ số"
+                label="Số tài khoản *"
+                placeholder="Nhập số tài khoản"
+                helperText={getBankAccountHint(bankName)}
+                inputMode="numeric"
+                maxLength={30}
                 value={accountNumber}
                 error={fieldErrors.accountNumber}
+                required
                 onChange={(e) => {
-                  setAccountNumber(e.target.value);
-                  setFieldErrors((prev) =>
-                    prev.accountNumber ? { ...prev, accountNumber: undefined } : prev
-                  );
+                  const next = sanitizeBankAccountNumberInput(e.target.value);
+                  setAccountNumber(next);
+                  const realtimeErr = getRealtimeBankAccountError(next, bankName);
+                  setFieldErrors((prev) => ({
+                    ...prev,
+                    accountNumber: realtimeErr,
+                  }));
+                }}
+                onBlur={() => {
+                  if (accountNumber.trim()) {
+                    setFieldErrors((prev) => ({
+                      ...prev,
+                      accountNumber: validateBankAccountNumberForBank(accountNumber, bankName),
+                    }));
+                  }
                 }}
               />
               <Input
-                label="Chủ tài khoản"
+                label="Chủ tài khoản *"
                 placeholder="NGUYEN VAN A"
+                helperText="Viết hoa không dấu"
+                maxLength={100}
                 value={accountHolderName}
-                onChange={(e) => setAccountHolderName(e.target.value)}
+                error={fieldErrors.accountHolderName}
+                required
+                onChange={(e) => {
+                  setAccountHolderName(normalizeBankAccountHolderInput(e.target.value));
+                  setFieldErrors((prev) =>
+                    prev.accountHolderName ? { ...prev, accountHolderName: undefined } : prev
+                  );
+                }}
               />
             </div>
           </div>
 
           {/* KHỐI HÀNH ĐỘNG GỬI YÊU CẦU */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-surface border border-line-light rounded-sm">
-            <label
-              htmlFor="agree-return-policy"
-              className="flex items-start sm:items-center gap-2.5 text-xs text-content-primary cursor-pointer select-none"
-            >
-              <input
-                id="agree-return-policy"
-                type="checkbox"
-                checked={agreedPolicy}
-                onChange={(e) => setAgreedPolicy(e.target.checked)}
-                className="w-4 h-4 mt-0.5 sm:mt-0 rounded-sm border-line text-primary focus:ring-0 cursor-pointer shrink-0"
-              />
-              <span>
-                Tôi đã đọc và đồng ý với{' '}
-                <Link
-                  to="/chinh-sach-doi-tra"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="font-semibold text-primary underline hover:opacity-80"
+          {(() => {
+            const hasReturnableItems = (order.orderItems || []).some(
+              (item: OrderItemResponse) =>
+                Math.max(0, item.remainingReturnableQuantity ?? item.quantity ?? 0) > 0
+            );
+            const isSubmitDisabled = !hasReturnableItems || !agreedPolicy || isSubmitting;
+
+            return (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-surface border border-line-light rounded-sm">
+                <label
+                  htmlFor="agree-return-policy"
+                  className={cn(
+                    'flex items-start sm:items-center gap-2.5 text-xs text-content-primary select-none',
+                    hasReturnableItems ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                  )}
                 >
-                  Chính sách Trả hàng &amp; Hoàn tiền
-                </Link>
-              </span>
-            </label>
-            <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => navigate('/account/orders')}
-                disabled={isSubmitting}
-                className="flex-1 sm:flex-initial"
-              >
-                Hủy Bỏ
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                loading={isSubmitting}
-                disabled={!agreedPolicy || isSubmitting}
-                className={cn(
-                  'flex-1 sm:flex-initial transition-opacity',
-                  !agreedPolicy && 'opacity-45 cursor-not-allowed'
-                )}
-              >
-                Gửi Yêu Cầu Trả Hàng
-              </Button>
-            </div>
-          </div>
+                  <input
+                    id="agree-return-policy"
+                    type="checkbox"
+                    checked={agreedPolicy}
+                    disabled={!hasReturnableItems || isSubmitting}
+                    onChange={(e) => setAgreedPolicy(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 sm:mt-0 rounded-sm border-line text-primary focus:ring-0 cursor-pointer shrink-0 disabled:cursor-not-allowed"
+                  />
+                  <span>
+                    Tôi đã đọc và đồng ý với{' '}
+                    <Link
+                      to="/chinh-sach-doi-tra"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="font-semibold text-primary underline hover:opacity-80"
+                    >
+                      Chính sách Trả hàng &amp; Hoàn tiền
+                    </Link>
+                  </span>
+                </label>
+                <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => navigate('/account/orders')}
+                    disabled={isSubmitting}
+                    className="flex-1 sm:flex-initial"
+                  >
+                    Hủy Bỏ
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    loading={isSubmitting}
+                    disabled={isSubmitDisabled}
+                    className={cn(
+                      'flex-1 sm:flex-initial transition-opacity',
+                      isSubmitDisabled && 'opacity-45 cursor-not-allowed'
+                    )}
+                  >
+                    Gửi Yêu Cầu Trả Hàng
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </form>
       </div>
     </div>

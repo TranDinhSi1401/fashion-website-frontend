@@ -25,12 +25,17 @@ import Select from '../ui/Select';
 import QuantityStepper from '../ui/QuantityStepper';
 import ReturnImageUploader from './ReturnImageUploader';
 import BankSelect from './BankSelect';
-import { getSelfDropOffFlag, setSelfDropOffFlag } from '../../constants/banks';
 import { RETURN_REASON_OPTIONS } from '../../constants/returnMeta';
 import {
   buildUpdateReturnPayload,
   buildConfirmPlanPayload,
-  isValidBankAccountNumber,
+  isValidBankAccountHolderName,
+  sanitizeBankAccountNumberInput,
+  normalizeBankAccountHolderInput,
+  validateRequiredBankInfo,
+  getBankAccountHint,
+  getRealtimeBankAccountError,
+  validateBankAccountNumberForBank,
   isValidPickupPhone,
   formatPickupAddress,
   validateReturnImageFiles,
@@ -38,8 +43,10 @@ import {
   formatVND,
   canCustomerEditReturn,
   canCustomerUpdateBank,
+  getGeneralInspectionNote,
   canCustomerConfirmPlan,
   canCustomerCancelReturn,
+  isSelfDropOffReturn,
 } from '../../utils/returnHelpers';
 import { returnService } from '../../services/returnService';
 import { userService } from '../../services/userService';
@@ -51,25 +58,6 @@ import type {
   ReturnReason,
 } from '../../types/return';
 import { cn } from '../../utils/cn';
-
-/**
- * Chức năng: Chuyển đổi ảnh minh chứng đã lưu trên Cloudinary/server thành đối tượng File
- * khi khách hàng xóa bớt ảnh cũ hoặc tải thêm ảnh mới trong modal chỉnh sửa.
- *
- * @param url   Đầu vào: Đường dẫn URL của ảnh hiện có.
- * @param index Đầu vào: Chỉ số ảnh dùng để đặt tên tệp.
- * @returns Đầu ra: Promise<File> chứa dữ liệu ảnh tương ứng.
- */
-async function fetchImageUrlAsFile(url: string, index: number): Promise<File> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error('Không thể tải lại ảnh minh chứng hiện có từ máy chủ.');
-  }
-  const blob = await res.blob();
-  const mime = blob.type || 'image/jpeg';
-  const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
-  return new File([blob], `existing-return-image-${index + 1}.${ext}`, { type: mime });
-}
 
 // ============================================================================
 // 1. MODAL C5A: CHỈNH SỬA YÊU CẦU TRẢ HÀNG (RETURN EDIT MODAL)
@@ -123,7 +111,7 @@ export function ReturnEditModal({
   );
   const [pickupPhone, setPickupPhone] = useState<string>(returnRequest.pickupPhone || '');
   const [isSelfDropOff, setIsSelfDropOff] = useState<boolean>(() =>
-    getSelfDropOffFlag(returnRequest.id)
+    isSelfDropOffReturn(returnRequest)
   );
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -133,7 +121,9 @@ export function ReturnEditModal({
     images?: string;
     pickupContactName?: string;
     pickupPhone?: string;
+    bankName?: string;
     accountNumber?: string;
+    accountHolderName?: string;
   }>({});
 
   // Khởi tạo state số lượng sản phẩm, tải sổ địa chỉ & tính số lượng tối đa còn lại có thể trả
@@ -149,7 +139,7 @@ export function ReturnEditModal({
     setPickupAddressId('');
     setPickupContactName(returnRequest.pickupContactName || '');
     setPickupPhone(returnRequest.pickupPhone || '');
-    setIsSelfDropOff(getSelfDropOffFlag(returnRequest.id));
+    setIsSelfDropOff(isSelfDropOffReturn(returnRequest));
     setKeptImages(returnRequest.images || []);
     setNewImages([]);
     setErrorMessage('');
@@ -173,38 +163,21 @@ export function ReturnEditModal({
       });
 
     if (returnRequest.orderId) {
-      Promise.all([
-        orderService.getMyOrderById(returnRequest.orderId).catch(() => orderService.getOrderById(returnRequest.orderId)),
-        returnService.getMyRequests(0, 100).catch(() => null),
-      ])
-        .then(([order, myReturnsRes]) => {
+      orderService
+        .getMyOrderById(returnRequest.orderId)
+        .catch(() => orderService.getOrderById(returnRequest.orderId))
+        .then((order) => {
           if (!isMounted || !order?.orderItems?.length) return;
-          const otherUsedMap: Record<number, number> = {};
-          const reqList = myReturnsRes?.data?.content || [];
-          reqList.forEach((req) => {
-            if (
-              req.id === returnRequest.id ||
-              Number(req.orderId) !== Number(returnRequest.orderId) ||
-              req.status === 'CANCELLED' ||
-              req.status === 'REJECTED'
-            ) {
-              return;
-            }
-            (req.items || []).forEach((it) => {
-              otherUsedMap[it.orderItemId] = (otherUsedMap[it.orderItemId] || 0) + (it.quantity || 0);
-            });
-          });
-
           const metaMap: Record<number, { maxQuantity: number; unitPrice: number }> = {};
           order.orderItems.forEach((oi) => {
             const currentItem = (returnRequest.items || []).find((ri) => ri.orderItemId === oi.id);
             const currentQty = currentItem?.quantity || 1;
-            const remainingAvailable = Math.max(
-              currentQty,
-              (oi.quantity || currentQty) - (otherUsedMap[oi.id] || 0)
-            );
+            const remainingFromApi =
+              typeof oi.remainingReturnableQuantity === 'number'
+                ? Math.min(oi.quantity || currentQty, currentQty + oi.remainingReturnableQuantity)
+                : oi.quantity || currentQty;
             metaMap[oi.id] = {
-              maxQuantity: remainingAvailable,
+              maxQuantity: Math.max(currentQty, remainingFromApi),
               unitPrice: oi.unitPrice || 0,
             };
           });
@@ -235,7 +208,9 @@ export function ReturnEditModal({
       images?: string;
       pickupContactName?: string;
       pickupPhone?: string;
+      bankName?: string;
       accountNumber?: string;
+      accountHolderName?: string;
     } = {};
 
     if (!reasonDetail.trim()) {
@@ -270,12 +245,17 @@ export function ReturnEditModal({
         'Số điện thoại lấy hàng không hợp lệ (bắt đầu bằng 0 hoặc +84, gồm 10–11 chữ số).';
     }
 
-    // Kiểm tra định dạng số tài khoản ngân hàng nếu có nhập
+    // Kiểm tra bắt buộc đầy đủ thông tin ngân hàng nhận hoàn tiền (không cho xóa trắng)
     const trimmedAccount = accountNumber.trim();
-    if (trimmedAccount !== '' && !isValidBankAccountNumber(trimmedAccount)) {
-      nextErrors.accountNumber =
-        'Số tài khoản ngân hàng không hợp lệ (phải gồm từ 6 đến 30 chữ số).';
-    }
+    const trimmedHolder = accountHolderName.trim();
+    const bankErrors = validateRequiredBankInfo({
+      bankName,
+      accountNumber: trimmedAccount,
+      accountHolderName: trimmedHolder,
+    });
+    if (bankErrors.bankName) nextErrors.bankName = bankErrors.bankName;
+    if (bankErrors.accountNumber) nextErrors.accountNumber = bankErrors.accountNumber;
+    if (bankErrors.accountHolderName) nextErrors.accountHolderName = bankErrors.accountHolderName;
 
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
@@ -303,6 +283,8 @@ export function ReturnEditModal({
       bankName,
       accountNumber: trimmedAccount,
       accountHolderName,
+      selfDropOff: isSelfDropOff,
+      retainedImageUrls: keptImages.map((img) => img.imageUrl),
       pickupAddressId: isSelfDropOff ? null : pickupAddressId || null,
       pickupContactName: trimmedPickupName,
       pickupPhone: trimmedPickupPhone,
@@ -310,23 +292,10 @@ export function ReturnEditModal({
 
     setIsLoading(true);
     try {
-      const originalImagesCount = returnRequest.images?.length || 0;
-      const hasRemovedExisting = keptImages.length < originalImagesCount;
-      let filesToSend: File[] | undefined;
-
-      if (hasRemovedExisting || newImages.length > 0) {
-        const keptFiles =
-          keptImages.length > 0
-            ? await Promise.all(keptImages.map((img, idx) => fetchImageUrlAsFile(img.imageUrl, idx)))
-            : [];
-        const combined = [...keptFiles, ...newImages];
-        filesToSend = combined.length > 0 ? combined : undefined;
-      }
-
+      const filesToSend = newImages.length > 0 ? newImages : undefined;
       const res = await returnService.updateReturn(returnRequest.id, cleanPayload, filesToSend);
 
       if (res.data) {
-        setSelfDropOffFlag(res.data.id, isSelfDropOff);
         onSuccess(res.data);
         onClose();
       }
@@ -585,33 +554,67 @@ export function ReturnEditModal({
         {/* 6. Thông tin ngân hàng nhận tiền hoàn */}
         <div className="border-t border-line-light pt-4 flex flex-col gap-3">
           <h4 className="text-sm font-bold text-content-primary">
-            Thông Tin Tài Khoản Nhận Hoàn Tiền (Tùy chọn)
+            Thông Tin Tài Khoản Nhận Hoàn Tiền <span className="text-accent-red">*</span>
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <BankSelect
               label="Ngân hàng"
               value={bankName}
-              onChange={setBankName}
-              allowClear
+              onChange={(val) => {
+                setBankName(val);
+                setFieldErrors((prev) => ({
+                  ...prev,
+                  bankName: undefined,
+                  accountNumber: accountNumber.trim()
+                    ? validateBankAccountNumberForBank(accountNumber, val)
+                    : undefined,
+                }));
+              }}
+              error={fieldErrors.bankName}
+              required
               placeholder="Chọn ngân hàng..."
             />
             <Input
-              label="Số tài khoản"
-              placeholder="6 - 30 chữ số"
+              label="Số tài khoản *"
+              placeholder="Nhập số tài khoản"
+              helperText={getBankAccountHint(bankName)}
+              inputMode="numeric"
+              maxLength={30}
               value={accountNumber}
               error={fieldErrors.accountNumber}
+              required
               onChange={(e) => {
-                setAccountNumber(e.target.value);
-                setFieldErrors((prev) =>
-                  prev.accountNumber ? { ...prev, accountNumber: undefined } : prev
-                );
+                const next = sanitizeBankAccountNumberInput(e.target.value);
+                setAccountNumber(next);
+                const realtimeErr = getRealtimeBankAccountError(next, bankName);
+                setFieldErrors((prev) => ({
+                  ...prev,
+                  accountNumber: realtimeErr,
+                }));
+              }}
+              onBlur={() => {
+                if (accountNumber.trim()) {
+                  setFieldErrors((prev) => ({
+                    ...prev,
+                    accountNumber: validateBankAccountNumberForBank(accountNumber, bankName),
+                  }));
+                }
               }}
             />
             <Input
-              label="Tên chủ tài khoản"
+              label="Tên chủ tài khoản *"
               placeholder="NGUYEN VAN A"
+              helperText="Viết hoa không dấu"
+              maxLength={100}
               value={accountHolderName}
-              onChange={(e) => setAccountHolderName(e.target.value)}
+              error={fieldErrors.accountHolderName}
+              required
+              onChange={(e) => {
+                setAccountHolderName(normalizeBankAccountHolderInput(e.target.value));
+                setFieldErrors((prev) =>
+                  prev.accountHolderName ? { ...prev, accountHolderName: undefined } : prev
+                );
+              }}
             />
           </div>
         </div>
@@ -684,16 +687,17 @@ export function ReturnBankModal({
       setErrorMessage('Vui lòng nhập tên ngân hàng tiếp nhận.');
       return;
     }
-    if (!cleanAccount) {
-      setErrorMessage('Vui lòng nhập số tài khoản ngân hàng.');
-      return;
-    }
-    if (!isValidBankAccountNumber(cleanAccount)) {
-      setErrorMessage('Số tài khoản ngân hàng phải gồm từ 6 đến 30 chữ số (không chứa chữ hoặc ký tự đặc biệt).');
+    const accountError = validateBankAccountNumberForBank(cleanAccount, cleanBankName);
+    if (accountError) {
+      setErrorMessage(accountError);
       return;
     }
     if (!cleanHolder) {
       setErrorMessage('Vui lòng nhập tên chủ tài khoản nhận tiền.');
+      return;
+    }
+    if (!isValidBankAccountHolderName(cleanHolder)) {
+      setErrorMessage('Tên chủ tài khoản phải từ 2–100 ký tự chữ cái viết hoa không dấu (ví dụ: NGUYEN VAN A).');
       return;
     }
 
@@ -752,9 +756,13 @@ export function ReturnBankModal({
         <div>
           <Input
             label="Số tài khoản ngân hàng"
-            placeholder="Chỉ gồm từ 6 đến 30 chữ số"
+            placeholder="Nhập số tài khoản"
+            helperText={getBankAccountHint(bankName)}
+            inputMode="numeric"
+            maxLength={30}
             value={accountNumber}
-            onChange={(e) => setAccountNumber(e.target.value)}
+            error={getRealtimeBankAccountError(accountNumber, bankName)}
+            onChange={(e) => setAccountNumber(sanitizeBankAccountNumberInput(e.target.value))}
             required
           />
         </div>
@@ -762,9 +770,11 @@ export function ReturnBankModal({
         <div>
           <Input
             label="Tên chủ tài khoản"
-            placeholder="NGUYEN VAN A (viết hoa không dấu)"
+            placeholder="NGUYEN VAN A"
+            helperText="Viết hoa không dấu (giống trên thẻ/app ngân hàng)"
+            maxLength={100}
             value={accountHolderName}
-            onChange={(e) => setAccountHolderName(e.target.value)}
+            onChange={(e) => setAccountHolderName(normalizeBankAccountHolderInput(e.target.value))}
             required
           />
         </div>
@@ -842,6 +852,11 @@ export function ReturnConfirmPlanModal({
     const cleanAccount = accountNumber.trim();
     const cleanHolder = accountHolderName.trim();
 
+    if (!agreed && !customerNote.trim()) {
+      setErrorMessage('Vui lòng nhập lý do không đồng ý hoặc ý kiến trao đổi với shop.');
+      return;
+    }
+
     if (agreed) {
       // Nếu khách đồng ý phương án hoàn tiền nhưng chưa đủ thông tin STK thì yêu cầu nhập ngay
       // để tránh trường hợp xác nhận xong nhưng phiếu vẫn bị giữ ở trạng thái chờ bổ sung STK
@@ -851,12 +866,24 @@ export function ReturnConfirmPlanModal({
         );
         return;
       }
-      if (!isValidBankAccountNumber(cleanAccount)) {
-        setErrorMessage('Số tài khoản ngân hàng không hợp lệ (gồm 6–30 chữ số).');
+      const accountError = validateBankAccountNumberForBank(cleanAccount, cleanBank);
+      if (accountError) {
+        setErrorMessage(accountError);
         return;
       }
-    } else if (cleanAccount !== '' && !isValidBankAccountNumber(cleanAccount)) {
-      setErrorMessage('Số tài khoản ngân hàng không hợp lệ (gồm 6–30 chữ số).');
+      if (!isValidBankAccountHolderName(cleanHolder)) {
+        setErrorMessage('Tên chủ tài khoản phải từ 2–100 ký tự chữ cái viết hoa không dấu (ví dụ: NGUYEN VAN A).');
+        return;
+      }
+    } else if (cleanAccount !== '') {
+      const accountError = validateBankAccountNumberForBank(cleanAccount, cleanBank);
+      if (accountError) {
+        setErrorMessage(accountError);
+        return;
+      }
+    }
+    if (!agreed && cleanHolder !== '' && !isValidBankAccountHolderName(cleanHolder)) {
+      setErrorMessage('Tên chủ tài khoản phải từ 2–100 ký tự chữ cái viết hoa không dấu (ví dụ: NGUYEN VAN A).');
       return;
     }
 
@@ -882,6 +909,8 @@ export function ReturnConfirmPlanModal({
       setIsLoading(false);
     }
   };
+
+  const generalInspectionNote = getGeneralInspectionNote(returnRequest);
 
   return (
     <Modal
@@ -914,7 +943,7 @@ export function ReturnConfirmPlanModal({
                   <span className="text-content-muted ml-2">({item.variantInfo || 'Mặc định'})</span>
                   {item.inspectionNote && (
                     <div className="text-content-secondary mt-0.5 italic">
-                      Ghi chú QC: {item.inspectionNote}
+                      Ghi chú kiểm tra: {item.inspectionNote}
                     </div>
                   )}
                 </div>
@@ -928,6 +957,13 @@ export function ReturnConfirmPlanModal({
               </div>
             ))}
           </div>
+
+          {generalInspectionNote && (
+            <div className="text-xs bg-surface-body border border-line-light rounded-sm px-3 py-2 text-content-secondary">
+              <span className="font-semibold text-content-primary">Phản hồi từ shop: </span>
+              <span className="break-words [overflow-wrap:anywhere]">{generalInspectionNote}</span>
+            </div>
+          )}
 
           {/* Đối soát số tiền hoàn dự kiến */}
           <div className="border-t border-line-light pt-2.5 flex flex-col gap-1.5 text-sm">
@@ -1001,14 +1037,25 @@ export function ReturnConfirmPlanModal({
         {/* Ghi chú phản hồi của khách */}
         <div>
           <label className="mb-1.5 block text-sm font-semibold text-content-primary">
-            Ý kiến phản hồi của bạn (Tùy chọn)
+            {agreed ? (
+              'Ý kiến phản hồi của bạn (Tùy chọn)'
+            ) : (
+              <>
+                Ý kiến phản hồi của bạn <span className="text-accent-red">*</span>
+              </>
+            )}
           </label>
           <textarea
             rows={2}
             value={customerNote}
             onChange={(e) => setCustomerNote(e.target.value)}
             maxLength={500}
-            placeholder="Nhập thêm lý do hoặc trao đổi với CSKH nếu có..."
+            required={!agreed}
+            placeholder={
+              agreed
+                ? 'Nhập thêm lý do hoặc trao đổi với CSKH nếu có...'
+                : 'Vui lòng nêu rõ lý do bạn chưa đồng ý để shop hỗ trợ kiểm tra lại...'
+            }
             className="w-full rounded-input border border-line bg-surface-body p-3 text-sm text-content-primary focus:border-line-focus focus:outline-none"
           />
         </div>
@@ -1029,16 +1076,22 @@ export function ReturnConfirmPlanModal({
               />
               <Input
                 label="Số tài khoản *"
-                placeholder="6–30 số"
+                placeholder="Nhập số tài khoản"
+                helperText={getBankAccountHint(bankName)}
+                inputMode="numeric"
+                maxLength={30}
                 value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
+                error={getRealtimeBankAccountError(accountNumber, bankName)}
+                onChange={(e) => setAccountNumber(sanitizeBankAccountNumberInput(e.target.value))}
                 required
               />
               <Input
                 label="Chủ tài khoản *"
                 placeholder="NGUYEN VAN A"
+                helperText="Viết hoa không dấu"
+                maxLength={100}
                 value={accountHolderName}
-                onChange={(e) => setAccountHolderName(e.target.value)}
+                onChange={(e) => setAccountHolderName(normalizeBankAccountHolderInput(e.target.value))}
                 required
               />
             </div>

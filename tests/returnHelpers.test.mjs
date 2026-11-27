@@ -18,6 +18,7 @@ import {
   formatVND,
   formatDateTime,
   formatDate,
+  formatReturnShippingFeeDisplay,
   toLocalIsoDateTimeString,
   normalizeReturnReason,
   getReturnReasonLabel,
@@ -33,6 +34,8 @@ import {
   canCustomerUpdateBank,
   canCustomerConfirmPlan,
   getAdminAvailableActions,
+  getGeneralInspectionNote,
+  isSelfDropOffReturn,
   pageToSpring,
   pageFromSpring,
   normalizeOrderWithItems,
@@ -183,10 +186,12 @@ describe('Tier 1: Feature Coverage', () => {
     assert.equal(canCustomerEditReturn({ status: 'WAITING_FOR_RETURN_DELIVERY' }), false);
     assert.equal(canCustomerEditReturn({ status: 'REFUNDED' }), false);
 
-    // 3. canCustomerUpdateBank: Bật trên các trạng thái hoạt động, khóa khi kết thúc
+    // 3. canCustomerUpdateBank: Chỉ cho phép trước WAITING_REFUND, khóa từ WAITING_REFUND trở đi
     assert.equal(canCustomerUpdateBank({ status: 'PENDING_APPROVAL' }), true);
+    assert.equal(canCustomerUpdateBank({ status: 'WAITING_FOR_RETURN_DELIVERY' }), true);
     assert.equal(canCustomerUpdateBank({ status: 'INSPECTING' }), true);
-    assert.equal(canCustomerUpdateBank({ status: 'WAITING_REFUND' }), true);
+    assert.equal(canCustomerUpdateBank({ status: 'WAITING_CUSTOMER_FEEDBACK' }), true);
+    assert.equal(canCustomerUpdateBank({ status: 'WAITING_REFUND' }), false);
     assert.equal(canCustomerUpdateBank({ status: 'REFUNDED' }), false);
     assert.equal(canCustomerUpdateBank({ status: 'REJECTED' }), false);
     assert.equal(canCustomerUpdateBank({ status: 'CANCELLED' }), false);
@@ -216,9 +221,21 @@ describe('Tier 1: Feature Coverage', () => {
     assert.ok(actionsB4.includes('inspect'));
     assert.ok(actionsB4.includes('reject'));
 
-    // Chờ khách phản hồi (WAITING_CUSTOMER_FEEDBACK) -> cho phép điều chỉnh inspect khi khách từ chối phương án
-    const actionsFeedback = getAdminAvailableActions({ status: 'WAITING_CUSTOMER_FEEDBACK' });
-    assert.ok(actionsFeedback.includes('inspect'));
+    // Chờ khách phản hồi (WAITING_CUSTOMER_FEEDBACK) -> ẩn inspect và reject khi khách chưa phản hồi, chỉ hiện lại inspect nếu khách đã gửi phản hồi không đồng ý
+    const actionsFeedbackWaiting = getAdminAvailableActions({
+      status: 'WAITING_CUSTOMER_FEEDBACK',
+      customerConfirmedPlan: false,
+      customerNote: null,
+    });
+    assert.ok(!actionsFeedbackWaiting.includes('inspect'));
+    assert.ok(!actionsFeedbackWaiting.includes('reject'));
+
+    const actionsFeedbackDisagreed = getAdminAvailableActions({
+      status: 'WAITING_CUSTOMER_FEEDBACK',
+      customerConfirmedPlan: false,
+      customerNote: 'Không đồng ý trừ phí ship',
+    });
+    assert.ok(actionsFeedbackDisagreed.includes('inspect'));
 
     // Đóng phiếu quá hạn 7 ngày bàn giao khi chưa giao shipper -> có action reject
     const actionsExpiredHandover = getAdminAvailableActions({
@@ -675,6 +692,131 @@ describe('Tier 4: Real-World Scenarios', () => {
         pickupProvinceName: 'TP.HCM',
       }),
       '12 Nguyễn Văn Bảo, Phường 4, TP.HCM'
+    );
+
+    // 5. Cờ selfDropOff trên payload tạo/sửa và nhận diện phiếu tự mang đến cửa hàng
+    const selfDropOffCreate = buildCreateReturnPayload({
+      orderId: 10,
+      reason: 'CHANGE_OF_MIND',
+      reasonDetail: 'Tự mang tới shop',
+      items: [{ orderItemId: 101, quantity: 1 }],
+      selfDropOff: true,
+      pickupAddressId: 5,
+      pickupContactName: 'Nguyễn Văn A',
+      pickupPhone: '0901234567',
+    });
+    assert.equal(selfDropOffCreate.selfDropOff, true);
+    assert.equal('pickupAddressId' in selfDropOffCreate, false);
+    assert.equal('pickupContactName' in selfDropOffCreate, false);
+    assert.equal('pickupPhone' in selfDropOffCreate, false);
+
+    const ghnResumeUpdate = buildUpdateReturnPayload({
+      reason: 'CHANGE_OF_MIND',
+      reasonDetail: 'Đổi sang GHN tới lấy',
+      items: [{ orderItemId: 101, quantity: 1 }],
+      selfDropOff: false,
+      pickupAddressId: 5,
+      pickupContactName: 'Nguyễn Văn A',
+      pickupPhone: '0901234567',
+    });
+    assert.equal(ghnResumeUpdate.selfDropOff, false);
+    assert.equal(ghnResumeUpdate.pickupAddressId, 5);
+    assert.equal(ghnResumeUpdate.pickupContactName, 'Nguyễn Văn A');
+    assert.equal(ghnResumeUpdate.pickupPhone, '0901234567');
+
+    assert.equal(
+      isSelfDropOffReturn({
+        pickupAddress: null,
+        pickupProvinceName: null,
+        pickupWardName: null,
+        pickupContactName: null,
+        pickupPhone: null,
+        returnShippingProvider: null,
+        returnTrackingCode: null,
+      }),
+      true
+    );
+    assert.equal(
+      isSelfDropOffReturn({
+        pickupAddress: '12 Nguyễn Văn Bảo',
+        pickupProvinceName: 'TP.HCM',
+        pickupWardName: 'Phường 4',
+        pickupContactName: 'Nguyễn Văn A',
+        pickupPhone: '0901234567',
+        returnShippingProvider: null,
+        returnTrackingCode: null,
+      }),
+      false
+    );
+
+    // 6. retainedImageUrls trên update payload & tách generalInspectionNote / rejectionReason
+    const updateWithRetained = buildUpdateReturnPayload({
+      reason: 'DEFECTIVE',
+      reasonDetail: 'Giữ lại 1 ảnh cũ',
+      items: [{ orderItemId: 101, quantity: 1 }],
+      retainedImageUrls: ['https://cdn.example.com/img1.jpg'],
+    });
+    assert.deepEqual(updateWithRetained.retainedImageUrls, ['https://cdn.example.com/img1.jpg']);
+
+    const updateClearAllOldImages = buildUpdateReturnPayload({
+      reason: 'CHANGE_OF_MIND',
+      reasonDetail: 'Xóa hết ảnh cũ',
+      items: [{ orderItemId: 101, quantity: 1 }],
+      retainedImageUrls: [],
+    });
+    assert.deepEqual(updateClearAllOldImages.retainedImageUrls, []);
+
+    assert.equal(
+      getGeneralInspectionNote({
+        status: 'WAITING_CUSTOMER_FEEDBACK',
+        generalInspectionNote: 'Duyệt 1/2 sản phẩm',
+        rejectionReason: null,
+      }),
+      'Duyệt 1/2 sản phẩm'
+    );
+    assert.equal(
+      getGeneralInspectionNote({
+        status: 'REJECTED',
+        generalInspectionNote: null,
+        rejectionReason: 'Sản phẩm đã qua sử dụng',
+      }),
+      ''
+    );
+    assert.equal(isOrderEligibleForReturn({ returnEligible: true }), true);
+    assert.equal(isOrderEligibleForReturn({ returnEligible: false }), false);
+
+    // 7. Hiển thị phí gửi trả hàng ở bước Chờ duyệt (selfDropOff, GHN tạm tính, null fallback, miễn phí)
+    assert.equal(
+      formatReturnShippingFeeDisplay({ selfDropOff: true, returnShippingFee: 0 }).text,
+      '0₫ (Tự mang đến cửa hàng)'
+    );
+    assert.equal(
+      formatReturnShippingFeeDisplay({
+        status: 'PENDING_APPROVAL',
+        selfDropOff: false,
+        pickupAddress: '12 Nguyễn Văn Bảo',
+        returnShippingFee: null,
+      }).text,
+      'Chờ tính phí (theo cước GHN)'
+    );
+    assert.equal(
+      formatReturnShippingFeeDisplay({
+        status: 'PENDING_APPROVAL',
+        selfDropOff: false,
+        pickupAddress: '12 Nguyễn Văn Bảo',
+        returnShippingFee: 30000,
+        inspectedAt: null,
+      }).text,
+      '- 30.000₫ (Tạm tính GHN)'
+    );
+    assert.equal(
+      formatReturnShippingFeeDisplay({
+        status: 'PENDING_APPROVAL',
+        selfDropOff: false,
+        pickupAddress: '12 Nguyễn Văn Bảo',
+        returnShippingFee: 0,
+      }).text,
+      'Miễn phí (0₫)'
     );
   });
 });

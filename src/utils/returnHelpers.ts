@@ -43,11 +43,16 @@ export const RETURN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
  * @returns Đầu ra: true nếu đơn hàng đủ điều kiện trả; ngược lại false.
  */
 export function isOrderEligibleForReturn(
-  order?: { orderStatus?: string; deliveredAt?: string | null } | null,
+  order?: { orderStatus?: string; deliveredAt?: string | null; returnEligible?: boolean } | null,
   nowMs?: number
 ): boolean {
   if (!order) {
     return false;
+  }
+
+  // Nếu không truyền mốc nowMs giả lập và Backend đã tính sẵn returnEligible thì ưu tiên dùng trực tiếp
+  if (typeof nowMs !== 'number' && typeof order.returnEligible === 'boolean') {
+    return order.returnEligible;
   }
 
   // 1. Đơn hàng bắt buộc phải ở trạng thái đã giao hàng (DELIVERED)
@@ -133,8 +138,7 @@ export interface ImageValidationResult {
 /**
  * Chức năng: Thẩm định danh sách tệp ảnh minh chứng trước khi tải lên Cloudinary/Backend.
  * Quy tắc:
- * - Khi lý do là DEFECTIVE hoặc WRONG_ITEM: Bắt buộc phải có từ 1 đến 5 ảnh.
- * - Khi lý do là CHANGE_OF_MIND: Có thể không gửi ảnh (0 ảnh), nhưng nếu gửi thì tối đa 5 ảnh.
+ * - Bắt buộc phải có từ 1 đến 5 ảnh minh chứng cho mọi lý do trả hàng (CHANGE_OF_MIND, DEFECTIVE, WRONG_ITEM).
  * - Mỗi ảnh phải <= 5MB và có định dạng JPG, JPEG, PNG, hoặc WebP (chặn .pdf, .exe, .svg).
  *
  * @param files  Đầu vào: Mảng các tệp ảnh cần kiểm tra.
@@ -143,19 +147,17 @@ export interface ImageValidationResult {
  */
 export function validateReturnImageFiles(
   files: ReturnImageFileLike[],
-  reason?: ReturnReason | string
+  _reason?: ReturnReason | string
 ): ImageValidationResult {
   const safeFiles = Array.isArray(files) ? files : [];
 
-  // 1. Kiểm tra số lượng ảnh đối với lý do hàng lỗi hoặc shop giao sai
-  if (reason === 'DEFECTIVE' || reason === 'WRONG_ITEM') {
-    if (safeFiles.length === 0) {
-      return {
-        isValid: false,
-        error: 'Vui lòng đính kèm từ 1 đến 5 ảnh minh chứng cho sản phẩm lỗi hoặc giao sai.',
-        errorCode: 'REQUIRED_IMAGE_FOR_DEFECTIVE',
-      };
-    }
+  // 1. Kiểm tra số lượng ảnh tối thiểu (bắt buộc từ 1 đến 5 ảnh cho mọi lý do trả hàng)
+  if (safeFiles.length === 0) {
+    return {
+      isValid: false,
+      error: 'Vui lòng đính kèm từ 1 đến 5 ảnh minh chứng cho yêu cầu trả hàng.',
+      errorCode: 'REQUIRED_IMAGE_FOR_DEFECTIVE',
+    };
   }
 
   // 2. Kiểm tra giới hạn số lượng ảnh tối đa (không quá 5 ảnh)
@@ -351,16 +353,259 @@ export function getReturnReasonLabel(reason?: string | null): string {
 export const BANK_ACCOUNT_REGEX = /^[0-9]{6,30}$/;
 
 /**
+ * Độ dài số tài khoản hợp lệ theo từng ngân hàng phổ biến tại Việt Nam (đồng bộ với BE).
+ */
+export const BANK_ACCOUNT_LENGTH_RULES: Record<string, number[]> = {
+  Vietcombank: [10, 13],
+  MBBank: [9, 10, 12, 13],
+  'MB Bank': [9, 10, 12, 13],
+  Techcombank: [10, 12, 14],
+  VietinBank: [10, 12],
+  BIDV: [10, 14],
+  ACB: [8, 9, 10],
+  TPBank: [10, 11],
+  VPBank: [8, 9, 10],
+  Sacombank: [10, 12],
+  Agribank: [10, 13],
+  HDBank: [10, 15],
+  VIB: [9, 10, 15],
+  SHB: [10, 11],
+  MSB: [10, 14],
+  OCB: [10, 13],
+  SeABank: [10, 14],
+  Eximbank: [10, 15],
+  LPBank: [10, 12],
+};
+
+function formatAllowedLengthsText(lengths: number[]): string {
+  if (lengths.length === 1) return String(lengths[0]);
+  if (lengths.length === 2) return `${lengths[0]} hoặc ${lengths[1]}`;
+  return `${lengths.slice(0, -1).join(', ')} hoặc ${lengths[lengths.length - 1]}`;
+}
+
+/**
+ * Chức năng: Tra cứu danh sách độ dài số tài khoản hợp lệ theo tên ngân hàng (không phân biệt hoa/thường và khoảng trắng).
+ */
+export function getBankAccountAllowedLengths(bankName?: string | null): number[] | null {
+  if (!bankName || typeof bankName !== 'string') return null;
+  const trimmed = bankName.trim();
+  if (!trimmed) return null;
+
+  if (BANK_ACCOUNT_LENGTH_RULES[trimmed]) {
+    return BANK_ACCOUNT_LENGTH_RULES[trimmed];
+  }
+
+  const normalizedTarget = trimmed.toLowerCase().replace(/\s+/g, '');
+  for (const [key, lengths] of Object.entries(BANK_ACCOUNT_LENGTH_RULES)) {
+    if (key.toLowerCase().replace(/\s+/g, '') === normalizedTarget) {
+      return lengths;
+    }
+  }
+  return null;
+}
+
+/**
+ * Chức năng: Tạo gợi ý độ dài số tài khoản hiển thị ngay dưới ô nhập theo ngân hàng đang chọn.
+ */
+export function getBankAccountHint(bankName?: string | null): string | undefined {
+  const trimmed = (bankName || '').trim();
+  if (!trimmed) return undefined;
+  const allowedLengths = getBankAccountAllowedLengths(trimmed);
+  if (allowedLengths) {
+    return `Số tài khoản ${trimmed} gồm ${formatAllowedLengthsText(allowedLengths)} chữ số`;
+  }
+  return 'Số tài khoản gồm 6–30 chữ số (không nhập số thẻ ATM 16–19 chữ số)';
+}
+
+/**
+ * Chức năng: Kiểm tra số tài khoản theo đúng quy tắc của từng ngân hàng và chặn dải số thẻ ATM (16–19 chữ số).
+ * Trả về thông báo lỗi nếu không hợp lệ, hoặc undefined nếu hợp lệ.
+ */
+export function validateBankAccountNumberForBank(
+  accountNumber?: string | null,
+  bankName?: string | null
+): string | undefined {
+  if (!accountNumber || typeof accountNumber !== 'string') {
+    return 'Vui lòng nhập số tài khoản ngân hàng.';
+  }
+  const clean = accountNumber.trim();
+  if (!clean) {
+    return 'Vui lòng nhập số tài khoản ngân hàng.';
+  }
+  if (!/^[0-9]+$/.test(clean)) {
+    return 'Số tài khoản ngân hàng chỉ được chứa chữ số (không khoảng trắng hoặc dấu gạch).';
+  }
+  if (clean.length >= 16 && clean.length <= 19) {
+    return 'Vui lòng nhập số tài khoản ngân hàng, không nhập số thẻ ATM (16–19 chữ số).';
+  }
+  const allowedLengths = getBankAccountAllowedLengths(bankName);
+  if (allowedLengths) {
+    if (!allowedLengths.includes(clean.length)) {
+      return `Số tài khoản ${(bankName || '').trim()} phải gồm ${formatAllowedLengthsText(allowedLengths)} chữ số.`;
+    }
+    return undefined;
+  }
+  if (!BANK_ACCOUNT_REGEX.test(clean)) {
+    return 'Số tài khoản ngân hàng không hợp lệ (phải gồm từ 6 đến 30 chữ số).';
+  }
+  return undefined;
+}
+
+/**
+ * Chức năng: Kiểm tra nhanh khi người dùng đang gõ STK — báo lỗi ngay nếu rơi vào dải thẻ ATM (16–19 số)
+ * hoặc vượt quá độ dài tối đa của ngân hàng đã chọn.
+ */
+export function getRealtimeBankAccountError(
+  accountNumber: string,
+  bankName?: string | null
+): string | undefined {
+  const clean = accountNumber.trim();
+  if (!clean) return undefined;
+  if (clean.length >= 16 && clean.length <= 19) {
+    return 'Vui lòng nhập số tài khoản ngân hàng, không nhập số thẻ ATM (16–19 chữ số).';
+  }
+  const allowedLengths = getBankAccountAllowedLengths(bankName);
+  if (allowedLengths && clean.length > Math.max(...allowedLengths)) {
+    return validateBankAccountNumberForBank(clean, bankName);
+  }
+  return undefined;
+}
+
+/**
+ * Biểu thức chính quy kiểm tra tên chủ tài khoản ngân hàng (chữ cái in hoa không dấu, có thể gồm nhiều từ cách nhau bởi 1 khoảng trắng).
+ */
+export const BANK_ACCOUNT_HOLDER_REGEX = /^[A-Z]+(?:\s+[A-Z]+)*$/;
+
+/**
  * Chức năng: Kiểm tra tính hợp lệ của số tài khoản ngân hàng.
  *
  * @param accountNumber Đầu vào: Chuỗi số tài khoản ngân hàng cần kiểm tra.
- * @returns Đầu ra: true nếu gồm đúng 6 đến 30 chữ số; ngược lại false.
+ * @param bankName Đầu vào tùy chọn: Tên ngân hàng để kiểm tra theo độ dài từng ngân hàng.
+ * @returns Đầu ra: true nếu hợp lệ; ngược lại false.
  */
-export function isValidBankAccountNumber(accountNumber?: string | null): boolean {
-  if (!accountNumber || typeof accountNumber !== 'string') {
+export function isValidBankAccountNumber(
+  accountNumber?: string | null,
+  bankName?: string | null
+): boolean {
+  return validateBankAccountNumberForBank(accountNumber, bankName) === undefined;
+}
+
+/**
+ * Chức năng: Chỉ giữ lại chữ số (tối đa 30 ký tự) khi người dùng nhập số tài khoản ngân hàng.
+ */
+export function sanitizeBankAccountNumberInput(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 30);
+}
+
+/**
+ * Chức năng: Chuẩn hóa tên chủ tài khoản ngân hàng theo thời gian thực:
+ * bỏ dấu tiếng Việt, chuyển sang chữ IN HOA, loại bỏ số/ký tự đặc biệt và gộp khoảng trắng thừa.
+ */
+export function normalizeBankAccountHolderInput(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toUpperCase()
+    .replace(/[^A-Z\s]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^\s+/, '')
+    .slice(0, 100);
+}
+
+/**
+ * Chức năng: Kiểm tra tên chủ tài khoản ngân hàng hợp lệ (2–100 ký tự chữ cái in hoa không dấu).
+ */
+export function isValidBankAccountHolderName(name?: string | null): boolean {
+  if (!name || typeof name !== 'string') {
     return false;
   }
-  return BANK_ACCOUNT_REGEX.test(accountNumber.trim());
+  const trimmed = name.trim();
+  if (trimmed.length < 2 || trimmed.length > 100) {
+    return false;
+  }
+  return BANK_ACCOUNT_HOLDER_REGEX.test(trimmed);
+}
+
+function validateBankInfoFields(
+  input: {
+    bankName?: string | null;
+    accountNumber?: string | null;
+    accountHolderName?: string | null;
+  },
+  requireAll: boolean
+): {
+  bankName?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+} {
+  const cleanBank = (input.bankName || '').trim();
+  const cleanAccount = (input.accountNumber || '').trim();
+  const cleanHolder = (input.accountHolderName || '').trim();
+
+  if (!requireAll && !cleanBank && !cleanAccount && !cleanHolder) {
+    return {};
+  }
+
+  const errors: {
+    bankName?: string;
+    accountNumber?: string;
+    accountHolderName?: string;
+  } = {};
+
+  if (!cleanBank) {
+    errors.bankName = 'Vui lòng chọn ngân hàng nhận hoàn tiền.';
+  }
+  if (!cleanAccount) {
+    errors.accountNumber = 'Vui lòng nhập số tài khoản ngân hàng.';
+  } else {
+    const accountError = validateBankAccountNumberForBank(cleanAccount, cleanBank);
+    if (accountError) {
+      errors.accountNumber = accountError;
+    }
+  }
+  if (!cleanHolder) {
+    errors.accountHolderName = 'Vui lòng nhập tên chủ tài khoản ngân hàng.';
+  } else if (!isValidBankAccountHolderName(cleanHolder)) {
+    errors.accountHolderName =
+      'Tên chủ tài khoản phải từ 2–100 ký tự chữ cái viết hoa không dấu (ví dụ: NGUYEN VAN A).';
+  }
+
+  return errors;
+}
+
+/**
+ * Chức năng: Kiểm tra nhóm thông tin tài khoản nhận hoàn tiền (khi là phần tùy chọn):
+ * - Nếu cả 3 trường đều trống: hợp lệ (khách có thể bổ sung sau).
+ * - Nếu đã nhập ít nhất 1 trường: bắt buộc nhập đủ và đúng định dạng cả Ngân hàng, Số tài khoản và Tên chủ tài khoản.
+ */
+export function validateOptionalBankInfo(input: {
+  bankName?: string | null;
+  accountNumber?: string | null;
+  accountHolderName?: string | null;
+}): {
+  bankName?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+} {
+  return validateBankInfoFields(input, false);
+}
+
+/**
+ * Chức năng: Kiểm tra bắt buộc đủ và đúng định dạng cả 3 trường thông tin tài khoản nhận hoàn tiền
+ * (đồng bộ với BE trên POST /returns và PUT /returns/{id}).
+ */
+export function validateRequiredBankInfo(input: {
+  bankName?: string | null;
+  accountNumber?: string | null;
+  accountHolderName?: string | null;
+}): {
+  bankName?: string;
+  accountNumber?: string;
+  accountHolderName?: string;
+} {
+  return validateBankInfoFields(input, true);
 }
 
 /**
@@ -417,6 +662,101 @@ export function formatPickupAddress(
     .join(', ');
 }
 
+/**
+ * Chức năng: Kiểm tra phiếu trả hàng có đang chọn tự mang đến cửa hàng hay không
+ * dựa trên dữ liệu thật từ Backend: cả 5 trường lấy hàng đều trống/null và chưa có vận đơn GHN.
+ */
+export function isSelfDropOffReturn(
+  ret?: {
+    selfDropOff?: boolean | null;
+    pickupAddress?: string | null;
+    pickupProvinceName?: string | null;
+    pickupWardName?: string | null;
+    pickupContactName?: string | null;
+    pickupPhone?: string | null;
+    returnShippingProvider?: string | null;
+    returnTrackingCode?: string | null;
+  } | null
+): boolean {
+  if (!ret) {
+    return false;
+  }
+  if (ret.returnShippingProvider === 'GHN' || Boolean(ret.returnTrackingCode)) {
+    return false;
+  }
+  if (typeof ret.selfDropOff === 'boolean') {
+    return ret.selfDropOff;
+  }
+  return (
+    !ret.pickupAddress &&
+    !ret.pickupProvinceName &&
+    !ret.pickupWardName &&
+    !ret.pickupContactName &&
+    !ret.pickupPhone
+  );
+}
+
+/**
+ * Chức năng: Định dạng hiển thị phí vận chuyển chiều hoàn theo đúng trạng thái thực tế của phiếu:
+ * - Tự mang đến cửa hàng: "0₫ (Tự mang đến cửa hàng)"
+ * - returnShippingFee === null (lỗi preview GHN tạm thời): "Chờ tính phí (theo cước GHN)"
+ * - returnShippingFee > 0: "- 30.000₫ (Tạm tính GHN)" nếu chưa kiểm tra xong ở bước chờ duyệt, hoặc "- 30.000₫"
+ * - returnShippingFee === 0: "Miễn phí (0₫)"
+ */
+export function formatReturnShippingFeeDisplay(
+  ret?: {
+    status?: ReturnRequestStatus | string;
+    inspectedAt?: string | null;
+    returnShippingFee?: number | null;
+    selfDropOff?: boolean | null;
+    pickupAddress?: string | null;
+    pickupProvinceName?: string | null;
+    pickupWardName?: string | null;
+    pickupContactName?: string | null;
+    pickupPhone?: string | null;
+    returnShippingProvider?: string | null;
+    returnTrackingCode?: string | null;
+  } | null
+): { text: string; isDeduction: boolean } {
+  if (!ret) {
+    return { text: 'Miễn phí (0₫)', isDeduction: false };
+  }
+  if (isSelfDropOffReturn(ret)) {
+    return { text: '0₫ (Tự mang đến cửa hàng)', isDeduction: false };
+  }
+  if (ret.returnShippingFee === null || ret.returnShippingFee === undefined) {
+    return { text: 'Chờ tính phí (theo cước GHN)', isDeduction: false };
+  }
+  if (ret.returnShippingFee > 0) {
+    const isPreviewEstimate = !ret.inspectedAt && ret.status === 'PENDING_APPROVAL';
+    return {
+      text: `- ${formatVND(ret.returnShippingFee)}${isPreviewEstimate ? ' (Tạm tính GHN)' : ''}`,
+      isDeduction: true,
+    };
+  }
+  return { text: 'Miễn phí (0₫)', isDeduction: false };
+}
+
+/**
+ * Chức năng: Lấy ghi chú kiểm tra chung từ kho/shop (ưu tiên generalInspectionNote, fallback rejectionReason khi khác REJECTED).
+ */
+export function getGeneralInspectionNote(
+  ret?: {
+    status?: ReturnRequestStatus | string;
+    generalInspectionNote?: string | null;
+    rejectionReason?: string | null;
+  } | null
+): string {
+  if (!ret) return '';
+  if (ret.generalInspectionNote && ret.generalInspectionNote.trim() !== '') {
+    return ret.generalInspectionNote.trim();
+  }
+  if (ret.status !== 'REJECTED' && ret.rejectionReason && ret.rejectionReason.trim() !== '') {
+    return ret.rejectionReason.trim();
+  }
+  return '';
+}
+
 // ============================================================================
 // 5. BỘ DỰNG PAYLOAD THUẦN (EXPLICIT PAYLOAD BUILDERS)
 // ============================================================================
@@ -424,6 +764,7 @@ export function formatPickupAddress(
 /**
  * Chức năng: Gắn các trường ngân hàng và địa chỉ lấy hàng tùy chọn vào payload tạo/sửa phiếu,
  * đảm bảo lược bỏ hoàn toàn giá trị rỗng để tránh vi phạm Bean Validation @Pattern.
+ * Nếu `selfDropOff` là `true`, bỏ qua toàn bộ các trường lấy hàng GHN để Backend xóa trắng 5 trường địa chỉ.
  *
  * @param payload Đích cần gắn các trường hợp lệ.
  * @param form    Nguồn dữ liệu thô từ form khách hàng.
@@ -437,6 +778,7 @@ function attachOptionalBankAndPickupFields(
     pickupAddressId?: number | string | null;
     pickupContactName?: string;
     pickupPhone?: string;
+    selfDropOff?: boolean;
   }
 ): void {
   // Chỉ đính kèm thông tin ngân hàng khi người dùng thực sự nhập số tài khoản không rỗng
@@ -449,6 +791,14 @@ function attachOptionalBankAndPickupFields(
     if (form.accountHolderName && form.accountHolderName.trim() !== '') {
       payload.accountHolderName = form.accountHolderName.trim();
     }
+  }
+
+  if (typeof form.selfDropOff === 'boolean') {
+    payload.selfDropOff = form.selfDropOff;
+  }
+
+  if (form.selfDropOff === true) {
+    return;
   }
 
   // Đính kèm mã địa chỉ lấy hàng nếu hợp lệ (> 0)
@@ -493,6 +843,7 @@ export interface CreateReturnFormData {
   pickupAddressId?: number | string | null;
   pickupContactName?: string;
   pickupPhone?: string;
+  selfDropOff?: boolean;
   // Các trường hệ thống có thể lẫn trong form state
   [key: string]: any;
 }
@@ -541,6 +892,8 @@ export interface UpdateReturnFormData {
   pickupAddressId?: number | string | null;
   pickupContactName?: string;
   pickupPhone?: string;
+  selfDropOff?: boolean;
+  retainedImageUrls?: string[];
   orderId?: any; // Cố tình truyền hoặc lẫn từ state chi tiết phiếu
   [key: string]: any;
 }
@@ -564,6 +917,12 @@ export function buildUpdateReturnPayload(form: UpdateReturnFormData): ReturnRequ
     reasonDetail: (form.reasonDetail || '').trim(),
     items: cleanItems,
   };
+
+  if (Array.isArray(form.retainedImageUrls)) {
+    payload.retainedImageUrls = form.retainedImageUrls.filter(
+      (url): url is string => typeof url === 'string' && url.trim() !== ''
+    );
+  }
 
   attachOptionalBankAndPickupFields(payload, form);
 
@@ -663,7 +1022,9 @@ export function canCustomerEditReturn(
 
 /**
  * Chức năng: Kiểm tra xem khách hàng có quyền cập nhật hoặc bổ sung số tài khoản ngân hàng hay không (Modal C5b).
- * Điều kiện: Cho phép trên các trạng thái đang hoạt động, khóa hoàn toàn khi phiếu đã kết thúc (REFUNDED, REJECTED, CANCELLED).
+ * Điều kiện: Chỉ cho phép ở các trạng thái trước bước chờ hoàn tiền
+ * (PENDING_APPROVAL, WAITING_FOR_RETURN_DELIVERY, INSPECTING, WAITING_CUSTOMER_FEEDBACK);
+ * khóa khi đã sang WAITING_REFUND hoặc đã kết thúc (REFUNDED, REJECTED, CANCELLED).
  *
  * @param ret Đầu vào: Thông tin phiếu trả hàng chứa status.
  * @returns Đầu ra: true nếu được phép sửa STK; ngược lại false.
@@ -672,8 +1033,9 @@ export function canCustomerUpdateBank(ret?: { status?: ReturnRequestStatus | str
   if (!ret || !ret.status) {
     return false;
   }
-  const terminalStatuses = ['REFUNDED', 'REJECTED', 'CANCELLED'];
-  return !terminalStatuses.includes(ret.status);
+  const normalizedStatus = String(ret.status).trim().toUpperCase();
+  const lockedStatuses = ['WAITING_REFUND', 'REFUNDED', 'REJECTED', 'CANCELLED'];
+  return !lockedStatuses.includes(normalizedStatus);
 }
 
 /**
@@ -728,6 +1090,8 @@ export function getAdminAvailableActions(ret?: {
   restockedAt?: string | null;
   receivedAt?: string | null;
   completedAt?: string | null;
+  customerConfirmedPlan?: boolean | null;
+  customerNote?: string | null;
 } | null): AdminActionType[] {
   if (!ret || !ret.status) {
     return [];
@@ -741,7 +1105,7 @@ export function getAdminAvailableActions(ret?: {
     actions.push('approve');
   }
 
-  // 2. Từ chối / Đóng yêu cầu: Cho phép ở PENDING_APPROVAL, INSPECTING, WAITING_CUSTOMER_FEEDBACK,
+  // 2. Từ chối / Đóng yêu cầu: Cho phép ở PENDING_APPROVAL, INSPECTING,
   // hoặc đóng phiếu WAITING_FOR_RETURN_DELIVERY khi đã quá hạn 7 ngày bàn giao và chưa giao hàng cho shipper
   const isHandoverExpired =
     status === 'WAITING_FOR_RETURN_DELIVERY' &&
@@ -751,7 +1115,6 @@ export function getAdminAvailableActions(ret?: {
   if (
     status === 'PENDING_APPROVAL' ||
     status === 'INSPECTING' ||
-    status === 'WAITING_CUSTOMER_FEEDBACK' ||
     isHandoverExpired
   ) {
     actions.push('reject');
@@ -768,8 +1131,11 @@ export function getAdminAvailableActions(ret?: {
     actions.push('receive');
   }
 
-  // 5. Kiểm định QC (hoặc điều chỉnh lại phương án sau khi khách bấm Không đồng ý ở WAITING_CUSTOMER_FEEDBACK)
-  if (status === 'INSPECTING' || status === 'WAITING_CUSTOMER_FEEDBACK') {
+  // 5. Kiểm định QC: ở INSPECTING, hoặc khi ở WAITING_CUSTOMER_FEEDBACK nhưng khách đã gửi phản hồi không đồng ý (có customerNote)
+  if (
+    status === 'INSPECTING' ||
+    (status === 'WAITING_CUSTOMER_FEEDBACK' && Boolean(ret.customerNote?.trim()))
+  ) {
     actions.push('inspect');
   }
 

@@ -162,7 +162,6 @@ export default function ReturnImageUploader({
   };
 
   const displayError = internalError || externalError;
-  const isImageMandatory = reason === 'DEFECTIVE' || reason === 'WRONG_ITEM';
 
   return (
     <div className={cn('flex flex-col gap-3', className)}>
@@ -170,11 +169,7 @@ export default function ReturnImageUploader({
       <div className="flex items-center justify-between">
         <label className="text-sm font-semibold text-content-primary flex items-center gap-1.5">
           <span>Ảnh minh chứng</span>
-          {isImageMandatory ? (
-            <span className="text-accent-red font-bold">* (Bắt buộc từ 1–5 ảnh)</span>
-          ) : (
-            <span className="text-content-muted text-xs font-normal">(Tùy chọn, tối đa 5 ảnh)</span>
-          )}
+          <span className="text-accent-red font-bold">* (Bắt buộc từ 1–5 ảnh)</span>
         </label>
         <span className="text-xs text-content-muted">
           Đã chọn: <strong className="text-content-primary">{files.length}</strong>/{MAX_RETURN_IMAGES_COUNT}
