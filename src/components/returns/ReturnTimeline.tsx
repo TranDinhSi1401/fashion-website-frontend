@@ -37,7 +37,11 @@ export default function ReturnTimeline({
     handoverDeadline,
     receivedAt,
     inspectedAt,
+    inspectionResultSentAt,
+    customerRespondedAt,
+    refundEligibleAt,
     refundedAt,
+    resolvedAt,
     completedAt,
   } = returnRequest;
 
@@ -103,7 +107,10 @@ export default function ReturnTimeline({
         handedOverAt ? `Đã gửi hàng: ${formatDateTime(handedOverAt)}` : null,
         receivedAt ? `Kho đã nhận: ${formatDateTime(receivedAt)}` : null,
         inspectedAt ? `Kiểm tra xong: ${formatDateTime(inspectedAt)}` : null,
+        inspectionResultSentAt ? `Đã gửi kết quả: ${formatDateTime(inspectionResultSentAt)}` : null,
+        customerRespondedAt ? `Bạn đã phản hồi: ${formatDateTime(customerRespondedAt)}` : null,
         refundedAt ? `Đã hoàn tiền: ${formatDateTime(refundedAt)}` : null,
+        (isRejected || isCancelled) && resolvedAt ? `Đã đóng yêu cầu: ${formatDateTime(resolvedAt)}` : null,
       ].filter((entry): entry is string => Boolean(entry))
     : [
         createdAt ? `Tạo yêu cầu: ${formatDateTime(createdAt)}` : null,
@@ -114,7 +121,11 @@ export default function ReturnTimeline({
         handedOverAt ? `Bàn giao VC: ${formatDateTime(handedOverAt)}` : null,
         receivedAt ? `Nhận tại kho: ${formatDateTime(receivedAt)}` : null,
         inspectedAt ? `Kiểm định QC: ${formatDateTime(inspectedAt)}` : null,
+        inspectionResultSentAt ? `Gửi KQ kiểm tra: ${formatDateTime(inspectionResultSentAt)}` : null,
+        customerRespondedAt ? `Khách phản hồi: ${formatDateTime(customerRespondedAt)}` : null,
+        refundEligibleAt ? `Đủ ĐK hoàn tiền: ${formatDateTime(refundEligibleAt)}` : null,
         refundedAt ? `Hoàn tiền: ${formatDateTime(refundedAt)}` : null,
+        resolvedAt && resolvedAt !== completedAt ? `Giải quyết xong: ${formatDateTime(resolvedAt)}` : null,
         completedAt ? `Hoàn tất: ${formatDateTime(completedAt)}` : null,
       ].filter((entry): entry is string => Boolean(entry));
 

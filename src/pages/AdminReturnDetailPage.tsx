@@ -558,6 +558,27 @@ export default function AdminReturnDetailPage() {
                 <p className="text-xs text-content-secondary mt-2 pt-2 border-t border-line-light break-words [overflow-wrap:anywhere]">
                   <strong className="text-content-primary">Lý do gia hạn bàn giao:</strong>{' '}
                   {returnRequest.extensionReason}
+                  {(returnRequest.previousHandoverDeadline || returnRequest.handoverDeadline) && (
+                    <span className="block mt-1 text-[11px] text-content-muted">
+                      {returnRequest.previousHandoverDeadline && (
+                        <>
+                          Hạn cũ:{' '}
+                          <span className="line-through">
+                            {formatDateTime(returnRequest.previousHandoverDeadline)}
+                          </span>
+                          {returnRequest.handoverDeadline ? ' → ' : ''}
+                        </>
+                      )}
+                      {returnRequest.handoverDeadline && (
+                        <>
+                          Hạn mới:{' '}
+                          <strong className="text-content-primary">
+                            {formatDateTime(returnRequest.handoverDeadline)}
+                          </strong>
+                        </>
+                      )}
+                    </span>
+                  )}
                 </p>
               )}
             </div>
@@ -857,6 +878,9 @@ export default function AdminReturnDetailPage() {
                 {
                   label: 'Hạn gửi hàng',
                   time: returnRequest.handoverDeadline,
+                  subText: returnRequest.previousHandoverDeadline
+                    ? `Hạn cũ: ${formatDateTime(returnRequest.previousHandoverDeadline)}`
+                    : undefined,
                   emptyText: 'Chưa có',
                 },
                 ...(returnRequest.handoverReminderSentAt
@@ -884,6 +908,42 @@ export default function AdminReturnDetailPage() {
                   staffId: returnRequest.inspectedBy,
                   emptyText: 'Chưa kiểm tra',
                 },
+                ...(returnRequest.inspectionResultSentAt
+                  ? [
+                      {
+                        label: 'Gửi kết quả kiểm tra',
+                        time: returnRequest.inspectionResultSentAt,
+                        emptyText: '',
+                      },
+                    ]
+                  : []),
+                ...(returnRequest.feedbackReminderSentAt
+                  ? [
+                      {
+                        label: 'Nhắc khách phản hồi',
+                        time: returnRequest.feedbackReminderSentAt,
+                        emptyText: '',
+                      },
+                    ]
+                  : []),
+                ...(returnRequest.customerRespondedAt
+                  ? [
+                      {
+                        label: 'Khách phản hồi phương án',
+                        time: returnRequest.customerRespondedAt,
+                        emptyText: '',
+                      },
+                    ]
+                  : []),
+                ...(returnRequest.refundEligibleAt
+                  ? [
+                      {
+                        label: 'Đủ điều kiện hoàn tiền',
+                        time: returnRequest.refundEligibleAt,
+                        emptyText: '',
+                      },
+                    ]
+                  : []),
                 {
                   label: 'Chuyển khoản hoàn tiền',
                   time: returnRequest.refundedAt,
@@ -896,6 +956,15 @@ export default function AdminReturnDetailPage() {
                   staffId: returnRequest.restockedBy,
                   emptyText: 'Chưa nhập kho',
                 },
+                ...(returnRequest.resolvedAt
+                  ? [
+                      {
+                        label: 'Giải quyết xong',
+                        time: returnRequest.resolvedAt,
+                        emptyText: '',
+                      },
+                    ]
+                  : []),
                 {
                   label: 'Đóng hồ sơ',
                   time: returnRequest.completedAt,
@@ -910,6 +979,11 @@ export default function AdminReturnDetailPage() {
                         <div className="font-mono text-content-primary">
                           {formatDateTime(step.time)}
                         </div>
+                        {'subText' in step && step.subText ? (
+                          <div className="text-[11px] text-content-muted line-through">
+                            {step.subText}
+                          </div>
+                        ) : null}
                         {step.staffId ? (
                           <div className="text-[11px] text-content-muted">
                             Nhân viên #{step.staffId}
