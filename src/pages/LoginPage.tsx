@@ -102,7 +102,7 @@ export default function LoginPage() {
       setSuccessMessage('Đăng nhập thành công! Đang chuyển hướng...');
       setTimeout(() => {
         if (['ADMIN', 'STAFF', 'ROLE_ADMIN', 'ROLE_STAFF'].includes(res?.user?.role || '')) {
-          navigate('/admin/dashboard', { replace: true });
+          navigate('/admin/statistics/products', { replace: true });
         } else {
           navigate(redirectPath);
         }
@@ -153,7 +153,7 @@ export default function LoginPage() {
       setSuccessMessage('Đăng nhập Google thành công! Đang chuyển hướng...');
       setTimeout(() => {
         if (['ADMIN', 'STAFF', 'ROLE_ADMIN', 'ROLE_STAFF'].includes(res?.user?.role || '')) {
-          navigate('/admin/dashboard', { replace: true });
+          navigate('/admin/statistics/products', { replace: true });
         } else {
           navigate(redirectPath);
         }

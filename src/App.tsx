@@ -32,7 +32,6 @@ import AdminReturnHolidaysPage from './pages/AdminReturnHolidaysPage';
 import AdminOrderStatisticsPage from './pages/AdminOrderStatisticsPage';
 import AdminReturnStatisticsPage from './pages/AdminReturnStatisticsPage';
 import AdminReviewStatisticsPage from './pages/AdminReviewStatisticsPage';
-import AdminStatisticsPlaceholderPage from './pages/AdminStatisticsPlaceholderPage';
 import AboutUsPage from './pages/AboutUsPage';
 import ReturnPolicyPage from './pages/ReturnPolicyPage';
 
@@ -135,8 +134,8 @@ export default function App() {
 
           {/* Admin & Staff Protected Routes */}
           <Route element={<AdminLayout />}>
-          <Route path="/admin" element={<ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}><Navigate to="/admin/dashboard" replace /></ProtectedRoute>} />
-          <Route path="/admin/dashboard" element={<ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}><AdminDashboardPage /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}><Navigate to="/admin/statistics/products" replace /></ProtectedRoute>} />
+          <Route path="/admin/dashboard" element={<Navigate to="/admin/statistics/products" replace />} />
           <Route
             path="/admin/products"
             element={
@@ -165,7 +164,7 @@ export default function App() {
                 path="/admin/statistics/products"
                 element={
                 <ProtectedRoute requiredRoles={['ADMIN', 'STAFF']}>
-                    <AdminStatisticsPlaceholderPage title="Thống kê sản phẩm" />
+                    <AdminDashboardPage />
                 </ProtectedRoute>
                 }
             />

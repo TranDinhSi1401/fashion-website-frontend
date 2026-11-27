@@ -112,7 +112,7 @@ export default function AdminDashboardPage() {
   ].filter(item => item.count > 0) : [];
 
   return <div className={`${styles.page} container py-8 sm:py-10`}>
-    <AdminNav title="Dashboard" subtitle="Nhìn rõ nhịp bán hàng, sức khỏe danh mục và việc cần ưu tiên."
+    <AdminNav title="Thống kê sản phẩm" subtitle="Nhìn rõ nhịp bán hàng, sức khỏe danh mục và việc cần ưu tiên."
       actions={<Button variant="outline" size="sm" icon={RefreshCw} disabled={loading} onClick={refresh}>Làm mới</Button>} />
     <section aria-label="Tổng quan sản phẩm" aria-busy={loading} className={styles.dashboard}>
       <div className={styles.toolbar}>

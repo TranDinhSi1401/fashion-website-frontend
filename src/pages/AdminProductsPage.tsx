@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Eye, RefreshCw, Search, SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight, Package, ImageOff, X } from 'lucide-react';
 import AdminNav from '../components/admin/AdminNav';
+import CategoryCreateModal from '../components/admin/CategoryCreateModal';
 import ProductAttributeSelect from '../components/admin/ProductAttributeSelect';
 import { DEFAULT_COLORS, DEFAULT_SIZES, newVariant, normalizeVariantSize, variantKey, uniqueChoices, generateVariantGrid, appendVariants, parseVariantTable } from '../utils/productEditor';
 import { productService } from '../services/productService';
@@ -16,6 +17,8 @@ import { extractErrorMessage, extractProductImage } from '../utils/format';
 import ui from './AdminProductsPage.module.css';
 import editorStyles from './ProductEditor.module.css';
 
+const PRODUCTS_PER_PAGE = 10;
+
 type VariantTarget = { id: number; focus: 'stock' | 'status' };
 
 const emptyForm = { name: '', slug: '', description: '', basePrice: '', categoryId: 0, isActive: true };
@@ -27,7 +30,6 @@ export default function AdminProductsPage() {
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [result, setResult] = useState<ProductPage | null>(null);
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState(() => ({ ...emptyFilters, keyword: searchParams.get('keyword') || '', isActive: ['true', 'false'].includes(searchParams.get('isActive') || '') ? searchParams.get('isActive')! : '', inStock: ['true', 'false'].includes(searchParams.get('inStock') || '') ? searchParams.get('inStock')! : '' }));
   const [filterReset, setFilterReset] = useState(0);
   const [advancedFilters, setAdvancedFilters] = useState(false);
@@ -36,6 +38,7 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState({ error: false, text: '' });
   const [modal, setModal] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [editing, setEditing] = useState<ProductResponse | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [variants, setVariants] = useState<ProductVariantInput[]>([newVariant()]);
@@ -63,8 +66,12 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     let active = true;
-    categoryService.getCategories().then(r => { if (active) setCategories(r.data); })
-      .catch(e => { if (active) setNotice({ error: true, text: extractErrorMessage(e, 'Không tải được danh mục') }); });
+    categoryService.getCategories().then(({ data }) => {
+      if (active) {
+        const loadedIds = new Set(data.map(category => category.id));
+        setCategories(current => [...data, ...current.filter(category => !loadedIds.has(category.id))]);
+      }
+    }).catch(e => { if (active) setNotice({ error: true, text: extractErrorMessage(e, 'Không tải được danh mục') }); });
     return () => { active = false; };
   }, []);
 
@@ -82,7 +89,7 @@ export default function AdminProductsPage() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    productService.getProductsPage({ ...applied, page, pageSize }, controller.signal)
+    productService.getProductsPage({ ...applied, page, pageSize: PRODUCTS_PER_PAGE }, controller.signal)
       .then(r => {
         if (controller.signal.aborted) return;
         if (r.data.totalPages > 0 && page >= r.data.totalPages) setPage(r.data.totalPages - 1);
@@ -91,7 +98,7 @@ export default function AdminProductsPage() {
       .catch(e => { if (!controller.signal.aborted) { setResult(null); setNotice({ error: true, text: extractErrorMessage(e, 'Không tải được sản phẩm') }); } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [applied, page, pageSize, reload]);
+  }, [applied, page, reload]);
 
   useEffect(() => {
     if (!detailOpen || detailId === null) return;
@@ -230,14 +237,29 @@ export default function AdminProductsPage() {
 
   const activeFilterCount = Object.entries(applied).filter(([key, value]) => key !== 'sort' && value !== undefined && value !== '').length;
   const resetFilters = () => { setFilters(emptyFilters); setFilterReset(n => n + 1); setApplied({}); setPage(0); setNotice({ error: false, text: '' }); };
-  const firstItem = result?.totalElements ? page * pageSize + 1 : 0;
-  const lastItem = Math.min((page + 1) * pageSize, result?.totalElements ?? 0);
+  const firstItem = result?.totalElements ? page * PRODUCTS_PER_PAGE + 1 : 0;
+  const lastItem = Math.min((page + 1) * PRODUCTS_PER_PAGE, result?.totalElements ?? 0);
 
   return <div className={ui.page}>
     <div className="container py-8 sm:py-10">
     <AdminNav title="Quản lý sản phẩm" subtitle="Sắp xếp danh mục, cập nhật sản phẩm và theo dõi tồn kho."
       actions={<><Button size="sm" icon={RefreshCw} variant="outline" onClick={() => setReload(r => r + 1)}>Làm mới</Button>
-        {(isAdmin || isStaff) && <Button size="sm" icon={Plus} onClick={() => openForm()} disabled={!categories.some(c => c.isActive)}>Thêm sản phẩm</Button>}</>} />
+        {(isAdmin || isStaff) && <>
+          <Button size="sm" icon={Plus} variant="outline" onClick={() => setCategoryModalOpen(true)}>Thêm danh mục</Button>
+          <Button size="sm" icon={Plus} onClick={() => openForm()} disabled={!categories.some(c => c.isActive)}>Thêm sản phẩm</Button>
+        </>}</>} />
+
+    {categoryModalOpen && (
+      <CategoryCreateModal
+        categories={categories}
+        onClose={() => setCategoryModalOpen(false)}
+        onCreated={category => {
+          setCategories(current => [...current.filter(item => item.id !== category.id), category]);
+          setNotice({ error: false, text: `Đã thêm danh mục “${category.name}”` });
+          setCategoryModalOpen(false);
+        }}
+      />
+    )}
 
     <section className={ui.workspace} aria-labelledby="product-list-heading">
       <div className={ui.listHeading}>
@@ -297,7 +319,6 @@ export default function AdminProductsPage() {
       <div className={ui.pagination}>
         <div className={ui.resultRange}>Hiển thị <strong>{firstItem}–{lastItem}</strong> trong <strong>{result?.totalElements ?? 0}</strong> sản phẩm</div>
         <div className={ui.pageControls}>
-          <label className={ui.pageSize}>Mỗi trang<select aria-label="Số sản phẩm mỗi trang" value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(0); }}>{[10,20,50].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
           <div className={ui.pageButtons}><button type="button" aria-label="Trang trước" disabled={loading || page === 0} onClick={() => setPage(p => p - 1)}><ChevronLeft size={16} /></button><span>{page + 1} <small>/ {Math.max(1, result?.totalPages ?? 0)}</small></span><button type="button" aria-label="Trang sau" disabled={loading || page + 1 >= (result?.totalPages ?? 0)} onClick={() => setPage(p => p + 1)}><ChevronRight size={16} /></button></div>
         </div>
       </div>

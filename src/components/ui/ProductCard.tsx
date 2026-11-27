@@ -1,6 +1,6 @@
 import { ComponentType, ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, ImageOff } from 'lucide-react';
+import { ImageOff } from 'lucide-react';
 import { ProductResponse } from '../../types/product';
 import { BadgeVariant, ColorSwatchOption } from '../../types/ui';
 import { cn } from '../../utils/cn';
@@ -44,7 +44,6 @@ export default function ProductCard({
   className = '',
 }: ProductCardProps) {
   const quickBuy = useQuickBuy();
-  const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [activeImageIdx, setActiveImageIdx] = useState<number>(0);
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [imageError, setImageError] = useState<boolean>(false);
@@ -137,23 +136,6 @@ export default function ProductCard({
             ))}
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            setIsFavorite((prev) => !prev);
-          }}
-          aria-label="Yêu thích"
-          aria-pressed={isFavorite}
-          className={cn(
-            'absolute right-2 top-2 sm:right-2.5 sm:top-2.5 z-[2] flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full',
-            isFavorite ? 'text-accent-red' : 'text-content-secondary',
-            styles.wishlist
-          )}
-        >
-          <Heart size={15} fill={isFavorite ? 'currentColor' : 'none'} />
-        </button>
 
         <button
           type="button"

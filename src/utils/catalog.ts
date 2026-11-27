@@ -2,9 +2,8 @@ import { hasSaleOffer, saleOfferForSelection } from './productOffers.ts';
 import type { CategoryResponse } from '../types/category';
 import type { ProductFilters, ProductResponse } from '../types/product';
 
-export function paginateCatalog<T>(items: T[], rawPage: string | null, rawPageSize: string | null) {
-  const requestedSize = Number(rawPageSize);
-  const pageSize = [12, 24, 48].includes(requestedSize) ? requestedSize : 12;
+export function paginateCatalog<T>(items: T[], rawPage: string | null) {
+  const pageSize = 12;
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
   const requestedPage = Number(rawPage);
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, pageCount) : 1;
