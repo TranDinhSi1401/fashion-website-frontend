@@ -182,6 +182,16 @@ export default function ReturnDetailPage() {
                   <Calendar size={14} />
                   <span>Ngày gửi: {formatDateTime(returnRequest.createdAt)}</span>
                 </span>
+                {returnRequest.inspectionResultSentAt && (
+                  <span>Đã gửi kết quả: {formatDateTime(returnRequest.inspectionResultSentAt)}</span>
+                )}
+                {returnRequest.customerRespondedAt && (
+                  <span>Bạn đã phản hồi: {formatDateTime(returnRequest.customerRespondedAt)}</span>
+                )}
+                {(returnRequest.status === 'REJECTED' || returnRequest.status === 'CANCELLED') &&
+                  returnRequest.resolvedAt && (
+                    <span>Đã đóng yêu cầu: {formatDateTime(returnRequest.resolvedAt)}</span>
+                  )}
               </div>
             </div>
 
@@ -304,6 +314,29 @@ export default function ReturnDetailPage() {
           {returnRequest.extensionReason && (
             <p className="text-xs text-content-secondary mb-4 break-words [overflow-wrap:anywhere]">
               Gia hạn thời gian gửi hàng: <strong className="text-content-primary">{returnRequest.extensionReason}</strong>
+              {(returnRequest.previousHandoverDeadline || returnRequest.handoverDeadline) && (
+                <span className="ml-1.5 text-content-muted">
+                  (
+                  {returnRequest.previousHandoverDeadline && (
+                    <>
+                      Hạn cũ:{' '}
+                      <span className="line-through">
+                        {formatDateTime(returnRequest.previousHandoverDeadline)}
+                      </span>
+                      {returnRequest.handoverDeadline ? ' → ' : ''}
+                    </>
+                  )}
+                  {returnRequest.handoverDeadline && (
+                    <>
+                      Hạn mới:{' '}
+                      <strong className="text-content-primary">
+                        {formatDateTime(returnRequest.handoverDeadline)}
+                      </strong>
+                    </>
+                  )}
+                  )
+                </span>
+              )}
             </p>
           )}
 
