@@ -41,17 +41,18 @@ import {
 } from 'lucide-react';
 import type { ReturnRequestResponse } from '../types/return';
 import { returnAdminService } from '../services/returnAdminService';
-import { RETURN_STATUS_META } from '../constants/returnMeta';
 import {
   getAdminAvailableActions,
   AdminActionType,
   formatVND,
   formatDateTime,
+  formatReturnShippingFeeDisplay,
   getReturnReasonLabel,
+  getGeneralInspectionNote,
   validateReturnImageFiles,
   ACCEPTED_IMAGE_EXTENSIONS,
 } from '../utils/returnHelpers';
-import { buildDynamicVietQrUrl } from '../constants/banks';
+import { buildDynamicVietQrUrl, formatVietQrTransferNote } from '../constants/banks';
 import ReturnStatusBadge from '../components/returns/ReturnStatusBadge';
 import ReturnTimeline from '../components/returns/ReturnTimeline';
 import ReturnImageGallery from '../components/returns/ReturnImageGallery';
@@ -317,11 +318,21 @@ export default function AdminReturnDetailPage() {
     accountNumber: returnRequest.accountNumber || returnRequest.bankAccountNumber,
     accountHolder: returnRequest.accountHolderName || returnRequest.bankAccountHolder,
     refundAmount: returnRequest.refundAmount,
+    orderCode: returnRequest.orderCode,
     returnCode: returnRequest.returnCode,
     customNote: debouncedInlineNote,
   });
-  const liveInlineQrNote =
-    inlineRefundNote.trim() || inlineQrInfo.defaultNote;
+  const liveInlineQrNote = formatVietQrTransferNote(
+    inlineQrInfo.defaultNote,
+    inlineRefundNote
+  );
+
+  const isInspected = Boolean(returnRequest.inspectedAt);
+  const isEstimatedSummary = !isInspected;
+  const displayedItemsRefund = returnRequest.itemsRefundAmount || 0;
+  const shippingFee = returnRequest.returnShippingFee || 0;
+  const displayedNetRefund = returnRequest.refundAmount || 0;
+  const generalNote = getGeneralInspectionNote(returnRequest);
 
   return (
     <div className="container py-8 max-w-7xl">
@@ -344,6 +355,9 @@ export default function AdminReturnDetailPage() {
               {returnRequest.returnCode}
             </h1>
             <ReturnStatusBadge status={returnRequest.status} />
+            {returnRequest.status === 'REFUNDED' && !returnRequest.restockedAt && (
+              <Badge variant="warning">Chưa nhập lại kho</Badge>
+            )}
             {returnRequest.isOverdue && (
               <Badge variant="error">
                 <AlertTriangle size={12} className="mr-1" />
@@ -375,61 +389,77 @@ export default function AdminReturnDetailPage() {
           <span className="text-xs font-bold uppercase tracking-wider text-content-muted">
             Thao tác điều phối khả dụng ({availableActions.length})
           </span>
-          <span className="text-xs text-content-muted">
-            Trạng thái hiện tại:{' '}
-            <strong>{RETURN_STATUS_META[returnRequest.status]?.label || returnRequest.status}</strong>
-          </span>
         </div>
 
-        {returnRequest.status === 'WAITING_CUSTOMER_FEEDBACK' &&
-          returnRequest.customerConfirmedPlan === false && (
-            <div className="mb-3 rounded-sm border border-status-warning bg-surface px-3 py-2 text-xs text-content-primary">
-              Khách hàng đã bấm <strong>Không đồng ý phương án</strong>
-              {returnRequest.customerNote ? ` ("${returnRequest.customerNote}")` : ''}. Quản lý có thể trao đổi và bấm{' '}
-              <strong>Kiểm định QC</strong> để điều chỉnh lại phương án xử lý.
-            </div>
-          )}
+        {(() => {
+          const isCustomerDisagreed =
+            returnRequest.status === 'WAITING_CUSTOMER_FEEDBACK' &&
+            returnRequest.customerConfirmedPlan === false &&
+            Boolean(returnRequest.customerNote?.trim());
 
-        {availableActions.length === 0 ? (
-          <p className="text-xs text-content-muted italic">
-            Hồ sơ đã đóng hoặc hiện không có tác vụ nào khả dụng tại bước này.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-2.5">
-            {availableActions.map((actionKey) => {
-              const cfg = ACTION_BUTTON_CONFIGS[actionKey];
-              if (!cfg) return null;
-              const Icon = cfg.icon;
+          return (
+            <>
+              {availableActions.length === 0 ? (
+                <p className="text-xs text-content-muted italic">
+                  {returnRequest.status === 'WAITING_CUSTOMER_FEEDBACK'
+                    ? 'Đang chờ khách phản hồi, không có thao tác khả dụng.'
+                    : 'Hồ sơ đã đóng hoặc hiện không có tác vụ nào khả dụng tại bước này.'}
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2.5">
+                  {availableActions.map((actionKey) => {
+                    const cfg = ACTION_BUTTON_CONFIGS[actionKey];
+                    if (!cfg) return null;
+                    const Icon = cfg.icon;
+                    const buttonLabel =
+                      actionKey === 'inspect' && isCustomerDisagreed
+                        ? 'Kiểm định lại'
+                        : cfg.label;
 
-              return (
-                <Button
-                  key={actionKey}
-                  data-testid={`btn-open-${actionKey}`}
-                  variant={cfg.variant}
-                  size="sm"
-                  onClick={() => setActiveModal(actionKey)}
-                  icon={Icon}
-                >
-                  {cfg.label}
-                </Button>
-              );
-            })}
-          </div>
-        )}
+                    return (
+                      <Button
+                        key={actionKey}
+                        data-testid={`btn-open-${actionKey}`}
+                        variant={cfg.variant}
+                        size="sm"
+                        onClick={() => setActiveModal(actionKey)}
+                        icon={Icon}
+                      >
+                        {buttonLabel}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isCustomerDisagreed && (
+                <div className="mt-3 text-xs font-semibold text-status-error space-y-0.5">
+                  <p>Khách hàng không đồng ý với phương án của shop</p>
+                  {returnRequest.customerNote && (
+                    <p>Nội dung khách phản hồi: {returnRequest.customerNote}</p>
+                  )}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
-      {/* TIẾN TRÌNH 6 BƯỚC VÒNG ĐỜI (RETURN TIMELINE) */}
-      <div className="mb-6">
-        <ReturnTimeline returnRequest={returnRequest} viewerRole="admin" />
-      </div>
+      {/* CHỈ HIỂN THỊ BANNER CẢNH BÁO (NẾU CÓ) — ẨN KHUNG TRẠNG THÁI DƯ THỪA */}
+      <ReturnTimeline
+        returnRequest={returnRequest}
+        viewerRole="admin"
+        hideStatusSummary
+        className="mb-6"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        {/* CỘT TRÁI (8 CỘT): DANH SÁCH SẢN PHẨM & ĐỐI SOÁT TÀI CHÍNH */}
+        {/* CỘT TRÁI (8 CỘT): DANH SÁCH SẢN PHẨM & CHI TIẾT TIỀN HOÀN */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Bảng danh sách sản phẩm yêu cầu trả */}
+          {/* Bảng sản phẩm khách yêu cầu trả */}
           <div className="p-5 bg-surface border border-line-light rounded-sm">
             <h2 className="text-sm font-bold uppercase tracking-wider text-content-primary mb-3">
-              Danh sách sản phẩm yêu cầu trả ({returnRequest.items?.length || 0})
+              Sản phẩm khách yêu cầu trả ({returnRequest.items?.length || 0})
             </h2>
 
             <div className="overflow-x-auto border border-line-light rounded-sm">
@@ -437,60 +467,75 @@ export default function AdminReturnDetailPage() {
                 <thead>
                   <tr className="bg-surface border-b border-line-light text-content-muted font-bold uppercase tracking-wider">
                     <th className="py-2.5 px-3">Sản phẩm</th>
-                    <th className="py-2.5 px-3 text-center w-20">SL Trả</th>
-                    <th className="py-2.5 px-3 text-center w-24">QC Duyệt</th>
-                    <th className="py-2.5 px-3 text-center w-24">Nhập kho</th>
-                    <th className="py-2.5 px-3 text-right w-28">Tiền duyệt</th>
+                    <th className="py-2.5 px-3 text-right w-24">Đơn giá</th>
+                    <th className="py-2.5 px-3 text-center w-16">SL trả</th>
+                    <th className="py-2.5 px-3 text-center w-28">SL đồng ý hoàn</th>
+                    <th className="py-2.5 px-3 text-center w-24">Nhập lại kho</th>
+                    <th className="py-2.5 px-3 text-right w-28">Tiền hoàn</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line-light">
-                  {(returnRequest.items || []).map((it) => (
-                    <tr key={it.id} className="hover:bg-surface transition-colors">
-                      <td className="py-3 px-3">
-                        <p className="font-semibold text-content-primary text-sm line-clamp-1">
-                          {it.productName}
-                        </p>
-                        {it.variantInfo && (
-                          <p className="text-content-muted text-xs">{it.variantInfo}</p>
-                        )}
-                        {it.inspectionNote && (
-                          <p className="text-xs text-status-warning mt-1 font-mono">
-                            QC: {it.inspectionNote}
+                  {(returnRequest.items || []).map((it) => {
+                    const unitPrice =
+                      it.itemRefundAmount && it.quantity > 0
+                        ? Math.round(it.itemRefundAmount / it.quantity)
+                        : 0;
+                    const lineRefundDisplay = it.itemRefundAmount ?? 0;
+                    const showEstimatedBadge = !isInspected && lineRefundDisplay > 0;
+
+                    return (
+                      <tr key={it.id} className="hover:bg-surface transition-colors">
+                        <td className="py-3 px-3">
+                          <p className="font-semibold text-content-primary text-sm line-clamp-1">
+                            {it.productName}
                           </p>
-                        )}
-                      </td>
+                          {it.variantInfo && (
+                            <p className="text-content-muted text-xs">{it.variantInfo}</p>
+                          )}
+                          {it.inspectionNote && (
+                            <p className="text-xs text-status-warning mt-1">
+                              Ghi chú kiểm tra: {it.inspectionNote}
+                            </p>
+                          )}
+                        </td>
 
-                      <td className="py-3 px-3 text-center font-bold text-sm text-content-primary">
-                        {it.quantity}
-                      </td>
+                        <td className="py-3 px-3 text-right font-mono text-content-secondary">
+                          {unitPrice > 0 ? formatVND(unitPrice) : '—'}
+                        </td>
 
-                      <td className="py-3 px-3 text-center">
-                        {it.acceptedQuantity !== null && it.acceptedQuantity !== undefined ? (
-                          <Badge variant={it.acceptedQuantity > 0 ? 'success' : 'error'}>
-                            {it.acceptedQuantity} / {it.quantity}
-                          </Badge>
-                        ) : (
-                          <span className="text-content-muted">Chưa QC</span>
-                        )}
-                      </td>
+                        <td className="py-3 px-3 text-center font-bold text-sm text-content-primary">
+                          {it.quantity}
+                        </td>
 
-                      <td className="py-3 px-3 text-center">
-                        {it.restockedQuantity !== null && it.restockedQuantity !== undefined ? (
-                          <Badge variant="vip">
-                            {it.restockedQuantity} món
-                          </Badge>
-                        ) : (
-                          <span className="text-content-muted">Chưa nhập</span>
-                        )}
-                      </td>
+                        <td className="py-3 px-3 text-center">
+                          {it.acceptedQuantity !== null && it.acceptedQuantity !== undefined ? (
+                            <Badge variant={it.acceptedQuantity > 0 ? 'success' : 'error'}>
+                              {it.acceptedQuantity} / {it.quantity}
+                            </Badge>
+                          ) : (
+                            <span className="text-content-muted">Chưa kiểm tra</span>
+                          )}
+                        </td>
 
-                      <td className="py-3 px-3 text-right font-mono font-bold text-content-primary">
-                        {it.itemRefundAmount !== null && it.itemRefundAmount !== undefined
-                          ? formatVND(it.itemRefundAmount)
-                          : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="py-3 px-3 text-center">
+                          {(it.restockedQuantity ?? 0) > 0 ? (
+                            <Badge variant="vip">{it.restockedQuantity} sp</Badge>
+                          ) : (
+                            <span className="text-content-muted">Chưa nhập</span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-3 text-right font-mono font-bold text-content-primary">
+                          <div>{formatVND(lineRefundDisplay)}</div>
+                          {showEstimatedBadge && (
+                            <div className="text-[10px] font-sans font-normal text-content-muted">
+                              (Tạm tính)
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -503,10 +548,10 @@ export default function AdminReturnDetailPage() {
               <p className="text-xs text-content-secondary whitespace-pre-line break-words [overflow-wrap:anywhere]">
                 {returnRequest.reasonDetail || 'Không có mô tả chi tiết từ khách hàng.'}
               </p>
-              {returnRequest.rejectionReason && returnRequest.status !== 'REJECTED' && (
+              {generalNote && (
                 <p className="text-xs text-content-secondary mt-2 pt-2 border-t border-line-light break-words [overflow-wrap:anywhere]">
-                  <strong className="text-content-primary">Ghi chú kiểm định chung:</strong>{' '}
-                  {returnRequest.rejectionReason}
+                  <strong className="text-content-primary">Ghi chú kiểm tra chung:</strong>{' '}
+                  {generalNote}
                 </p>
               )}
               {returnRequest.extensionReason && (
@@ -520,40 +565,76 @@ export default function AdminReturnDetailPage() {
 
           {/* Thẻ chi tiết tiền hoàn */}
           <div className="p-5 bg-surface border border-line-light rounded-sm">
-            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-line-light">
-              <DollarSign size={18} className="text-content-primary" />
-              <h2 className="text-sm font-bold uppercase tracking-wider text-content-primary">
-                Chi tiết tiền hoàn
-              </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-line-light">
+              <div className="flex items-center gap-2">
+                <DollarSign size={18} className="text-content-primary" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-content-primary">
+                  Chi tiết tiền hoàn
+                </h2>
+              </div>
+              {isInspected ? (
+                <Badge variant="success">Đã chốt sau kiểm tra</Badge>
+              ) : (
+                <Badge variant="default">Tạm tính — Chưa kiểm tra hàng</Badge>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs mb-4">
-              <div className="p-3 bg-surface-body border border-line-light rounded-sm">
-                <span className="text-content-muted block mb-1">Tiền hàng chấp nhận hoàn:</span>
-                <span className="font-mono font-bold text-base text-content-primary">
-                  {formatVND(returnRequest.itemsRefundAmount || 0)}
+            <div className="p-4 bg-surface-body border border-line-light rounded-sm space-y-3 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-content-secondary">
+                  {isEstimatedSummary
+                    ? 'Giá trị sản phẩm khách trả (tạm tính):'
+                    : 'Tiền hàng đồng ý hoàn:'}
+                </span>
+                <span className="font-mono font-semibold text-content-primary">
+                  {formatVND(displayedItemsRefund)}
                 </span>
               </div>
 
-              <div className="p-3 bg-surface-body border border-line-light rounded-sm">
-                <span className="text-content-muted block mb-1">Trừ phí gửi trả hàng:</span>
-                <span className="font-mono font-bold text-base text-status-error">
-                  - {formatVND(returnRequest.returnShippingFee || 0)}
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-content-secondary">
+                  Phí vận chuyển chiều hoàn (khách chịu):
                 </span>
+                {(() => {
+                  const feeDisplay = formatReturnShippingFeeDisplay(returnRequest);
+                  return (
+                    <span
+                      className={
+                        feeDisplay.isDeduction
+                          ? 'font-mono font-semibold text-status-error'
+                          : 'font-mono text-content-muted'
+                      }
+                    >
+                      {feeDisplay.text}
+                    </span>
+                  );
+                })()}
               </div>
 
-              <div className="p-3 bg-surface-body border border-line-light rounded-sm">
-                <span className="text-content-muted block mb-1">Tổng tiền hoàn cho khách:</span>
+              <div className="border-t border-line-light pt-3 flex items-center justify-between gap-4">
+                <span className="font-bold text-content-primary">
+                  {isEstimatedSummary
+                    ? 'Số tiền dự kiến hoàn cho khách:'
+                    : 'Số tiền thực tế hoàn cho khách:'}
+                </span>
                 <span className="font-mono font-bold text-lg text-accent-red">
-                  {formatVND(returnRequest.refundAmount || 0)}
+                  {formatVND(displayedNetRefund)}
                 </span>
               </div>
             </div>
+
+            {!isInspected && (
+              <p className="text-xs text-content-muted mt-3">
+                Số tiền hoàn chính thức sẽ được hệ thống chốt sau khi kho nhận và kiểm tra tình trạng sản phẩm.
+                {returnRequest.reason === 'CHANGE_OF_MIND' &&
+                  ' Do khách đổi ý, phí vận chuyển chiều hoàn sẽ được khấu trừ sau khi có cước GHN.'}
+              </p>
+            )}
 
             {returnRequest.proposedChangeOfMind && (
-              <div className="p-2.5 bg-surface-body border-l-2 border-line text-xs text-content-secondary">
+              <div className="mt-3 p-2.5 bg-surface-body border-l-2 border-line text-xs text-content-secondary">
                 Đơn trả được tính theo trường hợp <strong>Khách đổi ý</strong>, trừ phí gửi trả{' '}
-                {formatVND(returnRequest.returnShippingFee || 0)} vào tiền hoàn.
+                {formatVND(shippingFee)} vào tiền hoàn.
               </div>
             )}
           </div>
@@ -756,108 +837,91 @@ export default function AdminReturnDetailPage() {
             </div>
           </div>
 
-          {/* Dấu vết kiểm toán nhân sự (Personnel Audit Trail) */}
+          {/* Lịch sử xử lý & nhân sự phụ trách */}
           <div className="p-5 bg-surface border border-line-light rounded-sm">
             <div className="flex items-center gap-2 mb-3 pb-2 border-b border-line-light">
               <UserCheck size={18} className="text-content-primary" />
               <h2 className="text-sm font-bold uppercase tracking-wider text-content-primary">
-                Dấu vết nhân sự &amp; Mốc xử lý
+                Lịch sử xử lý
               </h2>
             </div>
 
-            <div className="space-y-2 text-xs text-content-secondary">
-              <div className="flex justify-between">
-                <span>Nhân viên duyệt:</span>
-                <span className="font-mono font-semibold text-content-primary">
-                  {returnRequest.approvedBy ? `ID #${returnRequest.approvedBy}` : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Thời điểm duyệt:</span>
-                <span className="text-content-primary font-mono">
-                  {returnRequest.approvedAt ? formatDateTime(returnRequest.approvedAt) : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Hạn bàn giao:</span>
-                <span className="text-content-primary font-mono">
-                  {returnRequest.handoverDeadline ? formatDateTime(returnRequest.handoverDeadline) : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Đã nhắc bàn giao:</span>
-                <span className="text-content-primary font-mono">
-                  {returnRequest.handoverReminderSentAt
-                    ? formatDateTime(returnRequest.handoverReminderSentAt)
-                    : 'Chưa gửi'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Bàn giao shipper:</span>
-                <span className="text-content-primary font-mono">
-                  {returnRequest.handedOverAt ? formatDateTime(returnRequest.handedOverAt) : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Kho nhận hàng:</span>
-                <span className="text-content-primary font-mono">
-                  {returnRequest.receivedAt ? formatDateTime(returnRequest.receivedAt) : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Nhân viên QC:</span>
-                <span className="font-mono font-semibold text-content-primary">
-                  {returnRequest.inspectedBy ? `ID #${returnRequest.inspectedBy}` : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Thời điểm QC:</span>
-                <span className="text-content-primary font-mono">
-                  {returnRequest.inspectedAt ? formatDateTime(returnRequest.inspectedAt) : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Nhân viên hoàn tiền:</span>
-                <span className="font-mono font-semibold text-content-primary">
-                  {returnRequest.refundedBy ? `ID #${returnRequest.refundedBy}` : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Thời điểm hoàn tiền:</span>
-                <span className="text-content-primary font-mono">
-                  {returnRequest.refundedAt ? formatDateTime(returnRequest.refundedAt) : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Nhân viên nhập kho:</span>
-                <span className="font-mono font-semibold text-content-primary">
-                  {returnRequest.restockedBy ? `ID #${returnRequest.restockedBy}` : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>Thời điểm nhập kho:</span>
-                <span className="text-content-primary font-mono">
-                  {returnRequest.restockedAt ? formatDateTime(returnRequest.restockedAt) : '—'}
-                </span>
-              </div>
-
-              <div className="flex justify-between pt-1 border-t border-line-light">
-                <span>Đóng hoàn tất:</span>
-                <span className="text-content-primary font-mono">
-                  {returnRequest.completedAt ? formatDateTime(returnRequest.completedAt) : 'Chưa đóng'}
-                </span>
-              </div>
+            <div className="divide-y divide-line-light text-xs">
+              {[
+                {
+                  label: 'Duyệt yêu cầu',
+                  time: returnRequest.approvedAt,
+                  staffId: returnRequest.approvedBy,
+                  emptyText: 'Chưa duyệt',
+                },
+                {
+                  label: 'Hạn gửi hàng',
+                  time: returnRequest.handoverDeadline,
+                  emptyText: 'Chưa có',
+                },
+                ...(returnRequest.handoverReminderSentAt
+                  ? [
+                      {
+                        label: 'Nhắc khách gửi hàng',
+                        time: returnRequest.handoverReminderSentAt,
+                        emptyText: '',
+                      },
+                    ]
+                  : []),
+                {
+                  label: 'Khách gửi hàng',
+                  time: returnRequest.handedOverAt,
+                  emptyText: 'Chưa gửi',
+                },
+                {
+                  label: 'Kho nhận hàng',
+                  time: returnRequest.receivedAt,
+                  emptyText: 'Chưa nhận',
+                },
+                {
+                  label: 'Kiểm tra chất lượng',
+                  time: returnRequest.inspectedAt,
+                  staffId: returnRequest.inspectedBy,
+                  emptyText: 'Chưa kiểm tra',
+                },
+                {
+                  label: 'Chuyển khoản hoàn tiền',
+                  time: returnRequest.refundedAt,
+                  staffId: returnRequest.refundedBy,
+                  emptyText: 'Chưa hoàn tiền',
+                },
+                {
+                  label: 'Nhập lại kho bán',
+                  time: returnRequest.restockedAt,
+                  staffId: returnRequest.restockedBy,
+                  emptyText: 'Chưa nhập kho',
+                },
+                {
+                  label: 'Đóng hồ sơ',
+                  time: returnRequest.completedAt,
+                  emptyText: 'Chưa đóng',
+                },
+              ].map((step) => (
+                <div key={step.label} className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <span className="text-content-secondary font-medium shrink-0">{step.label}</span>
+                  <div className="text-right">
+                    {step.time ? (
+                      <>
+                        <div className="font-mono text-content-primary">
+                          {formatDateTime(step.time)}
+                        </div>
+                        {step.staffId ? (
+                          <div className="text-[11px] text-content-muted">
+                            Nhân viên #{step.staffId}
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-content-muted italic">{step.emptyText}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

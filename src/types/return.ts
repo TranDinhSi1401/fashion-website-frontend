@@ -189,6 +189,8 @@ export interface ReturnRequestResponse {
   pickupProvinceName?: string | null;
   /** Tên phường/xã nơi lấy hàng trả */
   pickupWardName?: string | null;
+  /** Cờ khách hàng tự mang hàng đến cửa hàng (true = tự mang đến shop, false = gọi shipper GHN) */
+  selfDropOff?: boolean | null;
 
   // --- Tài chính & Tài khoản ngân hàng ---
   /** Tổng tiền hoàn của các sản phẩm được duyệt (chưa trừ phí ship nếu có) (VND) */
@@ -217,8 +219,10 @@ export interface ReturnRequestResponse {
   refundVietQrUrl?: string | null;
 
   // --- Kết quả thẩm định & Dấu vết nhân sự ---
-  /** Lý do từ chối yêu cầu trả hàng (nếu bị REJECTED) */
+  /** Lý do từ chối yêu cầu trả hàng (chỉ có dữ liệu khi status === 'REJECTED') */
   rejectionReason?: string | null;
+  /** Ghi chú kiểm tra chung từ kho/shop (khi phiếu không ở trạng thái REJECTED) */
+  generalInspectionNote?: string | null;
   /** Khách hàng đã xác nhận đồng ý với phương án hay chưa (true: đồng ý, false: không đồng ý) */
   customerConfirmedPlan?: boolean | null;
   /** Cờ đề xuất phân loại lại sang lý do đổi ý (chịu phí ship) sau kiểm định */
@@ -301,6 +305,8 @@ export interface ReturnRequestCreationRequest {
   pickupContactName?: string;
   /** Số điện thoại liên hệ khi lấy hàng (tùy chọn, định dạng SĐT Việt Nam) */
   pickupPhone?: string;
+  /** Cờ khách hàng chọn tự mang hàng đến cửa hàng thay vì gọi shipper GHN (tùy chọn) */
+  selfDropOff?: boolean;
 }
 
 /**
@@ -326,6 +332,10 @@ export interface ReturnRequestUpdateRequest {
   pickupContactName?: string;
   /** Số điện thoại liên hệ khi lấy hàng (tùy chọn, định dạng SĐT Việt Nam) */
   pickupPhone?: string;
+  /** Cờ khách hàng chọn tự mang hàng đến cửa hàng (tùy chọn; false sẽ khôi phục địa chỉ lấy hàng) */
+  selfDropOff?: boolean;
+  /** Danh sách URL ảnh minh chứng cũ muốn giữ lại (tùy chọn; truyền [] nếu xóa toàn bộ ảnh cũ) */
+  retainedImageUrls?: string[];
 }
 
 /**
@@ -446,6 +456,8 @@ export interface ReturnRequestInspectRequest {
   returnShippingFee?: number | null;
   /** Lý do từ chối (bắt buộc nếu toàn bộ sản phẩm có acceptedQuantity = 0) */
   rejectionReason?: string;
+  /** Ghi chú kiểm tra chung từ kho/shop */
+  generalInspectionNote?: string;
 }
 
 /**

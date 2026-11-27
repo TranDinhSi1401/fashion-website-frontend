@@ -52,6 +52,10 @@ export interface OrderItemResponse {
   totalPrice: number;
   /** Đường dẫn ảnh đại diện của sản phẩm */
   imageUrl?: string;
+  /** Số lượng đã gửi trả / đã hoàn ở các phiếu hợp lệ trước đó */
+  returnedQuantity?: number;
+  /** Số lượng tối đa còn lại có thể trả cho dòng sản phẩm này */
+  remainingReturnableQuantity?: number;
   /** Thời điểm tạo dòng chi tiết đơn */
   createdAt?: string;
   /** Thời điểm cập nhật gần nhất */
@@ -86,6 +90,10 @@ export interface OrderResponse {
   orderStatus: OrderStatus | string;
   /** Thời điểm đơn hàng được giao thành công tới tay khách (mốc tính hạn 7 ngày trả hàng) */
   deliveredAt?: string | null;
+  /** Cờ đơn hàng có hợp lệ để tạo phiếu trả hàng hay không (đã giao, trong hạn 7 ngày và còn sản phẩm trả được) */
+  returnEligible?: boolean;
+  /** Mốc hết hạn 7 ngày trả hàng (deliveredAt + 7 ngày) */
+  returnDeadlineAt?: string | null;
   /** Thời điểm giao hàng dự kiến do đơn vị vận chuyển cung cấp */
   expectedDeliveryTime?: string | null;
   /** Trạng thái thanh toán của đơn hàng */
