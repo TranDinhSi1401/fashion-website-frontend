@@ -719,37 +719,14 @@ export default function CustomerOrdersTab() {
                     {(() => {
                       const summary = computeOrderSummaryPricing(order);
                       return (
-                        <div className="text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-2.5 text-right">
                           {summary.hasDiscount && (
-                            <div className="mb-0.5 flex flex-wrap items-center justify-end gap-2 text-xs">
-                              <span className="text-content-muted">
-                                Tiền hàng gốc:{' '}
-                                <span className="line-through">
-                                  {formatVND(summary.originalSubtotal)}
-                                </span>
-                              </span>
-                              <span className="font-semibold text-status-success">
-                                • Giảm giá: −{formatVND(summary.totalDiscountAmount)}
-                              </span>
-                              <span className="text-content-secondary">
-                                • Còn: <strong>{formatVND(summary.discountedItemsSubtotal)}</strong>
-                              </span>
-                              {summary.shippingFee > 0 && (
-                                <span className="text-content-muted">
-                                  (+Ship {formatVND(summary.shippingFee)})
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-xs text-content-muted">
-                              Tổng thanh toán (đã gồm ship):
+                            <span className="rounded-xs bg-status-success/15 px-1.5 py-0.5 text-xs font-semibold text-status-success">
+                              Đã giảm −{formatVND(summary.totalDiscountAmount)}
                             </span>
-                            {summary.hasDiscount && (
-                              <span className="text-xs text-content-muted line-through">
-                                {formatVND(summary.originalTotalWithShip)}
-                              </span>
-                            )}
+                          )}
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-xs text-content-muted">Tổng thanh toán:</span>
                             <strong className="text-base font-bold text-accent-red">
                               {formatVND(summary.finalTotalAmount)}
                             </strong>
@@ -950,40 +927,58 @@ export default function CustomerOrdersTab() {
 
             {(() => {
               const summary = computeOrderSummaryPricing(detailTarget);
+              const dType = (detailTarget.discountType || '').trim().toUpperCase();
+              const dCode = (detailTarget.discountCode || '').trim();
+              const orderDiscountLabel =
+                dType === 'VOUCHER'
+                  ? dCode
+                    ? `Giảm giá (Voucher - ${dCode})`
+                    : 'Giảm giá (Voucher)'
+                  : dType === 'OFFER'
+                    ? dCode
+                      ? `Giảm giá (Khuyến mãi - ${dCode})`
+                      : 'Giảm giá (Khuyến mãi đơn hàng)'
+                    : dCode
+                      ? `Giảm giá (${dCode})`
+                      : 'Giảm giá';
+
               return (
                 <div className="ml-auto max-w-sm space-y-2 border-t border-line-light pt-4 text-right text-sm">
                   <p className="flex justify-between gap-4">
-                    <span className="text-content-secondary">Tạm tính (Giá gốc)</span>
+                    <span className="text-content-secondary">Tổng tiền hàng</span>
                     <strong>{formatVND(summary.originalSubtotal)}</strong>
                   </p>
-                  {summary.hasDiscount && (
-                    <>
-                      <p className="flex justify-between gap-4 text-status-success">
-                        <span>Giảm giá (Voucher / Khuyến mãi)</span>
-                        <strong>−{formatVND(summary.totalDiscountAmount)}</strong>
-                      </p>
-                      <p className="flex justify-between gap-4">
-                        <span className="text-content-secondary">Tiền hàng sau giảm</span>
-                        <strong>{formatVND(summary.discountedItemsSubtotal)}</strong>
-                      </p>
-                    </>
-                  )}
                   <p className="flex justify-between gap-4">
                     <span className="text-content-secondary">Phí vận chuyển</span>
                     <strong>{formatVND(summary.shippingFee)}</strong>
                   </p>
+                  {summary.productDiscountAmount > 0 && summary.orderDiscountAmount > 0 ? (
+                    <>
+                      <p className="flex justify-between gap-4 text-status-success">
+                        <span className="text-left">Giảm giá (Khuyến mãi sản phẩm)</span>
+                        <strong className="shrink-0">−{formatVND(summary.productDiscountAmount)}</strong>
+                      </p>
+                      <p className="flex justify-between gap-4 text-status-success">
+                        <span className="text-left">{orderDiscountLabel}</span>
+                        <strong className="shrink-0">−{formatVND(summary.orderDiscountAmount)}</strong>
+                      </p>
+                    </>
+                  ) : summary.orderDiscountAmount > 0 ? (
+                    <p className="flex justify-between gap-4 text-status-success">
+                      <span className="text-left">{orderDiscountLabel}</span>
+                      <strong className="shrink-0">−{formatVND(summary.orderDiscountAmount)}</strong>
+                    </p>
+                  ) : summary.productDiscountAmount > 0 ? (
+                    <p className="flex justify-between gap-4 text-status-success">
+                      <span className="text-left">Giảm giá (Khuyến mãi sản phẩm)</span>
+                      <strong className="shrink-0">−{formatVND(summary.productDiscountAmount)}</strong>
+                    </p>
+                  ) : null}
                   <p className="flex justify-between gap-4 border-t border-line-light pt-2 text-base">
                     <span className="font-semibold">Tổng thanh toán</span>
-                    <span className="flex items-center gap-2">
-                      {summary.hasDiscount && (
-                        <span className="text-xs font-normal text-content-muted line-through">
-                          {formatVND(summary.originalTotalWithShip)}
-                        </span>
-                      )}
-                      <strong className="text-accent-red">
-                        {formatVND(summary.finalTotalAmount)}
-                      </strong>
-                    </span>
+                    <strong className="text-accent-red">
+                      {formatVND(summary.finalTotalAmount)}
+                    </strong>
                   </p>
                 </div>
               );

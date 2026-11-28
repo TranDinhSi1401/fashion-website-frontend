@@ -32,7 +32,6 @@ import {
   SpecialOfferResponse,
 } from '../types/promotion';
 import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
-import { cn } from '../utils/cn';
 import styles from './AdminPages.module.css';
 
 function formatDateTimeVN(iso?: string | null): string {
@@ -312,51 +311,39 @@ export default function AdminPromotionsPage() {
           subtitle="Thiết lập ưu đãi giảm giá cho Hóa đơn, Sản phẩm và các Mã giảm giá Voucher nhập tay khi thanh toán."
         />
 
-        {/* Ba Tab chuyển đổi: Khuyến mãi HÓA ĐƠN vs Khuyến mãi SẢN PHẨM vs MÃ GIẢM GIÁ (VOUCHER) */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-line-light">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('ORDER')}
-              className={cn(
-                'inline-flex items-center gap-2.5 px-5 py-3 text-sm font-bold uppercase tracking-wide border-b-2 -mb-[1px] transition-colors',
-                activeTab === 'ORDER'
-                  ? 'border-primary bg-primary text-content-inverse'
-                  : 'border-transparent bg-surface text-content-secondary hover:text-content-primary'
+        {/* Chọn phân hệ quản lý bằng Dropdown: Khuyến mãi Hóa đơn / Khuyến mãi Sản phẩm / Mã giảm giá (Voucher) */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-line-light pb-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-content-secondary">
+              {activeTab === 'ORDER' ? (
+                <FileText size={16} className="text-primary" />
+              ) : activeTab === 'PRODUCT' ? (
+                <Tag size={16} className="text-primary" />
+              ) : (
+                <Ticket size={16} className="text-primary" />
               )}
-            >
-              <FileText size={16} />
-              <span>Khuyến Mãi Hóa Đơn</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('PRODUCT')}
-              className={cn(
-                'inline-flex items-center gap-2.5 px-5 py-3 text-sm font-bold uppercase tracking-wide border-b-2 -mb-[1px] transition-colors',
-                activeTab === 'PRODUCT'
-                  ? 'border-primary bg-primary text-content-inverse'
-                  : 'border-transparent bg-surface text-content-secondary hover:text-content-primary'
-              )}
-            >
-              <Tag size={16} />
-              <span>Khuyến Mãi Sản Phẩm</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('VOUCHER')}
-              className={cn(
-                'inline-flex items-center gap-2.5 px-5 py-3 text-sm font-bold uppercase tracking-wide border-b-2 -mb-[1px] transition-colors',
-                activeTab === 'VOUCHER'
-                  ? 'border-primary bg-primary text-content-inverse'
-                  : 'border-transparent bg-surface text-content-secondary hover:text-content-primary'
-              )}
-            >
-              <Ticket size={16} />
-              <span>Mã Giảm Giá (Voucher)</span>
-            </button>
+              <span>Phân mục quản lý:</span>
+            </div>
+            <div className="w-72">
+              <Select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value as OfferType | 'VOUCHER')}
+                options={[
+                  { value: 'ORDER', label: 'Khuyến Mãi Hóa Đơn' },
+                  { value: 'PRODUCT', label: 'Khuyến Mãi Sản Phẩm' },
+                  { value: 'VOUCHER', label: 'Mã Giảm Giá (Voucher)' },
+                ]}
+              />
+            </div>
           </div>
+
+          <p className="text-xs text-content-muted">
+            {activeTab === 'ORDER'
+              ? 'Ưu đãi tự động giảm trực tiếp trên tổng giá trị hóa đơn đủ điều kiện.'
+              : activeTab === 'PRODUCT'
+                ? 'Ưu đãi giảm giá trực tiếp trên từng sản phẩm hoặc biến thể (Màu/Size).'
+                : 'Mã giảm giá (Code) để khách hàng lưu ví hoặc nhập khi thanh toán.'}
+          </p>
         </div>
 
         {activeTab === 'VOUCHER' ? (

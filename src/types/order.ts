@@ -84,6 +84,10 @@ export interface OrderResponse {
   shippingFee: number;
   /** Số tiền giảm giá qua voucher/khuyến mãi (VND) */
   discountAmount?: number;
+  /** Loại ưu đãi hóa đơn áp dụng ('VOUCHER' | 'OFFER') */
+  discountType?: 'VOUCHER' | 'OFFER' | string | null;
+  /** Mã voucher hoặc tên chương trình khuyến mãi đã áp dụng */
+  discountCode?: string | null;
   /** Tổng số tiền thanh toán cuối cùng của đơn hàng (VND) */
   totalAmount: number;
   /** Trạng thái hiện tại của đơn hàng */
