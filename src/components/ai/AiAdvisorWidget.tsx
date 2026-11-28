@@ -1,20 +1,130 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Sparkles, Send, X, Bot, RefreshCw, GripVertical } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import {
+  Sparkles,
+  Send,
+  X,
+  Bot,
+  RefreshCw,
+  GripVertical,
+  ShoppingBag,
+  ChevronRight,
+} from 'lucide-react';
 import { aiService } from '../../services/aiService';
-import { ChatMessage } from '../../types/ai';
+import { AiSuggestedProduct, ChatMessage } from '../../types/ai';
 import { useAuth } from '../../context/AuthContext';
+import { formatCurrencyVND } from '../../utils/format';
 import styles from './AiAdvisorWidget.module.css';
 
 const SUGGESTED_PROMPTS = [
   'Tư vấn cho tôi một set đồ công sở lịch sự theo gu của tôi?',
   'Gợi ý trang phục đi hẹn hò / tiệc tối cuối tuần?',
   'Dựa trên sở thích của tôi, tôi hợp với tông màu và phom dáng nào?',
-  'Phối đồ với Áo sơ mi và Quần tây sao cho trẻ trung?'
+  'Phối đồ với Áo sơ mi và Quần tây sao cho trẻ trung?',
 ];
 
 interface AiAdvisorWidgetProps {
   hideLauncher?: boolean;
+}
+
+/**
+ * Chuyển đổi văn bản có chứa **in đậm** từ AI thành các đoạn ReactNode sạch sẽ,
+ * không để lộ các dấu sao ** thô trong khung chat.
+ */
+function renderFormattedAiText(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return (
+        <strong key={idx} className="font-bold text-content-primary">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
+}
+
+/**
+ * Thẻ sản phẩm thu gọn (Compact Product Card) hiển thị ngay bên dưới bong bóng tin nhắn của AI.
+ * Thiết kế theo bố cục ngang siêu gọn (thumbnail 40x52px, cao ~62px) để không chiếm diện tích khung chat 400x580px:
+ * - Hiển thị: Ảnh đại diện (có icon fallback nếu lỗi ảnh), Tên sản phẩm (1 dòng), Giá bán / Giá KM, Màu & Size còn hàng.
+ * - Toàn bộ thẻ là một `<Link to="/products/:id">` giúp khách hàng bấm chuyển thẳng sang trang chi tiết sản phẩm.
+ */
+function AiMiniProductCard({ product }: { product: AiSuggestedProduct }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const hasSale =
+    product.discountedPrice != null &&
+    Number(product.discountedPrice) > 0 &&
+    Number(product.discountedPrice) < Number(product.basePrice);
+  const displayPrice = hasSale ? Number(product.discountedPrice) : Number(product.basePrice);
+
+  const variantMeta: string[] = [];
+  if (product.availableColors && product.availableColors.length > 0) {
+    variantMeta.push(product.availableColors.slice(0, 3).join(', '));
+  }
+  if (product.availableSizes && product.availableSizes.length > 0) {
+    variantMeta.push(`Size ${product.availableSizes.slice(0, 4).join(', ')}`);
+  }
+
+  return (
+    <Link
+      to={`/products/${product.id}`}
+      className="group flex items-center gap-2.5 rounded-lg border border-line-light bg-surface-body p-1.5 transition-all hover:border-accent-gold hover:shadow-xs"
+      title={`Xem chi tiết ${product.name}`}
+    >
+      {/* Thumbnail nhỏ gọn tỷ lệ 3:4 */}
+      <div className="relative h-[52px] w-[40px] shrink-0 overflow-hidden rounded bg-surface text-content-muted">
+        {product.imageUrl && !imgFailed ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            loading="lazy"
+            onError={() => setImgFailed(true)}
+            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <ShoppingBag size={15} />
+          </div>
+        )}
+      </div>
+
+      {/* Thông tin tên, giá & màu/size tóm tắt */}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-bold text-content-primary transition-colors group-hover:text-accent-gold">
+          {product.name}
+        </div>
+
+        <div className="mt-0.5 flex flex-wrap items-baseline gap-1.5">
+          <span className="text-xs font-extrabold text-accent-red">
+            {formatCurrencyVND(displayPrice)}
+          </span>
+          {hasSale && (
+            <span className="text-[10px] text-content-muted line-through">
+              {formatCurrencyVND(Number(product.basePrice))}
+            </span>
+          )}
+        </div>
+
+        {variantMeta.length > 0 ? (
+          <div className="mt-0.5 truncate text-[10px] text-content-muted">
+            {variantMeta.join(' · ')}
+          </div>
+        ) : product.categoryName ? (
+          <div className="mt-0.5 truncate text-[10px] text-content-muted">
+            {product.categoryName}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Nút điều hướng gọn bên phải */}
+      <div className="flex shrink-0 items-center gap-0.5 pr-1 text-[11px] font-bold text-primary transition-transform group-hover:translate-x-0.5 group-hover:text-accent-gold">
+        <span>Xem</span>
+        <ChevronRight size={13} />
+      </div>
+    </Link>
+  );
 }
 
 export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidgetProps) {
@@ -28,8 +138,8 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
       text: isAuthenticated
         ? `Xin chào ${user?.fullname || 'bạn'}! Tôi là Trợ Lý Thời Trang AI của Fashion Website. Tôi đã đồng bộ Ma trận sở thích và gu thời trang của bạn từ hệ thống. Bạn cần tôi tư vấn set đồ hoặc phong cách nào hôm nay?`
         : 'Xin chào bạn! Tôi là Trợ Lý Thời Trang AI. Hãy cho tôi biết nhu cầu hoặc sự kiện sắp tới để tôi gợi ý trang phục hoàn hảo nhất cho bạn nhé!',
-      timestamp: new Date()
-    }
+      timestamp: new Date(),
+    },
   ]);
   const [inputQuestion, setInputQuestion] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -136,30 +246,33 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
       id: String(Date.now()),
       sender: 'user',
       text,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     if (!questionToSend) setInputQuestion('');
     setIsLoading(true);
 
     try {
-      const answer = await aiService.advise(text);
+      const response = await aiService.advise(text);
       const aiMsg: ChatMessage = {
         id: String(Date.now() + 1),
         sender: 'ai',
-        text: answer || 'Rất tiếc, tôi chưa có câu trả lời phù hợp lúc này. Bạn thử hỏi câu khác nhé!',
-        timestamp: new Date()
+        text:
+          response.answer ||
+          'Rất tiếc, tôi chưa có câu trả lời phù hợp lúc này. Bạn thử hỏi câu khác nhé!',
+        products: response.suggestedProducts,
+        timestamp: new Date(),
       };
-      setMessages(prev => [...prev, aiMsg]);
+      setMessages((prev) => [...prev, aiMsg]);
     } catch {
       const errorMsg: ChatMessage = {
         id: String(Date.now() + 1),
         sender: 'ai',
         text: 'Xin lỗi bạn, kết nối tới dịch vụ AI đang bận. Vui lòng thử lại sau ít giây.',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMsg]);
+      setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +281,7 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleSend();
+      void handleSend();
     }
   };
 
@@ -184,7 +297,11 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
           onPointerMove={handleLauncherPointerMove}
           onPointerUp={handleLauncherPointerUp}
           onPointerCancel={handleLauncherPointerUp}
-          style={btnPos ? { left: `${btnPos.x}px`, top: `${btnPos.y}px`, bottom: 'auto', right: 'auto' } : undefined}
+          style={
+            btnPos
+              ? { left: `${btnPos.x}px`, top: `${btnPos.y}px`, bottom: 'auto', right: 'auto' }
+              : undefined
+          }
           className={`${styles.launcherBtn} select-none touch-none cursor-grab active:cursor-grabbing flex items-center gap-2`}
           title="Bấm để mở hoặc kéo thả để di chuyển đến vị trí mong muốn"
           aria-label="Tư vấn thời trang AI (Kéo thả để di chuyển)"
@@ -193,9 +310,7 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
           <div className="w-7 h-7 rounded-full bg-accent-gold flex items-center justify-center text-content-inverse shrink-0">
             <Sparkles size={16} />
           </div>
-          <span className={styles.launcherText}>
-            AI Stylist Tư Vấn
-          </span>
+          <span className={styles.launcherText}>AI Stylist Tư Vấn</span>
         </button>
       )}
 
@@ -203,7 +318,7 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
       {isOpen && (
         <div className={styles.widgetShell}>
           {/* Header */}
-          <div className="bg-primary text-content-inverse px-5 py-4 flex items-center justify-between border-b-2 border-accent-gold">
+          <div className="bg-primary text-content-inverse px-5 py-3.5 flex items-center justify-between border-b-2 border-accent-gold">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-full bg-accent-gold flex items-center justify-center text-content-inverse">
                 <Sparkles size={18} />
@@ -213,7 +328,9 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
                   AI STYLIST TƯ VẤN
                 </h4>
                 <p className="m-0 text-[0.72rem] text-accent-gold">
-                  {isAuthenticated ? 'Đã kích hoạt Ma trận sở thích của bạn' : 'Tư vấn thời trang thông minh'}
+                  {isAuthenticated
+                    ? 'Đã kích hoạt Ma trận sở thích của bạn'
+                    : 'Tư vấn thời trang thông minh'}
                 </p>
               </div>
             </div>
@@ -229,14 +346,14 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
           </div>
 
           {/* Messages Body */}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3.5 bg-surface-elevated">
-            {messages.map(msg => (
+          <div className="flex-1 overflow-y-auto p-3.5 flex flex-col gap-3.5 bg-surface-elevated">
+            {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={
                   msg.sender === 'user'
                     ? 'flex gap-2 self-end max-w-[85%]'
-                    : 'flex gap-2 self-start max-w-[85%]'
+                    : 'flex gap-2 self-start max-w-[90%] w-full'
                 }
               >
                 {msg.sender === 'ai' && (
@@ -245,8 +362,27 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
                   </div>
                 )}
 
-                <div className={msg.sender === 'user' ? styles.userBubble : styles.aiBubble}>
-                  {msg.text}
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className={msg.sender === 'user' ? styles.userBubble : styles.aiBubble}>
+                    {msg.sender === 'ai' ? renderFormattedAiText(msg.text) : msg.text}
+                  </div>
+
+                  {/* Danh sách sản phẩm được AI tư vấn (Thẻ ngang nhỏ gọn, tối đa cao ~148px có cuộn nếu nhiều SP) */}
+                  {msg.sender === 'ai' && msg.products && msg.products.length > 0 && (
+                    <div className="rounded-xl border border-line-light bg-surface p-2 shadow-2xs">
+                      <div className="mb-1.5 flex items-center justify-between px-0.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-content-muted">
+                          Sản phẩm gợi ý ({msg.products.length})
+                        </span>
+                        <span className="text-[10px] text-content-muted">Bấm để xem chi tiết</span>
+                      </div>
+                      <div className="max-h-[144px] space-y-1.5 overflow-y-auto pr-0.5">
+                        {msg.products.map((prod) => (
+                          <AiMiniProductCard key={prod.id} product={prod} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -258,7 +394,7 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
                 </div>
                 <div className="bg-surface-body px-4 py-2.5 rounded-modal border border-line-light flex items-center gap-1.5 text-content-secondary text-[0.82rem]">
                   <RefreshCw size={14} className="animate-spin" />
-                  <span>AI đang phân tích sở thích &amp; soạn tư vấn...</span>
+                  <span>AI đang phân tích sở thích &amp; tìm sản phẩm...</span>
                 </div>
               </div>
             )}
@@ -277,7 +413,7 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => handleSend(prompt)}
+                    onClick={() => void handleSend(prompt)}
                     className={styles.suggestedBtn}
                   >
                     💡 {prompt}
@@ -293,14 +429,14 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
               type="text"
               placeholder="Nhập câu hỏi bạn muốn AI tư vấn..."
               value={inputQuestion}
-              onChange={e => setInputQuestion(e.target.value)}
+              onChange={(e) => setInputQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
               className={styles.chatInput}
             />
             <button
               type="button"
-              onClick={() => handleSend()}
+              onClick={() => void handleSend()}
               disabled={isLoading || !inputQuestion.trim()}
               className={styles.sendBtn}
               aria-label="Gửi câu hỏi"
@@ -313,3 +449,4 @@ export default function AiAdvisorWidget({ hideLauncher = true }: AiAdvisorWidget
     </>
   );
 }
+

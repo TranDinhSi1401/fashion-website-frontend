@@ -44,6 +44,18 @@ function toDatetimeLocalValue(iso?: string | null): string {
   return iso.slice(0, 16);
 }
 
+function sanitizeMoneyDigits(val: string | number | null | undefined): string {
+  if (val === null || val === undefined) return '';
+  const digits = String(val).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  return digits;
+}
+
+function formatMoneyDots(val: string): string {
+  const digits = sanitizeMoneyDigits(val);
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 export default function VoucherFormModal({
   isOpen,
   onClose,
@@ -77,11 +89,19 @@ export default function VoucherFormModal({
       setName(editingVoucher.name);
       setDescription(editingVoucher.description || '');
       setDiscountType(editingVoucher.discountType);
-      setDiscountValue(String(editingVoucher.discountValue));
-      setMaxDiscountAmount(
-        editingVoucher.maxDiscountAmount ? String(editingVoucher.maxDiscountAmount) : ''
+      setDiscountValue(
+        editingVoucher.discountType === 'FIXED_AMOUNT'
+          ? sanitizeMoneyDigits(Math.round(Number(editingVoucher.discountValue)))
+          : String(editingVoucher.discountValue)
       );
-      setMinOrderAmount(String(editingVoucher.minOrderAmount || 0));
+      setMaxDiscountAmount(
+        editingVoucher.maxDiscountAmount
+          ? sanitizeMoneyDigits(Math.round(Number(editingVoucher.maxDiscountAmount)))
+          : ''
+      );
+      setMinOrderAmount(
+        sanitizeMoneyDigits(Math.round(Number(editingVoucher.minOrderAmount || 0))) || '0'
+      );
       setTotalQuantity(String(editingVoucher.totalQuantity));
       setMaxUsesPerUser(String(editingVoucher.maxUsesPerUser || 1));
       setStartDate(toDatetimeLocalValue(editingVoucher.startDate));
@@ -265,7 +285,13 @@ export default function VoucherFormModal({
             </label>
             <Select
               value={discountType}
-              onChange={(e) => setDiscountType(e.target.value as VoucherDiscountType)}
+              onChange={(e) => {
+                const nextType = e.target.value as VoucherDiscountType;
+                setDiscountType(nextType);
+                if (nextType === 'PERCENTAGE' && Number(discountValue) > 100) {
+                  setDiscountValue('10');
+                }
+              }}
               options={[
                 { value: 'FIXED_AMOUNT', label: 'Số tiền cố định (VND)' },
                 { value: 'PERCENTAGE', label: 'Theo phần trăm (%)' },
@@ -278,14 +304,25 @@ export default function VoucherFormModal({
               {discountType === 'PERCENTAGE' ? 'Phần Trăm Giảm (%)' : 'Số Tiền Giảm (VND)'}{' '}
               <span className="text-accent-red">*</span>
             </label>
-            <Input
-              type="number"
-              min={1}
-              max={discountType === 'PERCENTAGE' ? 100 : undefined}
-              value={discountValue}
-              onChange={(e) => setDiscountValue(e.target.value)}
-              required
-            />
+            {discountType === 'PERCENTAGE' ? (
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={discountValue}
+                onChange={(e) => setDiscountValue(e.target.value)}
+                required
+              />
+            ) : (
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={formatMoneyDots(discountValue)}
+                onChange={(e) => setDiscountValue(sanitizeMoneyDigits(e.target.value))}
+                placeholder="VD: 50.000"
+                required
+              />
+            )}
           </div>
         </div>
 
@@ -295,11 +332,11 @@ export default function VoucherFormModal({
               Mức Giảm Tối Đa (VND)
             </label>
             <Input
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
               placeholder="Để trống nếu không giới hạn tối đa"
-              value={maxDiscountAmount}
-              onChange={(e) => setMaxDiscountAmount(e.target.value)}
+              value={formatMoneyDots(maxDiscountAmount)}
+              onChange={(e) => setMaxDiscountAmount(sanitizeMoneyDigits(e.target.value))}
             />
           </div>
         )}
@@ -310,10 +347,11 @@ export default function VoucherFormModal({
               Đơn Tối Thiểu (VND)
             </label>
             <Input
-              type="number"
-              min={0}
-              value={minOrderAmount}
-              onChange={(e) => setMinOrderAmount(e.target.value)}
+              type="text"
+              inputMode="numeric"
+              value={formatMoneyDots(minOrderAmount)}
+              onChange={(e) => setMinOrderAmount(sanitizeMoneyDigits(e.target.value))}
+              placeholder="VD: 200.000"
             />
           </div>
 

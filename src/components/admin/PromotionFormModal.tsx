@@ -34,6 +34,18 @@ function makeTargetKey(productId: number, variantId?: number | null): string {
   return `${productId}:${variantId ? variantId : 'ALL'}`;
 }
 
+function sanitizeMoneyDigits(val: string | number | null | undefined): string {
+  if (val === null || val === undefined) return '';
+  const digits = String(val).replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  return digits;
+}
+
+function formatMoneyDots(val: string): string {
+  const digits = sanitizeMoneyDigits(val);
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 export default function PromotionFormModal({
   isOpen,
   onClose,
@@ -88,17 +100,17 @@ export default function PromotionFormModal({
       );
       setDiscountAmount(
         editingOffer.discountAmount !== null && editingOffer.discountAmount !== undefined
-          ? String(editingOffer.discountAmount)
+          ? sanitizeMoneyDigits(Math.round(Number(editingOffer.discountAmount)))
           : ''
       );
       setMinOrderAmount(
         editingOffer.minOrderAmount !== null && editingOffer.minOrderAmount !== undefined
-          ? String(editingOffer.minOrderAmount)
+          ? sanitizeMoneyDigits(Math.round(Number(editingOffer.minOrderAmount)))
           : '0'
       );
       setMaxDiscountAmount(
         editingOffer.maxDiscountAmount !== null && editingOffer.maxDiscountAmount !== undefined
-          ? String(editingOffer.maxDiscountAmount)
+          ? sanitizeMoneyDigits(Math.round(Number(editingOffer.maxDiscountAmount)))
           : ''
       );
       setStartDate(toDatetimeLocalValue(editingOffer.startDate));
@@ -367,15 +379,14 @@ export default function PromotionFormModal({
             ) : (
               <Input
                 label="Số tiền giảm trực tiếp (VNĐ) *"
-                type="number"
-                min={1000}
-                step={1000}
-                value={discountAmount}
+                type="text"
+                inputMode="numeric"
+                value={formatMoneyDots(discountAmount)}
                 onChange={(e) => {
-                  setDiscountAmount(e.target.value);
+                  setDiscountAmount(sanitizeMoneyDigits(e.target.value));
                   if (errors.discountAmount) setErrors({ ...errors, discountAmount: '' });
                 }}
-                placeholder="Ví dụ: 50000"
+                placeholder="Ví dụ: 50.000"
                 error={errors.discountAmount}
                 helperText={
                   discountAmount && Number(discountAmount) > 0
@@ -394,27 +405,25 @@ export default function PromotionFormModal({
                   ? 'Giá trị hóa đơn tối thiểu (VNĐ) *'
                   : 'Giá trị đơn tối thiểu (VNĐ)'
               }
-              type="number"
-              min={0}
-              step={1000}
-              value={minOrderAmount}
+              type="text"
+              inputMode="numeric"
+              value={formatMoneyDots(minOrderAmount)}
               onChange={(e) => {
-                setMinOrderAmount(e.target.value);
+                setMinOrderAmount(sanitizeMoneyDigits(e.target.value));
                 if (errors.minOrderAmount) setErrors({ ...errors, minOrderAmount: '' });
               }}
-              placeholder="Ví dụ: 300000 (nhập 0 nếu không giới hạn)"
+              placeholder="Ví dụ: 300.000 (nhập 0 nếu không giới hạn)"
               error={errors.minOrderAmount}
               helperText={`Tối thiểu: ${formatCurrencyVND(Number(minOrderAmount || 0))}`}
             />
 
             <Input
               label="Mức giảm tối đa (VNĐ - Tùy chọn)"
-              type="number"
-              min={0}
-              step={1000}
-              value={maxDiscountAmount}
+              type="text"
+              inputMode="numeric"
+              value={formatMoneyDots(maxDiscountAmount)}
               onChange={(e) => {
-                setMaxDiscountAmount(e.target.value);
+                setMaxDiscountAmount(sanitizeMoneyDigits(e.target.value));
                 if (errors.maxDiscountAmount) setErrors({ ...errors, maxDiscountAmount: '' });
               }}
               placeholder="Để trống nếu không giới hạn trần giảm"

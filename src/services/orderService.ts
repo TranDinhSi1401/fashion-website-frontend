@@ -37,6 +37,8 @@ export interface OrderResponse {
   subtotal: number;
   shippingFee: number;
   discountAmount: number;
+  discountType?: 'VOUCHER' | 'OFFER' | string | null;
+  discountCode?: string | null;
   totalAmount: number;
   orderStatus: OrderStatus;
   deliveredAt?: string | null;

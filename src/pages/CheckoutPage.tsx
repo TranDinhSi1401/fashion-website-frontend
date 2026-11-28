@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { CreditCard, ShoppingBag, ChevronDown, Ticket, X } from 'lucide-react';
+import {
+  CreditCard,
+  ShoppingBag,
+  ChevronDown,
+  Ticket,
+  X,
+  Tag,
+  Sparkles,
+  AlertCircle,
+  CheckCircle2,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { userService } from '../services/userService';
@@ -9,12 +19,12 @@ import { shippingService, ShippingOrderPreview } from '../services/shippingServi
 import { paymentMethodService, PaymentMethodResponse } from '../services/paymentMethodService';
 import { specialOfferService, SpecialOfferResponse } from '../services/specialOfferService';
 import { voucherService } from '../services/voucherService';
-import { VoucherCalculationResult, VoucherResponse } from '../types/voucher';
+import { VoucherCalculationResult } from '../types/voucher';
 import { UserAddressResponse } from '../types/user';
 import { extractErrorMessage, formatCurrencyVND } from '../utils/format';
 import Breadcrumb from '../components/layout/Breadcrumb';
 import AddressFormModal from '../components/profile/AddressFormModal';
-import VoucherPickerDrawer, { estimateVoucherDiscount } from '../components/voucher/VoucherPickerDrawer';
+import VoucherPickerDrawer from '../components/voucher/VoucherPickerDrawer';
 import { Button, Input, Modal, Radio, Select } from '../components/ui';
 
 function CheckoutProductImage({ url, name }: { url?: string | null; name: string }) {
@@ -91,17 +101,20 @@ export default function CheckoutPage() {
   const [specialOfferError, setSpecialOfferError] = useState('');
   const [specialOfferRetry, setSpecialOfferRetry] = useState(0);
 
-  // Voucher states
+  // Voucher & Promotion resolution states
   const [voucherInput, setVoucherInput] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<VoucherCalculationResult | null>(null);
   const [voucherLoading, setVoucherLoading] = useState(false);
   const [voucherError, setVoucherError] = useState('');
   const [voucherClaimNotice, setVoucherClaimNotice] = useState('');
+  const [discountChangeNotice, setDiscountChangeNotice] = useState<{
+    type: 'info' | 'warning' | 'error';
+    text: string;
+  } | null>(null);
   const [isVoucherDrawerOpen, setIsVoucherDrawerOpen] = useState(false);
-  const [quickVouchers, setQuickVouchers] = useState<VoucherResponse[]>([]);
   const [detailOffer, setDetailOffer] = useState<SpecialOfferResponse | null>(null);
   const offerSelectorRef = useRef<HTMLDivElement>(null);
-  const offerTriggerRef = useRef<HTMLButtonElement>(null);
+  const prevOfferEligibleRef = useRef<boolean | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState('');
   const [orderCreatedWithoutPaymentUrl, setOrderCreatedWithoutPaymentUrl] = useState(false);
@@ -109,7 +122,6 @@ export default function CheckoutPage() {
   const [orderConfirmationMessage, setOrderConfirmationMessage] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
-
 
   useEffect(() => {
     void refresh();
@@ -162,7 +174,6 @@ export default function CheckoutPage() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsOfferMenuOpen(false);
-        offerTriggerRef.current?.focus();
       }
     };
 
@@ -307,6 +318,7 @@ export default function CheckoutPage() {
         timeStyle: 'short',
       }).format(new Date(shippingPreview.expected_delivery_time))
     : '';
+
   const computeSingleOfferDiscount = (offer: SpecialOfferResponse | null): number => {
     if (!offer || !cart) return 0;
     if (cart.totalPrice < (offer.minOrderAmount ?? 0)) return 0;
@@ -331,19 +343,15 @@ export default function CheckoutPage() {
     cart.totalPrice >= (selectedOffer.minOrderAmount ?? 0);
   const offerDiscountAmount = computeSingleOfferDiscount(selectedOffer);
 
-  // Khi người dùng chọn cả Khuyến mãi (Ưu đãi) và Voucher: chỉ áp dụng 1 phần có mức giảm giá cao hơn
+  // Quy tắc: Chọn cái nào sau thì áp dụng cái đó (chọn Voucher sẽ bỏ chọn Khuyến mãi và ngược lại)
   const voucherDiscountAmount = appliedVoucher ? Number(appliedVoucher.discountAmount || 0) : 0;
   const hasEligibleOffer = Boolean(selectedOffer && offerEligible);
-  const activeDiscountType: 'VOUCHER' | 'OFFER' | 'NONE' =
-    appliedVoucher && hasEligibleOffer
-      ? voucherDiscountAmount >= offerDiscountAmount
-        ? 'VOUCHER'
-        : 'OFFER'
-      : appliedVoucher
-        ? 'VOUCHER'
-        : hasEligibleOffer
-          ? 'OFFER'
-          : 'NONE';
+
+  const activeDiscountType: 'VOUCHER' | 'OFFER' | 'NONE' = appliedVoucher
+    ? 'VOUCHER'
+    : hasEligibleOffer
+      ? 'OFFER'
+      : 'NONE';
 
   const discountAmount =
     activeDiscountType === 'VOUCHER'
@@ -352,58 +360,93 @@ export default function CheckoutPage() {
         ? offerDiscountAmount
         : 0;
 
-  // Nếu phần được quyết định chọn là Khuyến mãi thì phần chữ của Voucher sẽ mờ đi
-  const isVoucherDimmed = activeDiscountType === 'OFFER';
-
-  // Nếu phần được quyết định chọn là Voucher thì Khuyến mãi sẽ không còn được chọn nữa
+  // Cảnh báo nếu Khuyến mãi đang chọn bị mất điều kiện khi tổng tiền giỏ hàng thay đổi
   useEffect(() => {
-    if (activeDiscountType === 'VOUCHER' && selectedOfferId !== '') {
-      setSelectedOfferId('');
+    if (!selectedOffer) {
+      prevOfferEligibleRef.current = null;
+      return;
     }
-  }, [activeDiscountType, selectedOfferId]);
-
-  const handleSelectOffer = (offer: SpecialOfferResponse) => {
-    const candidateDiscount = computeSingleOfferDiscount(offer);
-    if (appliedVoucher && voucherDiscountAmount >= candidateDiscount) {
-      // Voucher có mức giảm cao hơn nên Voucher được chọn, Khuyến mãi không còn được chọn
-      setSelectedOfferId('');
-    } else {
-      setSelectedOfferId(offer.id);
+    if (prevOfferEligibleRef.current === true && !offerEligible && cart) {
+      const missing = Math.max(0, (selectedOffer.minOrderAmount ?? 0) - cart.totalPrice);
+      setDiscountChangeNotice({
+        type: 'warning',
+        text: `Khuyến mãi "${selectedOffer.title}" hiện không còn đủ điều kiện do tổng tiền hàng thay đổi (cần thêm ${formatCurrencyVND(missing)}).`,
+      });
     }
-  };
+    prevOfferEligibleRef.current = offerEligible;
+  }, [selectedOffer, offerEligible, cart?.totalPrice]);
 
+  // Tự động kiểm tra lại (re-validate) Voucher khi tổng tiền giỏ hàng thay đổi
   useEffect(() => {
+    if (!appliedVoucher || !cart || cart.totalPrice <= 0) return;
+    if (appliedVoucher.subtotal === cart.totalPrice) return;
+
     let active = true;
-    Promise.allSettled([
-      voucherService.getAvailableVouchers(),
-      voucherService.getMyVouchers(),
-    ]).then(([availRes, myRes]) => {
-      if (!active) return;
-      const map = new Map<number, VoucherResponse>();
-      if (myRes.status === 'fulfilled' && Array.isArray(myRes.value.data)) {
-        myRes.value.data.forEach((v) => map.set(v.id, { ...v, isClaimed: true }));
-      }
-      if (availRes.status === 'fulfilled' && Array.isArray(availRes.value.data)) {
-        availRes.value.data.forEach((v) => {
-          const ex = map.get(v.id);
-          map.set(v.id, { ...v, isClaimed: Boolean(v.isClaimed || ex?.isClaimed) });
+    const prevDiscount = Number(appliedVoucher.discountAmount || 0);
+    const codeToCheck = appliedVoucher.code;
+
+    voucherService
+      .validateVoucher({
+        code: codeToCheck,
+        subtotal: cart.totalPrice,
+      })
+      .then((res) => {
+        if (!active || !res.data) return;
+        const nextResult = res.data;
+        const nextDiscount = Number(nextResult.discountAmount || 0);
+        setAppliedVoucher(nextResult);
+        if (nextDiscount !== prevDiscount) {
+          setDiscountChangeNotice({
+            type: 'info',
+            text: `Tổng tiền giỏ hàng thay đổi nên mức giảm của mã ${codeToCheck} đã được cập nhật từ ${formatCurrencyVND(
+              prevDiscount
+            )} thành ${formatCurrencyVND(nextDiscount)}.`,
+          });
+        }
+      })
+      .catch((err) => {
+        if (!active) return;
+        const msg = extractErrorMessage(
+          err,
+          `Mã ${codeToCheck} không còn đủ điều kiện áp dụng cho giỏ hàng hiện tại.`
+        );
+        setAppliedVoucher(null);
+        setVoucherError(msg);
+        setDiscountChangeNotice({
+          type: 'error',
+          text: `Voucher ${codeToCheck} đã bị gỡ tự động do giỏ hàng thay đổi: ${msg}`,
         });
-      }
-      setQuickVouchers(Array.from(map.values()));
-    });
+      });
+
     return () => {
       active = false;
     };
-  }, []);
+  }, [cart?.totalPrice, appliedVoucher?.code, appliedVoucher?.subtotal]);
+
+  const handleSelectOffer = (offer: SpecialOfferResponse) => {
+    setDiscountChangeNotice(null);
+    if (selectedOfferId === offer.id) {
+      setSelectedOfferId('');
+      return;
+    }
+    // Chọn Khuyến mãi sau -> áp dụng Khuyến mãi, gỡ Voucher đang chọn (nếu có)
+    setSelectedOfferId(offer.id);
+    if (appliedVoucher || voucherInput) {
+      setAppliedVoucher(null);
+      setVoucherInput('');
+      setVoucherError('');
+      setVoucherClaimNotice('');
+    }
+  };
 
   const applyVoucherCodeDirect = async (codeToApply: string) => {
     const cleanCode = codeToApply.trim().toUpperCase();
     if (!cleanCode) {
-      setVoucherError('Vui lòng nhập mã voucher');
+      setVoucherError('Vui lòng nhập mã voucher trước khi bấm Áp dụng.');
       return;
     }
     if (!cart || cart.totalPrice <= 0) {
-      setVoucherError('Giỏ hàng trống');
+      setVoucherError('Giỏ hàng trống, không thể áp dụng voucher.');
       return;
     }
 
@@ -411,6 +454,7 @@ export default function CheckoutPage() {
     setVoucherLoading(true);
     setVoucherError('');
     setVoucherClaimNotice('');
+    setDiscountChangeNotice(null);
     try {
       const res = await voucherService.validateVoucher({
         code: cleanCode,
@@ -418,34 +462,19 @@ export default function CheckoutPage() {
       });
       if (res.data) {
         const resultData = res.data;
+        // Chọn Voucher sau -> áp dụng Voucher, gỡ Khuyến mãi đang chọn (nếu có)
         setAppliedVoucher(resultData);
-        setQuickVouchers((prev) =>
-          prev.map((v) =>
-            v.id === resultData.voucherId || v.code.toUpperCase() === resultData.code.toUpperCase()
-              ? { ...v, isClaimed: true }
-              : v
-          )
-        );
+        setSelectedOfferId('');
         if (resultData.newlyClaimed) {
           setVoucherClaimNotice(
             `Đã tự động lưu mã ${resultData.code} vào Ví Voucher của bạn và áp dụng thành công!`
           );
         }
-        const newVoucherDisc = Number(resultData.discountAmount || 0);
-        if (hasEligibleOffer && newVoucherDisc >= offerDiscountAmount) {
-          // Nếu Voucher có mức giảm cao hơn thì Khuyến mãi đang chọn sẽ bị bỏ chọn
-          setSelectedOfferId('');
-        }
       }
     } catch (err) {
-      const msg = extractErrorMessage(err, 'Mã giảm giá không tồn tại');
+      const msg = extractErrorMessage(err, 'Mã giảm giá không tồn tại hoặc không hợp lệ.');
       if (msg.startsWith('Đã lưu mã')) {
         setVoucherClaimNotice(msg);
-        setQuickVouchers((prev) =>
-          prev.map((v) =>
-            v.code.toUpperCase() === cleanCode ? { ...v, isClaimed: true } : v
-          )
-        );
       } else {
         setVoucherError(msg);
       }
@@ -470,27 +499,6 @@ export default function CheckoutPage() {
       void applyVoucherCodeDirect(stateCode).catch(() => {});
     }
   }, [location.state, cart?.totalPrice]);
-
-  const eligibleVouchersCount = cart
-    ? quickVouchers.filter((v) => {
-        const minOrder = Number(v.minOrderAmount || 0);
-        const hasStock = (v.remainingQuantity ?? v.totalQuantity - v.usedQuantity) > 0;
-        const hasQuota = v.remainingUserUses == null || v.remainingUserUses > 0;
-        const validFlag = v.isValid ?? (v as unknown as { valid?: boolean }).valid ?? true;
-        return Boolean(v.isClaimed) && validFlag && cart.totalPrice >= minOrder && hasStock && hasQuota;
-      }).length
-    : 0;
-
-  const bestPossibleVoucherDiscount = cart
-    ? quickVouchers.reduce((max, v) => {
-        const minOrder = Number(v.minOrderAmount || 0);
-        const hasStock = (v.remainingQuantity ?? v.totalQuantity - v.usedQuantity) > 0;
-        const hasQuota = v.remainingUserUses == null || v.remainingUserUses > 0;
-        const validFlag = v.isValid ?? (v as unknown as { valid?: boolean }).valid ?? true;
-        if (!v.isClaimed || !validFlag || cart.totalPrice < minOrder || !hasStock || !hasQuota) return max;
-        return Math.max(max, estimateVoucherDiscount(v, cart.totalPrice));
-      }, 0)
-    : 0;
 
   const handleRemoveVoucher = () => {
     setAppliedVoucher(null);
@@ -894,290 +902,370 @@ export default function CheckoutPage() {
               ))}
             </ul>
 
-            {/* Nhập mã Voucher & Chọn từ Ví / Kho Voucher */}
-            <div className="border-t border-line-light py-4">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <label
-                  htmlFor="checkout-voucher-code"
-                  className={`block text-sm font-semibold transition-opacity ${
-                    isVoucherDimmed
-                      ? 'text-content-muted opacity-50'
-                      : 'text-content-primary'
-                  }`}
-                >
-                  Mã giảm giá (Voucher)
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => setIsVoucherDrawerOpen(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-accent-gold transition-colors"
-                >
-                  <Ticket size={14} />
-                  <span>Chọn từ Ví / Kho Voucher</span>
-                  {eligibleVouchersCount > 0 && (
-                    <span className="rounded-full bg-primary px-1.5 py-0.2 text-[10px] font-bold text-content-inverse">
-                      {eligibleVouchersCount}
-                    </span>
-                  )}
-                </button>
+            {/* Khối Voucher & Khuyến mãi tối giản: chọn cái nào sau sẽ tính cái đó */}
+            <section
+              className="border-t border-line-light py-3.5"
+              aria-labelledby="checkout-promotions-heading"
+            >
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Tag size={15} className="text-accent-gold" />
+                  <h3
+                    id="checkout-promotions-heading"
+                    className="text-xs font-bold uppercase tracking-wider text-content-primary"
+                  >
+                    Voucher &amp; Khuyến mãi
+                  </h3>
+                </div>
+                {discountAmount > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-xs bg-status-success/15 px-1.5 py-0.5 text-[11px] font-bold text-status-success">
+                    <CheckCircle2 size={11} />
+                    −{formatCurrencyVND(discountAmount)}
+                  </span>
+                )}
               </div>
 
-              <div>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      id="checkout-voucher-code"
-                      type="text"
-                      placeholder="Nhập mã voucher (VD: WELCOME50K)"
-                      value={voucherInput}
-                      onChange={(e) => {
-                        const val = e.target.value.toUpperCase();
-                        setVoucherInput(val);
-                        if (voucherError) setVoucherError('');
-                        if (appliedVoucher && val.trim() !== appliedVoucher.code) {
-                          setAppliedVoucher(null);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          void handleApplyVoucher();
-                        }
-                      }}
-                      className={`min-h-10 w-full rounded-input border border-line bg-surface-body py-2 pl-3 pr-9 text-sm placeholder:text-content-muted focus:border-line-focus focus:outline-none transition-opacity ${
-                        isVoucherDimmed
-                          ? 'text-content-muted opacity-45'
-                          : 'text-content-primary'
-                      }`}
-                    />
-                    {(voucherInput.length > 0 || appliedVoucher) && (
-                      <button
-                        type="button"
-                        onClick={handleRemoveVoucher}
-                        title="Xóa trắng mã voucher"
-                        aria-label="Xóa trắng mã voucher"
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full text-content-muted transition-colors hover:bg-surface hover:text-content-primary"
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
+              {/* Thông báo gọn khi giỏ hàng thay đổi làm ảnh hưởng tới Voucher/Khuyến mãi */}
+              {discountChangeNotice && (
+                <div
+                  role="alert"
+                  className={`mb-2.5 flex items-start justify-between gap-2 rounded-input border px-2.5 py-1.5 text-[11px] leading-snug ${
+                    discountChangeNotice.type === 'error'
+                      ? 'border-status-error/40 bg-status-error/10 text-status-error'
+                      : discountChangeNotice.type === 'warning'
+                        ? 'border-amber-300 bg-amber-50 text-amber-900'
+                        : 'border-blue-200 bg-blue-50/80 text-blue-900'
+                  }`}
+                >
+                  <div className="flex items-start gap-1.5">
+                    <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                    <span>{discountChangeNotice.text}</span>
                   </div>
-                  <Button
+                  <button
                     type="button"
-                    variant="secondary"
-                    loading={voucherLoading}
-                    onClick={() => void handleApplyVoucher()}
+                    onClick={() => setDiscountChangeNotice(null)}
+                    aria-label="Đóng thông báo"
+                    className="shrink-0 opacity-70 hover:opacity-100"
                   >
-                    Áp dụng
-                  </Button>
+                    <X size={13} />
+                  </button>
                 </div>
+              )}
 
-                {voucherError && (
-                  <p className="mt-1.5 text-xs text-status-error" role="alert">
-                    {voucherError}
-                  </p>
-                )}
-
-                {voucherClaimNotice && (
-                  <p
-                    className="mt-1.5 rounded-input border border-status-success/40 bg-status-success/10 px-2.5 py-1.5 text-xs font-medium text-status-success"
-                    role="status"
-                  >
-                    {voucherClaimNotice}
-                  </p>
-                )}
-
-                {appliedVoucher && (
-                  <div className="mt-2.5 flex items-center justify-between gap-2 rounded-input border border-status-success/40 bg-status-success/10 px-3 py-2 text-xs">
-                    <div className="min-w-0">
-                      <span className="font-bold text-content-primary">
-                        Đã áp dụng: {appliedVoucher.code}
-                      </span>
-                      <span className="ml-1.5 font-semibold text-status-success">
-                        (−{formatCurrencyVND(appliedVoucher.discountAmount)})
-                      </span>
-                      <p className="truncate text-[11px] text-content-secondary">
-                        {appliedVoucher.name}
-                      </p>
-                    </div>
+              <div className="space-y-2.5">
+                {/* 1. VOUCHER: Luôn cố định 1 thanh cao 36px (h-9) */}
+                <div>
+                  <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                    <label
+                      htmlFor="checkout-voucher-code"
+                      className="font-semibold text-content-primary"
+                    >
+                      Mã giảm giá (Voucher)
+                    </label>
                     <button
                       type="button"
                       onClick={() => setIsVoucherDrawerOpen(true)}
-                      className="shrink-0 font-bold text-primary underline"
+                      className="inline-flex items-center gap-1 font-bold text-primary transition-colors hover:text-accent-gold"
                     >
-                      Đổi mã
+                      <Ticket size={13} />
+                      <span>Chọn từ Ví / Kho</span>
                     </button>
                   </div>
-                )}
 
-                {!appliedVoucher && eligibleVouchersCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setIsVoucherDrawerOpen(true)}
-                    className="mt-2.5 flex w-full items-center justify-between gap-2 rounded-input border border-dashed border-accent-gold/60 bg-accent-gold/10 px-3 py-2 text-left text-xs transition-colors hover:bg-accent-gold/15"
-                  >
-                    <span className="text-content-primary">
-                      Có <strong>{eligibleVouchersCount} voucher</strong> đủ điều kiện
-                      {bestPossibleVoucherDiscount > 0
-                        ? ` (giảm tới ${formatCurrencyVND(bestPossibleVoucherDiscount)})`
-                        : ''}
-                    </span>
-                    <span className="shrink-0 font-bold text-primary underline">
-                      Chọn ngay →
-                    </span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="border-t border-line-light py-4">
-              <div className="flex w-full flex-col">
-                <label
-                  htmlFor="checkout-special-offer"
-                  className="mb-1.5 text-sm font-semibold text-content-primary"
-                >
-                  Ưu đãi
-                </label>
-                <div ref={offerSelectorRef} className="relative w-full">
-                  <button
-                    ref={offerTriggerRef}
-                    id="checkout-special-offer"
-                    type="button"
-                    aria-expanded={isOfferMenuOpen}
-                    aria-controls="checkout-special-offer-options"
-                    disabled={specialOfferLoading || specialOffers.length === 0}
-                    onClick={() => setIsOfferMenuOpen((isOpen) => !isOpen)}
-                    className="flex min-h-10 w-full items-center justify-between gap-2 rounded-input border border-line bg-surface-body px-3 py-2 text-left text-sm text-content-primary hover:border-line-focus focus:border-line-focus focus:outline-none focus-visible:ring-2 focus-visible:ring-line-focus disabled:cursor-not-allowed disabled:bg-surface-disabled disabled:text-content-disabled"
-                  >
-                    <span className="min-w-0 flex-1 whitespace-normal break-words [overflow-wrap:anywhere]">
-                      {specialOfferLoading ? (
-                        'Đang tải ưu đãi…'
-                      ) : selectedOffer ? (
-                        selectedOffer.title
-                      ) : specialOffers.length > 0 ? (
-                        'Chọn ưu đãi'
-                      ) : (
-                        'Không có ưu đãi khả dụng'
-                      )}
-                    </span>
-                    <ChevronDown
-                      size={16}
-                      className={`shrink-0 text-content-muted transition-transform ${
-                        isOfferMenuOpen ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {isOfferMenuOpen && (
-                    <div
-                      id="checkout-special-offer-options"
-                      role="group"
-                      aria-label="Danh sách ưu đãi đơn hàng"
-                      className="absolute left-0 right-0 z-20 mt-1 max-h-72 overflow-y-auto rounded-input border border-line bg-surface-body shadow-lg"
-                    >
-                      {specialOffers.map((offer) => {
-                        const eligible =
-                          cart.totalPrice >= (offer.minOrderAmount ?? 0);
-                        const isSelected = selectedOfferId === offer.id;
-                        return (
-                          <div
-                            key={offer.id}
-                            className="flex items-center justify-between gap-3 border-b border-line-light px-3 py-2.5 last:border-b-0 hover:bg-surface"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => setDetailOffer(offer)}
-                              className="min-w-0 flex-1 text-left"
-                            >
-                              <span
-                                className={`block whitespace-normal break-words text-sm font-medium [overflow-wrap:anywhere] hover:underline ${
-                                  eligible
-                                    ? 'text-content-primary'
-                                    : 'text-content-secondary'
-                                }`}
-                              >
-                                {offer.title}
-                              </span>
-                              <span className="mt-0.5 block text-xs text-content-secondary">
-                                {isPercentageOffer(offer)
-                                  ? `Giảm ${offer.discountPercent ?? 0}%${
-                                      offer.maxDiscountAmount
-                                        ? ` (tối đa ${formatCurrencyVND(offer.maxDiscountAmount)})`
-                                        : ''
-                                    }`
-                                  : `Giảm ${formatCurrencyVND(offer.discountAmount ?? 0)}`}
-                                {offer.minOrderAmount && offer.minOrderAmount > 0
-                                  ? ` • Đơn tối thiểu ${formatCurrencyVND(offer.minOrderAmount)}`
-                                  : ' • Không giới hạn đơn tối thiểu'}
-                              </span>
-                              <span className="mt-1 inline-block text-[11px] text-content-muted underline">
-                                Xem chi tiết điều lệ &amp; điều kiện
-                              </span>
-                            </button>
-
-                            <label
-                              className={`flex shrink-0 items-center pl-2 ${
-                                eligible
-                                  ? 'cursor-pointer'
-                                  : 'cursor-not-allowed opacity-50'
-                              }`}
-                              title={
-                                eligible
-                                  ? 'Chọn áp dụng khuyến mãi này'
-                                  : `Đơn tối thiểu ${formatCurrencyVND(offer.minOrderAmount)}`
-                              }
-                            >
-                              <input
-                                type="radio"
-                                name="checkout-special-offer-radio"
-                                checked={isSelected}
-                                disabled={!eligible}
-                                onChange={() => {
-                                  if (eligible) {
-                                    handleSelectOffer(offer);
-                                  }
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (eligible && isSelected) {
-                                    setSelectedOfferId('');
-                                  }
-                                }}
-                                className="h-4 w-4 accent-primary"
-                              />
-                            </label>
-                          </div>
-                        );
-                      })}
+                  {appliedVoucher &&
+                  (!voucherInput.trim() ||
+                    voucherInput.trim().toUpperCase() === appliedVoucher.code.toUpperCase()) ? (
+                    <div className="flex h-9 items-center justify-between gap-2 rounded-input border border-status-success/40 bg-status-success/10 px-2.5 text-xs">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Ticket size={13} className="shrink-0 text-status-success" />
+                        <span className="font-mono font-extrabold text-content-primary">
+                          {appliedVoucher.code}
+                        </span>
+                        <span className="shrink-0 font-bold text-status-success">
+                          (−{formatCurrencyVND(appliedVoucher.discountAmount)})
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => setIsVoucherDrawerOpen(true)}
+                          className="font-bold text-primary underline"
+                        >
+                          Đổi
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRemoveVoucher}
+                          aria-label="Gỡ mã voucher"
+                          className="text-content-muted hover:text-status-error"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="flex h-9 gap-1.5">
+                      <div className="relative flex-1">
+                        <input
+                          id="checkout-voucher-code"
+                          type="text"
+                          placeholder="Nhập mã voucher…"
+                          value={voucherInput}
+                          onChange={(e) => {
+                            const val = e.target.value.toUpperCase();
+                            setVoucherInput(val);
+                            if (voucherError) setVoucherError('');
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              void handleApplyVoucher();
+                            }
+                          }}
+                          className="h-9 w-full rounded-input border border-line bg-surface-body py-1 pl-2.5 pr-7 text-xs text-content-primary placeholder:text-content-muted focus:border-line-focus focus:outline-none"
+                        />
+                        {voucherInput.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (appliedVoucher) {
+                                setVoucherInput(appliedVoucher.code);
+                              } else {
+                                handleRemoveVoucher();
+                              }
+                            }}
+                            aria-label="Xóa chữ đang nhập"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-content-muted hover:text-content-primary"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        loading={voucherLoading}
+                        disabled={!voucherInput.trim()}
+                        onClick={() => void handleApplyVoucher()}
+                        className="h-9 px-3 text-xs"
+                      >
+                        Áp dụng
+                      </Button>
+                    </div>
+                  )}
+
+                  {appliedVoucher &&
+                    voucherInput.trim().length > 0 &&
+                    voucherInput.trim().toUpperCase() !== appliedVoucher.code.toUpperCase() && (
+                      <p className="mt-1 flex items-center justify-between gap-2 text-[11px] text-amber-700">
+                        <span>
+                          Đang giữ mã <strong>{appliedVoucher.code}</strong>. Bấm Áp dụng để đổi mã.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setVoucherInput(appliedVoucher.code)}
+                          className="shrink-0 font-semibold underline"
+                        >
+                          Hủy
+                        </button>
+                      </p>
+                    )}
+
+                  {voucherError && (
+                    <p className="mt-1 flex items-center gap-1 text-[11px] text-status-error" role="alert">
+                      <AlertCircle size={12} className="shrink-0" />
+                      <span>{voucherError}</span>
+                    </p>
+                  )}
+
+                  {voucherClaimNotice && (
+                    <p className="mt-1 flex items-center gap-1 text-[11px] text-status-success" role="status">
+                      <CheckCircle2 size={12} className="shrink-0" />
+                      <span>{voucherClaimNotice}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* 2. ƯU ĐÃI ĐƠN HÀNG: Luôn cố định 1 thanh cao 36px (h-9) và mở menu nổi (Popover) */}
+                <div>
+                  <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                    <span className="font-semibold text-content-primary">
+                      Ưu đãi đơn hàng (Khuyến mãi)
+                    </span>
+                    {selectedOffer && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOfferId('')}
+                        className="text-[11px] font-semibold text-content-muted underline hover:text-status-error"
+                      >
+                        Bỏ chọn
+                      </button>
+                    )}
+                  </div>
+
+                  <div ref={offerSelectorRef} className="relative w-full">
+                    <button
+                      type="button"
+                      disabled={specialOfferLoading || specialOffers.length === 0}
+                      aria-expanded={isOfferMenuOpen}
+                      onClick={() => setIsOfferMenuOpen((prev) => !prev)}
+                      className={`flex h-9 w-full items-center justify-between gap-2 rounded-input border px-2.5 text-left text-xs transition-colors focus:outline-none disabled:cursor-not-allowed disabled:bg-surface-disabled disabled:text-content-disabled ${
+                        selectedOffer
+                          ? 'border-status-success/40 bg-status-success/10 text-content-primary'
+                          : 'border-line bg-surface-body text-content-secondary hover:border-line-focus hover:text-content-primary'
+                      }`}
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                        {selectedOffer ? (
+                          <>
+                            <Sparkles size={13} className="shrink-0 text-status-success" />
+                            <span className="truncate font-bold text-content-primary">
+                              {selectedOffer.title}
+                            </span>
+                            {offerEligible ? (
+                              <span className="shrink-0 font-bold text-status-success">
+                                (−{formatCurrencyVND(offerDiscountAmount)})
+                              </span>
+                            ) : (
+                              <span className="shrink-0 text-[10px] font-semibold text-status-error">
+                                (Chưa đủ ĐK)
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="truncate">
+                            {specialOfferLoading
+                              ? 'Đang tải ưu đãi…'
+                              : specialOffers.length > 0
+                                ? 'Chọn ưu đãi đơn hàng'
+                                : 'Không có ưu đãi khả dụng'}
+                          </span>
+                        )}
+                      </div>
+                      <ChevronDown
+                        size={14}
+                        className={`shrink-0 text-content-muted transition-transform ${
+                          isOfferMenuOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {/* Menu nổi (Popover) hiển thị đè lên trên, không đẩy chiều cao trang */}
+                    {isOfferMenuOpen && specialOffers.length > 0 && (
+                      <div
+                        role="group"
+                        aria-label="Danh sách ưu đãi đơn hàng"
+                        className="absolute left-0 right-0 z-30 mt-1 max-h-60 divide-y divide-line-light overflow-y-auto rounded-input border border-line bg-surface-body shadow-lg"
+                      >
+                        {specialOffers.map((offer) => {
+                          const minOrder = offer.minOrderAmount ?? 0;
+                          const eligible = cart.totalPrice >= minOrder;
+                          const isSelected = selectedOfferId === offer.id;
+                          const actualDiscount = computeSingleOfferDiscount(offer);
+                          const missingAmount = Math.max(0, minOrder - cart.totalPrice);
+
+                          return (
+                            <div
+                              key={offer.id}
+                              className={`flex items-center justify-between gap-2.5 px-3 py-2 text-xs transition-colors ${
+                                isSelected
+                                  ? 'bg-status-success/10'
+                                  : eligible
+                                    ? 'hover:bg-surface'
+                                    : 'bg-surface/40 opacity-75'
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="font-bold text-content-primary">
+                                    {offer.title}
+                                  </span>
+                                  {eligible ? (
+                                    <span className="font-bold text-status-success">
+                                      (−{formatCurrencyVND(actualDiscount)})
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] font-medium text-amber-700">
+                                      (Thiếu {formatCurrencyVND(missingAmount)})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-content-muted">
+                                  <span>
+                                    {minOrder > 0
+                                      ? `Đơn từ ${formatCurrencyVND(minOrder)}`
+                                      : 'Không giới hạn đơn tối thiểu'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDetailOffer(offer);
+                                      setIsOfferMenuOpen(false);
+                                    }}
+                                    className="underline hover:text-content-primary"
+                                  >
+                                    Chi tiết
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="flex shrink-0 items-center gap-1.5">
+                                {isSelected ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedOfferId('');
+                                      setIsOfferMenuOpen(false);
+                                    }}
+                                    className="rounded-xs border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-content-secondary hover:border-status-error hover:text-status-error"
+                                  >
+                                    Bỏ chọn
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={!eligible}
+                                    onClick={() => {
+                                      handleSelectOffer(offer);
+                                      setIsOfferMenuOpen(false);
+                                    }}
+                                    className={`rounded-xs px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                                      eligible
+                                        ? 'bg-primary text-content-inverse hover:opacity-90'
+                                        : 'cursor-not-allowed bg-surface-disabled text-content-disabled'
+                                    }`}
+                                  >
+                                    {eligible ? 'Chọn' : 'Chưa đủ'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {specialOfferError && (
+                    <p className="mt-1 text-[11px] text-status-error">
+                      {specialOfferError}{' '}
+                      <button
+                        type="button"
+                        className="underline"
+                        onClick={() => {
+                          setSpecialOfferLoading(true);
+                          setSpecialOfferError('');
+                          setSpecialOfferRetry((v) => v + 1);
+                        }}
+                      >
+                        Thử lại
+                      </button>
+                    </p>
                   )}
                 </div>
               </div>
-
-              {specialOfferError && (
-                <p className="mt-2 text-xs italic text-status-error" role="alert">
-                  {specialOfferError}{' '}
-                  <button
-                    type="button"
-                    className="underline underline-offset-2"
-                    onClick={() => {
-                      setSpecialOfferLoading(true);
-                      setSpecialOfferError('');
-                      setSpecialOfferRetry((value) => value + 1);
-                    }}
-                  >
-                    Thử lại
-                  </button>
-                </p>
-              )}
-              {selectedOffer && !offerEligible && (
-                <p className="mt-2 text-xs text-content-muted">
-                  Đơn hàng tối thiểu {formatCurrencyVND(selectedOffer.minOrderAmount)} để
-                  áp dụng ưu đãi này.
-                </p>
-              )}
-            </div>
+            </section>
 
             <section
               className="border-t border-line-light pt-4"
@@ -1433,8 +1521,8 @@ export default function CheckoutPage() {
                     Mỗi đơn hàng chỉ được chọn 01 chương trình khuyến mãi hóa đơn tại một thời điểm.
                   </li>
                   <li>
-                    Không áp dụng cộng dồn đồng thời với Mã giảm giá (Voucher); nếu chọn cả hai, hệ
-                    thống sẽ chỉ tính 01 ưu đãi có mức giảm giá cao hơn.
+                    Không áp dụng cộng dồn đồng thời với Mã giảm giá (Voucher); nếu bạn chọn ưu đãi
+                    khác sau đó, hệ thống sẽ áp dụng theo lựa chọn mới nhất.
                   </li>
                 </ul>
               </div>

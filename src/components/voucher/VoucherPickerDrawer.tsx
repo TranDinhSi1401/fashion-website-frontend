@@ -10,6 +10,7 @@ import {
   X,
   AlertCircle,
   ShoppingBag,
+  Info,
 } from 'lucide-react';
 import { VoucherResponse } from '../../types/voucher';
 import { voucherService } from '../../services/voucherService';
@@ -65,6 +66,7 @@ export default function VoucherPickerDrawer({
   const [manualCode, setManualCode] = useState('');
   const [applyingCode, setApplyingCode] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<number | null>(null);
+  const [claimAndApplyingId, setClaimAndApplyingId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null
   );
@@ -143,7 +145,9 @@ export default function VoucherPickerDrawer({
     const startOk = !v.startDate || new Date(v.startDate).getTime() <= now;
     const endOk = !v.endDate || new Date(v.endDate).getTime() >= now;
     const isActive = v.status === 'ACTIVE' && startOk && endOk;
-    const isEligible = isActive && meetsMinOrder && hasStock && hasUserQuota && isClaimed;
+    // Có thể áp dụng ngay (kể cả khi chưa lưu ví, vì có nút Lưu & Áp dụng 1 chạm)
+    const canApplyDirectly = isActive && meetsMinOrder && hasStock && hasUserQuota;
+    const isEligible = canApplyDirectly && isClaimed;
     const estimatedDiscount = estimateVoucherDiscount(v, subtotal);
     const potentialDiscount = estimateVoucherDiscount(
       v,
@@ -158,16 +162,17 @@ export default function VoucherPickerDrawer({
       reason = 'Đã hết lượt sử dụng toàn hệ thống';
     } else if (!hasUserQuota) {
       reason = `Bạn đã sử dụng hết lượt của mã giảm giá này`;
-    } else if (!isClaimed) {
-      reason = 'Vui lòng bấm "Lưu vào Ví" trước khi áp dụng mã này';
     } else if (!meetsMinOrder) {
-      reason = `Mua thêm ${formatCurrencyVND(missingAmount)} để giảm ${formatCurrencyVND(
+      reason = `Mua thêm ${formatCurrencyVND(missingAmount)} để đủ đơn tối thiểu ${formatCurrencyVND(minOrder)} (giảm ${formatCurrencyVND(
         potentialDiscount
-      )}`;
+      )})`;
+    } else if (!isClaimed) {
+      reason = 'Mã khả dụng trong Kho — bấm "Lưu & Áp dụng ngay" để dùng liền';
     }
 
     return {
       isEligible,
+      canApplyDirectly,
       isClaimed,
       meetsMinOrder,
       hasStock,
@@ -180,13 +185,13 @@ export default function VoucherPickerDrawer({
     };
   };
 
-  // Tìm voucher giảm nhiều nhất trong số các voucher đủ điều kiện
+  // Tìm voucher giảm nhiều nhất trong số các voucher đủ điều kiện áp dụng
   const bestVoucherId = useMemo(() => {
     let bestId: number | null = null;
     let maxDisc = 0;
     for (const v of allMergedVouchers) {
       const ev = evaluateVoucher(v);
-      if (ev.isEligible && ev.estimatedDiscount > maxDisc) {
+      if (ev.canApplyDirectly && ev.estimatedDiscount > maxDisc) {
         maxDisc = ev.estimatedDiscount;
         bestId = v.id;
       }
@@ -199,7 +204,7 @@ export default function VoucherPickerDrawer({
     return [...source].sort((a, b) => {
       const evA = evaluateVoucher(a);
       const evB = evaluateVoucher(b);
-      if (evA.isEligible !== evB.isEligible) return evA.isEligible ? -1 : 1;
+      if (evA.canApplyDirectly !== evB.canApplyDirectly) return evA.canApplyDirectly ? -1 : 1;
       if (Boolean(a.isClaimed) !== Boolean(b.isClaimed)) return a.isClaimed ? -1 : 1;
       return evB.estimatedDiscount - evA.estimatedDiscount;
     });
@@ -258,6 +263,36 @@ export default function VoucherPickerDrawer({
     }
   };
 
+  const handleClaimAndApply = async (v: VoucherResponse) => {
+    setClaimAndApplyingId(v.id);
+    setFeedback(null);
+    try {
+      if (!v.isClaimed) {
+        try {
+          const res = await voucherService.claimVoucher(v.id);
+          const claimed = res.data || { ...v, isClaimed: true };
+          setAvailableVouchers((prev) =>
+            prev.map((item) => (item.id === v.id ? { ...item, isClaimed: true } : item))
+          );
+          setMyVouchers((prev) =>
+            prev.some((item) => item.id === v.id) ? prev : [{ ...claimed, isClaimed: true }, ...prev]
+          );
+        } catch {
+          // Tiếp tục gọi validateVoucher vì backend có thể hỗ trợ auto-claim khi validate
+        }
+      }
+      await onSelectVoucher(v.code.trim().toUpperCase());
+      onClose();
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        text: extractErrorMessage(err, 'Không thể lưu và áp dụng mã giảm giá này.'),
+      });
+    } finally {
+      setClaimAndApplyingId(null);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -269,7 +304,7 @@ export default function VoucherPickerDrawer({
       onClick={onClose}
     >
       <div
-        className="relative flex h-full w-full max-w-[480px] flex-col bg-surface-body shadow-2xl"
+        className="relative flex h-full w-full max-w-[500px] flex-col bg-surface-body shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drawer Header */}
@@ -283,7 +318,7 @@ export default function VoucherPickerDrawer({
                 id="voucher-drawer-title"
                 className="text-base font-bold uppercase tracking-wider text-content-primary"
               >
-                Chọn Mã Giảm Giá
+                Chọn Mã Giảm Giá (Voucher)
               </h2>
               <p className="text-xs text-content-muted">
                 Tổng tiền hàng hiện tại:{' '}
@@ -408,7 +443,7 @@ export default function VoucherPickerDrawer({
               const isApplied =
                 Boolean(appliedCode) &&
                 appliedCode?.toUpperCase() === v.code.toUpperCase();
-              const isBest = bestVoucherId === v.id && ev.isEligible;
+              const isBest = bestVoucherId === v.id && ev.canApplyDirectly;
               const isPercent = v.discountType === 'PERCENTAGE';
               const minOrder = Number(v.minOrderAmount || 0);
               const progressPct =
@@ -420,7 +455,7 @@ export default function VoucherPickerDrawer({
                   className={`relative overflow-hidden border transition-all ${
                     isApplied
                       ? 'border-primary bg-surface shadow-md ring-1 ring-primary'
-                      : ev.isEligible
+                      : ev.canApplyDirectly
                         ? 'border-line bg-surface-body hover:border-primary'
                         : 'border-line-light bg-surface/50 opacity-75'
                   }`}
@@ -431,16 +466,20 @@ export default function VoucherPickerDrawer({
                       <span className="font-mono text-xs font-extrabold tracking-wider text-content-primary">
                         {v.code}
                       </span>
-                      {v.isClaimed && (
+                      {v.isClaimed ? (
                         <span className="inline-flex items-center gap-1 rounded-xs bg-accent-gold/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-accent-gold">
                           <BookmarkCheck size={11} />
                           Trong ví
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-xs bg-surface-elevated px-1.5 py-0.5 text-[10px] font-semibold uppercase text-content-secondary">
+                          Chưa lưu ví
                         </span>
                       )}
                       {isBest && (
                         <span className="inline-flex items-center gap-1 rounded-xs bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
                           <Sparkles size={10} />
-                          Tiết kiệm nhất
+                          Voucher tốt nhất
                         </span>
                       )}
                     </div>
@@ -457,7 +496,7 @@ export default function VoucherPickerDrawer({
                     {/* Left Stub */}
                     <div
                       className={`flex flex-col items-center justify-center border-r border-dashed border-line px-2 py-3 text-center ${
-                        ev.isEligible
+                        ev.canApplyDirectly
                           ? 'bg-primary text-content-inverse'
                           : 'bg-surface-elevated text-content-secondary'
                       }`}
@@ -501,7 +540,7 @@ export default function VoucherPickerDrawer({
                           </span>
                         </div>
 
-                        {ev.isEligible && ev.estimatedDiscount > 0 && (
+                        {ev.canApplyDirectly && ev.estimatedDiscount > 0 && (
                           <p className="mt-1.5 text-xs font-bold text-status-success">
                             Giảm ngay −{formatCurrencyVND(ev.estimatedDiscount)} cho đơn này
                           </p>
@@ -518,7 +557,12 @@ export default function VoucherPickerDrawer({
                               </div>
                             )}
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-medium text-amber-700">
+                              <span
+                                className={`inline-flex items-center gap-1 text-[11px] font-medium ${
+                                  ev.canApplyDirectly ? 'text-content-secondary' : 'text-amber-700'
+                                }`}
+                              >
+                                <Info size={11} className="shrink-0" />
                                 {ev.reason}
                               </span>
                               {!ev.meetsMinOrder && ev.isActive && (
@@ -536,18 +580,31 @@ export default function VoucherPickerDrawer({
                         )}
                       </div>
 
-                      <div className="mt-3 flex items-center justify-end gap-2 border-t border-line-light pt-2.5">
+                      <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-line-light pt-2.5">
                         {!v.isClaimed ? (
-                          <Button
-                            type="button"
-                            variant="primary"
-                            size="sm"
-                            disabled={!ev.isActive || !ev.hasStock || !ev.hasUserQuota}
-                            loading={claimingId === v.id}
-                            onClick={() => void handleClaimToWallet(v)}
-                          >
-                            {!ev.hasUserQuota ? 'Đã sử dụng' : 'Lưu vào Ví để dùng'}
-                          </Button>
+                          <>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              disabled={!ev.isActive || !ev.hasStock || !ev.hasUserQuota}
+                              loading={claimingId === v.id}
+                              onClick={() => void handleClaimToWallet(v)}
+                            >
+                              {!ev.hasUserQuota ? 'Đã hết lượt' : 'Lưu vào Ví'}
+                            </Button>
+                            {ev.canApplyDirectly && (
+                              <Button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                loading={claimAndApplyingId === v.id}
+                                onClick={() => void handleClaimAndApply(v)}
+                              >
+                                Lưu &amp; Áp dụng ngay
+                              </Button>
+                            )}
+                          </>
                         ) : isApplied ? (
                           <Button
                             type="button"
@@ -570,7 +627,7 @@ export default function VoucherPickerDrawer({
                             loading={applyingCode === v.code}
                             onClick={() => void handleApplyCode(v.code)}
                           >
-                            {!ev.hasUserQuota ? 'Đã sử dụng' : 'Áp dụng'}
+                            {!ev.hasUserQuota ? 'Đã hết lượt' : 'Áp dụng'}
                           </Button>
                         )}
                       </div>
@@ -600,3 +657,4 @@ export default function VoucherPickerDrawer({
     </div>
   );
 }
+
